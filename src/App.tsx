@@ -10,6 +10,9 @@ import { PaymentModal } from './components/PaymentModal';
 import { UserDashboard } from './components/UserDashboard';
 import { AdminModeration } from './components/AdminModeration';
 import { AuthModal } from './components/AuthModal';
+import { LegalPages, type LegalDoc } from './components/LegalPages';
+import { ProfilePage } from './components/ProfilePage';
+import { CookieConsent } from './components/CookieConsent';
 import { authService } from './services/authService';
 import { dataService } from './services/dataService';
 import { isSupabaseConfigured } from './services/supabaseClient';
@@ -30,6 +33,9 @@ export function App() {
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+
+  // Legal pages & profile management
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
 
   // Search filter transfer from Hero
   const [searchParams, setSearchParams] = useState<{ query: string; typeId: string; region: string }>({
@@ -149,6 +155,10 @@ export function App() {
     showToast('Vous avez été déconnecté avec succès.');
   };
 
+  const handleProfileUpdated = (updated: Profile) => {
+    setProfile(updated);
+  };
+
   // Guarded actions for Visitor (même garde pour les deux — compte citoyen unifié)
   const handleLostClick = () => {
     if (!isAuthenticated) {
@@ -184,6 +194,12 @@ export function App() {
   const handleHeroSearchSubmit = (query: string, typeId: string, region: string) => {
     setSearchParams({ query, typeId, region });
     setCurrentTab('search');
+  };
+
+  // Legal pages navigation
+  const handleOpenLegal = (doc: LegalDoc) => {
+    setIsAuthModalOpen(false);
+    setLegalDoc(doc);
   };
 
   // Creation Handlers
@@ -257,19 +273,31 @@ export function App() {
       {/* Header with visitor or role-based navigation */}
       <Header 
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={(tab) => {
+          setCurrentTab(tab);
+          setLegalDoc(null);
+        }}
         profile={profile}
         isAuthenticated={isAuthenticated}
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
         onOpenFoundModal={handleFoundClick}
         onOpenLostModal={handleLostClick}
+        onOpenProfile={() => {
+          setLegalDoc(null);
+          setCurrentTab('profile');
+        }}
+        onOpenLegal={handleOpenLegal}
       />
 
       {/* Main Views */}
-      <main style={{ flex: 1 }}>
-        {/* VIEW 1: HOME */}
-        {currentTab === 'home' && (
+      <main style={{ flex: 1, display: legalDoc ? 'block' : undefined }}>
+        {/* LEGAL PAGES */}
+        {legalDoc && (
+          <LegalPages doc={legalDoc} onBack={() => setLegalDoc(null)} />
+        )}
+
+        {!legalDoc && currentTab === 'home' && (
           <div className="tab-pane-transition">
             <HomeHero 
               docTypes={docTypes}
@@ -310,8 +338,7 @@ export function App() {
           </div>
         )}
 
-        {/* VIEW 2: SEARCH CATALOGUE */}
-        {currentTab === 'search' && (
+        {!legalDoc && currentTab === 'search' && (
           <div className="tab-pane-transition">
             <SearchCatalogue 
               foundDocs={foundDocs}
@@ -324,8 +351,7 @@ export function App() {
           </div>
         )}
 
-        {/* VIEW 3: USER DASHBOARD (SEEKER / FINDER) */}
-        {currentTab === 'dashboard' && (
+        {!legalDoc && currentTab === 'dashboard' && (
           <div className="tab-pane-transition">
             <UserDashboard 
               lostDocs={lostDocs}
@@ -345,8 +371,7 @@ export function App() {
           </div>
         )}
 
-        {/* VIEW 4: ADMIN / MODERATION */}
-        {currentTab === 'admin' && (
+        {!legalDoc && currentTab === 'admin' && (
           <div className="tab-pane-transition">
             <AdminModeration 
               recoveryRequests={recoveryRequests}
@@ -357,46 +382,97 @@ export function App() {
             />
           </div>
         )}
+
+        {/* PROFILE PAGE */}
+        {!legalDoc && currentTab === 'profile' && profile && (
+          <div className="tab-pane-transition">
+            <ProfilePage
+              profile={profile}
+              onProfileUpdated={handleProfileUpdated}
+              showToast={showToast}
+            />
+          </div>
+        )}
       </main>
 
-      {/* Database Connection Status Footnote */}
-      <footer style={{
-        textAlign: 'center',
-        padding: '12px 16px',
-        fontSize: '0.72rem',
-        color: 'var(--slate-500)',
-        borderTop: '1px solid var(--border-color)',
-        background: '#ffffff',
-        marginTop: '32px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: isSupabaseConfigured() ? '#10b981' : '#f59e0b',
-            flexShrink: 0
-          }} />
-          <span>
-            {isSupabaseConfigured() 
-              ? 'Connecté à la base de données PostgreSQL Supabase' 
-              : 'Mode Démo Connecté — Prêt pour vos clés Supabase en production (.env.local)'}
-          </span>
+      {/* Footer production — navigation + légal + contact */}
+      <footer className="app-footer">
+        <div className="footer-grid">
+          {/* Col 1 : marque */}
+          <div>
+            <div className="footer-brand-title">🛡️ DocFinder Cameroun</div>
+            <p className="footer-text">
+              La plateforme nationale de signalement et de restitution des documents d'identité
+              perdus ou trouvés. Vos données sont protégées : documents caviardés, hachage
+              SHA-256, accès strictement contrôlé.
+            </p>
+          </div>
+
+          {/* Col 2 : légal */}
+          <div>
+            <div className="footer-col-title">Informations légales</div>
+            <div className="footer-links">
+              <button className="footer-link" onClick={() => setLegalDoc('privacy')}>
+                Politique de confidentialité
+              </button>
+              <button className="footer-link" onClick={() => setLegalDoc('terms')}>
+                Conditions générales d'utilisation
+              </button>
+              <button className="footer-link" onClick={() => setLegalDoc('cookies')}>
+                Politique cookies
+              </button>
+            </div>
+          </div>
+
+          {/* Col 3 : contact */}
+          <div>
+            <div className="footer-col-title">Contact</div>
+            <div className="footer-contact">
+              <div>✉️ contact@docfinder.cm</div>
+              <div>🔒 dpo@docfinder.cm</div>
+              <div>📞 +237 690 00 00 00</div>
+              <div>📍 Yaoundé, Cameroun</div>
+            </div>
+          </div>
         </div>
-        <div style={{ marginTop: '4px', color: 'var(--slate-400)' }}>
-          DocFinder Cameroon © 2026 — Protection stricte des données personnelles DPO / RGPD
+
+        <div className="footer-bottom-bar">
+          <div>
+            <span className="footer-db-dot" style={{
+              background: isSupabaseConfigured() ? '#10b981' : '#f59e0b'
+            }} />
+            DocFinder Cameroon © 2026 — Tous droits réservés
+          </div>
+          <div className="footer-legal-links">
+            <button className="footer-link" onClick={() => setLegalDoc('privacy')}>
+              Confidentialité
+            </button>
+            <button className="footer-link" onClick={() => setLegalDoc('terms')}>
+              CGU
+            </button>
+            <button className="footer-link" onClick={() => setLegalDoc('cookies')}>
+              Cookies
+            </button>
+          </div>
         </div>
       </footer>
 
       {/* Mobile-first bottom navigation */}
       <BottomNav 
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={(tab) => {
+          setCurrentTab(tab);
+          setLegalDoc(null);
+        }}
         isAuthenticated={isAuthenticated}
         profile={profile}
         onOpenAuth={(mode) => handleOpenAuth(mode)}
         onOpenFoundModal={handleFoundClick}
         onOpenLostModal={handleLostClick}
+        onOpenProfile={() => {
+          setLegalDoc(null);
+          setCurrentTab('profile');
+        }}
       />
 
       {/* Modals */}
@@ -405,6 +481,7 @@ export function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onAuthSuccess={handleAuthSuccess}
         initialMode={authModalMode}
+        onOpenLegal={handleOpenLegal}
       />
 
       <ReportFoundModal 
@@ -440,6 +517,9 @@ export function App() {
         recoveryRequestId={activePaymentRequestId}
         onPaymentSuccess={handlePaymentSuccess}
       />
+
+      {/* Bandeau consentement cookies (production) */}
+      <CookieConsent onOpenCookiesPolicy={() => setLegalDoc('cookies')} />
     </div>
   );
 }

@@ -9,13 +9,15 @@ interface AuthModalProps {
   onAuthSuccess: (profile: Profile) => void;
   initialMode?: 'login' | 'register';
   initialRole?: string; // Non utilisé — gardé pour compatibilité API
+  onOpenLegal?: (doc: 'privacy' | 'terms' | 'cookies') => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   onAuthSuccess,
-  initialMode = 'login'
+  initialMode = 'login',
+  onOpenLegal
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
 
@@ -26,6 +28,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [phone, setPhone] = useState('');
   const [optionalEmail, setOptionalEmail] = useState('');
   const [showEmailOption, setShowEmailOption] = useState(false);
+
+  // Consentement RGPD / loi camerounaise 2024/017 (obligatoire à l'inscription)
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,6 +79,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setIsLoading(false);
           return;
         }
+        if (!consentAccepted) {
+          setErrorMsg('Vous devez accepter la Politique de Confidentialité et les Conditions d\'Utilisation pour créer un compte.');
+          setIsLoading(false);
+          return;
+        }
 
         const res = await authService.register({
           phone,
@@ -95,10 +105,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleQuickDemoLogin = (key: 'citizen1' | 'citizen2' | 'admin') => {
-    const profile = authService.loginAsDemo(key);
-    onAuthSuccess(profile);
-    onClose();
+  const legalLinkStyle: React.CSSProperties = {
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    color: 'var(--primary-700)',
+    fontWeight: 700,
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    fontSize: 'inherit'
   };
 
   return (
@@ -173,8 +188,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }}>
             <span style={{ fontSize: '1rem', flexShrink: 0 }}>ℹ️</span>
             <span>
-              <strong>Compte Citoyen Unique :</strong> Avec un seul compte, vous pouvez 
-              à la fois <em>signaler un document que vous avez trouvé</em> et <em>déclarer 
+              <strong>Compte Citoyen Unique :</strong> Avec un seul compte, vous pouvez
+              à la fois <em>signaler un document que vous avez trouvé</em> et <em>déclarer
               la perte de vos propres pièces</em>. Pas besoin de deux comptes.
             </span>
           </div>
@@ -299,6 +314,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* Consentement RGPD / Loi n° 2024/017 — obligatoire */}
+                <div style={{
+                  background: 'var(--slate-50)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  gap: '10px',
+                  alignItems: 'flex-start'
+                }}>
+                  <input
+                    type="checkbox"
+                    id="rgpd-consent"
+                    checked={consentAccepted}
+                    onChange={(e) => setConsentAccepted(e.target.checked)}
+                    style={{ marginTop: '2px', width: '16px', height: '16px', flexShrink: 0, accentColor: 'var(--primary-700)' }}
+                  />
+                  <label htmlFor="rgpd-consent" style={{ fontSize: '0.76rem', color: 'var(--slate-600)', lineHeight: 1.55 }}>
+                    J'accepte la{' '}
+                    <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('privacy')}>
+                      Politique de Confidentialité
+                    </button>{' '}
+                    et les{' '}
+                    <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('terms')}>
+                      Conditions Générales d'Utilisation
+                    </button>
+                    . Je consens au traitement de mes données personnelles (nom, numéro de téléphone)
+                    conformément à la{' '}
+                    <strong>loi n° 2024/017 du 23 décembre 2024</strong> relative à la protection des
+                    données à caractère personnel au Cameroun.
+                  </label>
+                </div>
               </>
             )}
 
@@ -331,6 +379,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                   />
                 </div>
+
+                {/* Légal — accessible depuis la connexion aussi */}
+                <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', textAlign: 'center', lineHeight: 1.5 }}>
+                  En vous connectant, vous acceptez nos{' '}
+                  <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('terms')}>
+                    CGU
+                  </button>{' '}
+                  et notre{' '}
+                  <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('privacy')}>
+                    Politique de Confidentialité
+                  </button>.
+                </p>
               </>
             )}
 
@@ -359,70 +419,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   : '✅  Créer mon Compte Citoyen'}
             </button>
           </form>
-
-          {/* Quick Demo Bar */}
-          <div style={{
-            marginTop: '18px',
-            paddingTop: '14px',
-            borderTop: '1px dashed var(--border-color)',
-            textAlign: 'center'
-          }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--slate-400)', fontWeight: 600, marginBottom: '8px' }}>
-              ⚡ Accès Rapide Démo (Mode Test, sans saisie)
-            </div>
-            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('citizen1')}
-                style={{
-                  background: 'var(--primary-50)',
-                  border: '1px solid var(--primary-100)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '6px 10px',
-                  fontSize: '0.73rem',
-                  fontWeight: 700,
-                  color: 'var(--primary-800)',
-                  cursor: 'pointer'
-                }}
-              >
-                👤 Chantal (Citoyenne)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('citizen2')}
-                style={{
-                  background: 'var(--primary-50)',
-                  border: '1px solid var(--primary-100)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '6px 10px',
-                  fontSize: '0.73rem',
-                  fontWeight: 700,
-                  color: 'var(--primary-800)',
-                  cursor: 'pointer'
-                }}
-              >
-                👤 Paul (Citoyen)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('admin')}
-                style={{
-                  background: 'var(--slate-100)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '6px 10px',
-                  fontSize: '0.73rem',
-                  fontWeight: 700,
-                  color: 'var(--slate-700)',
-                  cursor: 'pointer'
-                }}
-              >
-                🛡️ Modérateur DPO
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>

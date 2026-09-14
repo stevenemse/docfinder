@@ -7,7 +7,9 @@ import {
   ShieldAlert, 
   LogOut, 
   LogIn, 
-  UserPlus
+  UserPlus,
+  User,
+  FileText
 } from 'lucide-react';
 import type { Profile } from '../types';
 
@@ -20,6 +22,8 @@ interface HeaderProps {
   onLogout: () => void;
   onOpenFoundModal: () => void;
   onOpenLostModal: () => void;
+  onOpenProfile: () => void;
+  onOpenLegal: (doc: 'privacy' | 'terms' | 'cookies') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,7 +34,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
   onLogout,
   onOpenFoundModal,
-  onOpenLostModal
+  onOpenLostModal,
+  onOpenProfile,
+  onOpenLegal
 }) => {
   const role = profile?.role;
   const isAdmin = role === 'admin' || role === 'moderator';
@@ -72,6 +78,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <Search size={15} />
                 Recherche
               </button>
+              <button
+                className="desktop-nav-btn"
+                onClick={() => onOpenLegal('privacy')}
+              >
+                <FileText size={15} />
+                Confidentialité
+              </button>
             </>
           )}
 
@@ -97,6 +110,13 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <FolderCheck size={15} />
                 Mes Dossiers
+              </button>
+              <button
+                className={`desktop-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
+                onClick={onOpenProfile}
+              >
+                <User size={15} />
+                Mon Profil
               </button>
 
               {/* Action rapide : Signaler un document trouvé */}
@@ -163,6 +183,13 @@ export const Header: React.FC<HeaderProps> = ({
                 Documents Publiés
               </button>
               <button
+                className={`desktop-nav-btn ${currentTab === 'profile' ? 'active' : ''}`}
+                onClick={onOpenProfile}
+              >
+                <User size={15} />
+                Mon Profil
+              </button>
+              <button
                 className={`desktop-nav-btn ${currentTab === 'home' ? 'active' : ''}`}
                 onClick={() => setCurrentTab('home')}
               >
@@ -219,16 +246,22 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* Pill Profil */}
-              <div className="profile-pill" style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: 'var(--slate-50)',
-                padding: '4px 10px 4px 6px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border-color)'
-              }}>
+              {/* Pill Profil — cliquable : ouvre la page Mon Profil */}
+              <button
+                className="profile-pill"
+                onClick={onOpenProfile}
+                title="Voir / modifier mon profil"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'var(--slate-50)',
+                  padding: '4px 10px 4px 6px',
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid var(--border-color)',
+                  cursor: 'pointer'
+                }}
+              >
                 <div style={{
                   width: '28px',
                   height: '28px',
@@ -244,7 +277,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {profile?.display_name?.charAt(0) || 'C'}
                 </div>
 
-                <div className="profile-pill-text" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div className="profile-pill-text" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--slate-800)', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
                     {profile?.display_name}
                   </span>
@@ -252,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
                     {isAdmin ? 'Modérateur DPO' : 'Citoyen · DocFinder'}
                   </span>
                 </div>
-              </div>
+              </button>
 
               <button
                 onClick={onLogout}

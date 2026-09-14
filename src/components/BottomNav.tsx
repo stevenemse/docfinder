@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Search, PlusCircle, FolderCheck, ShieldAlert, LogIn } from 'lucide-react';
+import { Home, Search, PlusCircle, FolderCheck, ShieldAlert, LogIn, User } from 'lucide-react';
 import type { Profile } from '../types';
 
 interface BottomNavProps {
@@ -10,6 +10,7 @@ interface BottomNavProps {
   onOpenAuth: (mode: 'login') => void;
   onOpenFoundModal: () => void;
   onOpenLostModal: () => void;
+  onOpenProfile: () => void;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
@@ -19,7 +20,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   profile,
   onOpenAuth,
   onOpenFoundModal,
-  onOpenLostModal
+  onOpenLostModal,
+  onOpenProfile
 }) => {
   const isAdmin = profile?.role === 'admin' || profile?.role === 'moderator';
 
@@ -130,6 +132,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             <FolderCheck size={20} />
             <span>Mes Dossiers</span>
           </button>
+
+          <button
+            className={`bottom-nav-item ${currentTab === 'profile' ? 'active' : ''}`}
+            onClick={onOpenProfile}
+          >
+            <User size={20} />
+            <span>Profil</span>
+          </button>
         </>
       )}
 
@@ -158,6 +168,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           >
             <Home size={20} />
             <span>Accueil</span>
+          </button>
+
+          <button
+            className={`bottom-nav-item ${currentTab === 'profile' ? 'active' : ''}`}
+            onClick={onOpenProfile}
+          >
+            <User size={20} />
+            <span>Profil</span>
           </button>
         </>
       )}
