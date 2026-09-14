@@ -43,39 +43,11 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ==============================================================================
--- Fonctions utilitaires (SECURITY DEFINER : contournent la RLS de `profiles`
--- pour éviter la récursion des politiques entre elles)
--- ==============================================================================
-
--- ID du profil lié à l'utilisateur authentifié courant (NULL si visiteur)
-CREATE OR REPLACE FUNCTION public.current_profile_id()
-RETURNS UUID
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT id FROM public.profiles WHERE user_id = auth.uid() LIMIT 1;
-$$;
-
--- Rôle du profil courant
-CREATE OR REPLACE FUNCTION public.current_profile_role()
-RETURNS user_role
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT role FROM public.profiles WHERE user_id = auth.uid() LIMIT 1;
-$$;
-
--- L'utilisateur courant est-il modérateur ou admin ?
-CREATE OR REPLACE FUNCTION public.is_moderator()
-RETURNS BOOLEAN
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE user_id = auth.uid() AND role IN ('moderator', 'admin')
-  );
-$$;
-
--- ==============================================================================
 -- Tables
+-- NB : les fonctions SQL (current_profile_id, is_moderator, hash_secret...)
+-- sont définies APRÈS les tables — PostgreSQL valide les corps des fonctions
+-- LANGUAGE sql à la création, elles ne peuvent donc pas référencer des tables
+-- qui n'existent pas encore.
 -- ==============================================================================
 
 -- 1. Table: profiles (alignée sur TS Profile : phone en clair, email optionnel)
@@ -220,6 +192,38 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
     value_safe JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ==============================================================================
+-- Fonctions utilitaires (SECURITY DEFINER : contournent la RLS de `profiles`
+-- pour éviter la récursion des politiques entre elles)
+-- ==============================================================================
+
+-- ID du profil lié à l'utilisateur authentifié courant (NULL si visiteur)
+CREATE OR REPLACE FUNCTION public.current_profile_id()
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT id FROM public.profiles WHERE user_id = auth.uid() LIMIT 1;
+$$;
+
+-- Rôle du profil courant
+CREATE OR REPLACE FUNCTION public.current_profile_role()
+RETURNS user_role
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT role FROM public.profiles WHERE user_id = auth.uid() LIMIT 1;
+$$;
+
+-- L'utilisateur courant est-il modérateur ou admin ?
+CREATE OR REPLACE FUNCTION public.is_moderator()
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE user_id = auth.uid() AND role IN ('moderator', 'admin')
+  );
+$$;
 
 -- ==============================================================================
 -- Triggers updated_at (maintiennent updated_at automatiquement)
