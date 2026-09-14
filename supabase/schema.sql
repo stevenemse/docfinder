@@ -282,9 +282,11 @@ CREATE INDEX IF NOT EXISTS idx_recovery_requests_match
 -- stockée en clair.
 -- ==============================================================================
 
--- Extensions de hachage et de normalisation d'accents
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE EXTENSION IF NOT EXISTS unaccent;
+-- Normalisation d'accents. NB : sha256() est NATIF depuis PostgreSQL 11 —
+-- aucune extension de hachage (pgcrypto) n'est nécessaire, ce qui évite les
+-- erreurs "function digest(text, unknown) does not exist" sur Supabase
+-- (où pgcrypto vit dans le schéma "extensions").
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA extensions;
 
 -- Hachage SHA-256 déterministe d'une donnée sensible.
 -- Miroir EXACT de normalizeSecret() côté client (src/lib/crypto.ts) :
@@ -292,19 +294,21 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE OR REPLACE FUNCTION public.hash_secret(p_raw TEXT)
 RETURNS TEXT
 LANGUAGE sql STABLE
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT encode(
-    digest(
-      lower(
-        regexp_replace(
-          unaccent(trim(coalesce(p_raw, ''))),
-          '[\s\-_.]',
-          '',
-          'g'
-        )
-      ),
-      'sha256'
+    sha256(
+      convert_to(
+        lower(
+          regexp_replace(
+            unaccent(trim(coalesce(p_raw, ''))),
+            '[\s\-_.]',
+            '',
+            'g'
+          )
+        ),
+        'UTF8'
+      )
     ),
     'hex'
   );
