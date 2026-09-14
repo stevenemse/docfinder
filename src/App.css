@@ -1,0 +1,24 @@
+/* DocFinder Cameroon Custom Component Utilities */
+
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .7; }
+}
+
+.tab-pane-transition {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gradient-card-border {
+  border: 1px solid rgba(13, 92, 58, 0.15);
+}
+
+.cameroon-flag-bar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #007a3d 33.33%, #ce1126 33.33% 66.66%, #fcd116 66.66%);
+}
