@@ -112,7 +112,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         lost_region: region,
         lost_city: city,
         approx_loss_zone: approxZone || undefined,
-        lost_date_approx: lostDate,
+        lost_date_approx: lostDate || new Date().toISOString().split('T')[0],
         secret_proof_question: secretQuestion,
         secret_proof_answer_hash: await sha256Hex(secretAnswer),
         reference_image_path: referenceImagePath,

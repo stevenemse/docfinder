@@ -3,7 +3,11 @@ import {
   ShieldAlert, 
   CheckCircle2, 
   XCircle, 
-  Lock
+  Lock,
+  FileImage,
+  Loader2,
+  ImageOff,
+  Eye
 } from 'lucide-react';
 import type { 
   RecoveryRequest, 
@@ -11,6 +15,7 @@ import type {
   AuditLog, 
   FoundDocument 
 } from '../types';
+import { dataService } from '../services/dataService';
 
 interface AdminModerationProps {
   recoveryRequests: RecoveryRequest[];
@@ -58,6 +63,125 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
     created_at: new Date(1772594000000).toISOString()
   }
 ];
+
+/**
+ * Photo de référence privée du chercheur (bucket vault).
+ * L'URL signée (1 h) n'est générée qu'au clic — accès réservé aux
+ * modérateurs par la politique RLS Storage "Moderators read vault evidence".
+ */
+const ReferencePhotoCard: React.FC<{ path: string }> = ({ path }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+
+  const loadPhoto = () => {
+    setState('loading');
+    dataService.getReferenceImageUrl(path).then((signed) => {
+      if (signed) {
+        setUrl(signed);
+        setState('ready');
+      } else {
+        setState('error');
+      }
+    });
+  };
+
+  return (
+    <div style={{
+      border: '1px solid var(--border-color)',
+      borderRadius: 'var(--radius-md)',
+      padding: '12px',
+      background: 'var(--slate-50)'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px',
+        marginBottom: state === 'ready' ? '10px' : 0
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontSize: '0.78rem',
+          fontWeight: 800,
+          color: 'var(--slate-800)'
+        }}>
+          <FileImage size={15} color="var(--primary-700)" />
+          Photo de référence de la pièce
+          <span style={{
+            background: 'var(--primary-100)',
+            color: 'var(--primary-800)',
+            fontSize: '0.62rem',
+            fontWeight: 800,
+            padding: '2px 7px',
+            borderRadius: 'var(--radius-full)'
+          }}>
+            COFFRE PRIVÉ
+          </span>
+        </div>
+
+        {state === 'idle' && (
+          <button
+            onClick={loadPhoto}
+            style={{
+              background: 'var(--primary-700)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 12px',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px'
+            }}
+          >
+            <Eye size={13} />
+            Consulter (URL signée)
+          </button>
+        )}
+      </div>
+
+      {state === 'loading' && (
+        <div style={{ textAlign: 'center', padding: '18px', color: 'var(--slate-500)', fontSize: '0.78rem' }}>
+          <Loader2 size={20} className="animate-spin" style={{ margin: '0 auto 6px' }} />
+          Génération de l'URL signée...
+        </div>
+      )}
+
+      {state === 'error' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          color: 'var(--red-700)',
+          fontSize: '0.78rem',
+          padding: '8px 0'
+        }}>
+          <ImageOff size={16} />
+          Photo indisponible (fichier supprimé ou droits insuffisants).
+        </div>
+      )}
+
+      {state === 'ready' && url && (
+        <img
+          src={url}
+          alt="Photo de référence de la pièce déclarée perdue"
+          style={{
+            width: '100%',
+            maxHeight: '240px',
+            objectFit: 'contain',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)',
+            background: '#ffffff'
+          }}
+        />
+      )}
+    </div>
+  );
+};
 
 export const AdminModeration: React.FC<AdminModerationProps> = ({
   recoveryRequests,
@@ -229,6 +353,27 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   Élément de preuve soumis par le chercheur :<br />
                   <strong style={{ color: 'var(--primary-900)' }}>« {req.verification_proof_submitted} »</strong>
                 </div>
+
+                {/* Contexte de la déclaration liée (lisible par modérateur via RLS) */}
+                {req.match?.lost_doc && (
+                  <div style={{
+                    fontSize: '0.74rem',
+                    color: 'var(--slate-600)',
+                    background: 'var(--slate-50)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '8px 10px'
+                  }}>
+                    <strong>Déclaration liée :</strong> {req.match.lost_doc.full_name_search}
+                    {' — '}{req.match.lost_doc.lost_city}
+                    {req.match.lost_doc.lost_date_approx ? ` (perdu vers le ${req.match.lost_doc.lost_date_approx})` : ''}
+                  </div>
+                )}
+
+                {/* Photo de référence privée — URL signée modérateur uniquement */}
+                {req.match?.lost_doc?.reference_image_path && (
+                  <ReferencePhotoCard path={req.match.lost_doc.reference_image_path} />
+                )}
 
                 <div style={{
                   display: 'flex',

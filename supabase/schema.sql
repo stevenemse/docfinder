@@ -352,6 +352,7 @@ DECLARE
   v_proof_hash TEXT;
   v_verif TEXT;
   v_req_id UUID;
+  v_status claim_status;
 BEGIN
   IF v_profile_id IS NULL THEN
     RAISE EXCEPTION 'Authentification requise';
@@ -386,11 +387,16 @@ BEGIN
   WHERE r.match_id = v_match_id AND r.requester_id = v_profile_id
   LIMIT 1;
 
+  -- v_verif est TEXT : le CASE doit être explicitement converti en claim_status
+  -- (sinon « column status is of type claim_status but expression is of type text »).
+  v_status := CASE WHEN v_verif = 'approved' THEN 'info_needed'::claim_status
+                   ELSE 'submitted'::claim_status END;
+
   IF v_req_id IS NOT NULL THEN
     UPDATE public.recovery_requests
        SET verification_proof_submitted = v_proof_hash,
            verification_status = v_verif,
-           status = CASE WHEN v_verif = 'approved' THEN 'info_needed' ELSE 'submitted' END,
+           status = v_status,
            updated_at = now()
      WHERE id = v_req_id;
   ELSE
@@ -398,8 +404,7 @@ BEGIN
       (match_id, requester_id, finder_id, status,
        verification_proof_submitted, verification_status, updated_at)
     VALUES
-      (v_match_id, v_profile_id, v_finder_id,
-       CASE WHEN v_verif = 'approved' THEN 'info_needed' ELSE 'submitted' END,
+      (v_match_id, v_profile_id, v_finder_id, v_status,
        v_proof_hash, v_verif, now())
     RETURNING recovery_requests.id INTO v_req_id;
   END IF;

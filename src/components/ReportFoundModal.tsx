@@ -173,7 +173,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
       region,
       city,
       approx_location: approxLocation || 'Centre-ville',
-      found_date: foundDate,
+      found_date: foundDate || new Date().toISOString().split('T')[0],
       masked_image_url: redactedImageUrl,
       original_image_path: `vault/originals/doc-${Date.now()}.png`,
       additional_notes_private: privateNotes || undefined,
