@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { DocumentType, FoundDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
+import { CheckoutSection } from './CheckoutSection';
 
 interface ReportFoundModalProps {
   isOpen: boolean;
@@ -34,6 +35,14 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
   const [foundDate, setFoundDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [privateNotes, setPrivateNotes] = useState<string>('');
   const [createdDocId, setCreatedDocId] = useState<string | null>(null);
+
+  // Les types arrivent async (Supabase) : resynchronisation si mock 'dt-1'
+  useEffect(() => {
+    if (docTypes.length > 0 && !docTypes.some(d => d.id === docTypeId)) {
+      setDocTypeId(docTypes[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docTypes]);
 
   // Canvas Redaction State
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -215,6 +224,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
         <div className="modal-body">
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <CheckoutSection step={1} title="Où avez-vous trouvé la pièce ?" subtitle="Zone publique — soyez précis, jamais personnel" />
+
               <div className="alert-security-box">
                 <AlertTriangle size={20} style={{ flexShrink: 0, color: 'var(--gold-600)' }} />
                 <div>
@@ -307,6 +318,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
 
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <CheckoutSection step={2} title="Identification de la pièce" subtitle="Pour le matching automatique — jamais affiché au public" />
+
               <div style={{ 
                 background: 'var(--slate-100)', 
                 padding: '12px 14px', 
@@ -382,6 +395,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
 
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <CheckoutSection step={3} title="Caviardage obligatoire" subtitle="Masquez visage, numéro et signature avant publication" />
+
               <div style={{
                 background: 'var(--slate-900)',
                 color: '#ffffff',

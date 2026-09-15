@@ -110,10 +110,15 @@ CREATE TABLE IF NOT EXISTS public.lost_documents (
     lost_date_approx DATE,
     secret_proof_question TEXT,
     secret_proof_answer_hash TEXT,
+    -- Photo de référence privée de la pièce (bucket vault, dossier reference-docs/)
+    reference_image_path TEXT,
     status doc_status NOT NULL DEFAULT 'published',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration idempotente : photo de référence privée (bases créées avant son ajout)
+ALTER TABLE public.lost_documents ADD COLUMN IF NOT EXISTS reference_image_path TEXT;
 
 -- 5. Table: matches
 CREATE TABLE IF NOT EXISTS public.matches (
@@ -654,6 +659,16 @@ USING (
 WITH CHECK (
   bucket_id = 'vault'
   AND (storage.foldername(name))[1] = public.current_profile_id()::text
+);
+
+-- Les modérateurs DPO peuvent consulter (lecture seule) les preuves privées :
+-- originaux des pièces trouvées et photos de référence des pièces déclarées perdues.
+DROP POLICY IF EXISTS "Moderators read vault evidence" ON storage.objects;
+CREATE POLICY "Moderators read vault evidence" ON storage.objects
+FOR SELECT TO authenticated
+USING (
+  bucket_id = 'vault'
+  AND public.is_moderator()
 );
 
 -- ==============================================================================

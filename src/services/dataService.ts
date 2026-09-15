@@ -149,6 +149,76 @@ export const dataService = {
     return all;
   },
 
+  /**
+   * Upload la photo de référence d'une pièce déclarée perdue (crédibilité).
+   * Le client redimensionne la photo (max 720px) et la compresse en JPEG.
+   * Stockage : bucket PRIVÉ "vault" — accessible uniquement au propriétaire
+   * et aux modérateurs DPO (politique RLS storage), jamais au public.
+   * Retourne le chemin de stockage (ou null si indisponible en démo).
+   */
+  async uploadReferenceImage(file: File, seekerId: string): Promise<{
+    path: string | null;
+    previewDataUrl: string;
+  }> {
+    // Redimensionnement client (max 720px de large) pour un upload léger
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = dataUrl;
+    });
+
+    const maxW = 720;
+    const scale = Math.min(1, maxW / img.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas indisponible');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const compressed = canvas.toDataURL('image/jpeg', 0.8);
+
+    // Upload réel si Supabase est configuré et une session existe (RLS storage)
+    let path: string | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const blob = await fetch(compressed).then(r => r.blob());
+        // La politique RLS vault exige le profil en premier segment de dossier
+        path = `${seekerId}/reference/${Date.now()}.jpg`;
+        const { error } = await supabase.storage
+          .from('vault')
+          .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (error) {
+          console.warn('Upload photo de référence refusé:', error.message);
+          path = null;
+        }
+      } catch (err) {
+        console.warn('Erreur Storage vault (référence):', err);
+        path = null;
+      }
+    }
+
+    return { path, previewDataUrl: compressed };
+  },
+
+  /** URL signée temporaire (1 h) pour lire une photo de référence privée (modérateurs). */
+  async getReferenceImageUrl(path: string): Promise<string | null> {
+    if (!path || !isSupabaseConfigured()) return null;
+    try {
+      const { data } = await supabase.storage.from('vault').createSignedUrl(path, 3600);
+      return data?.signedUrl || null;
+    } catch {
+      return null;
+    }
+  },
+
   /** Upload d'une image caviardée (data URL) vers le bucket public "masked". */
   async uploadMaskedImage(dataUrl: string, finderId: string): Promise<string> {
     try {
@@ -172,11 +242,23 @@ export const dataService = {
     if (isSupabaseConfigured()) {
       try {
         const { id: _id, created_at: _c, updated_at: _u, ...payload } = doc as LostDocument;
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('lost_documents')
           .insert(payload)
           .select()
           .single();
+
+        // Graceful degradation : si la migration reference_image_path n'a pas
+        // encore été appliquée, on réessaie sans la photo (colonne absente).
+        // La clé peut être présente avec la valeur null — on teste l'erreur seule.
+        if (error && /reference_image_path/.test(error.message)) {
+          const { reference_image_path: _r, ...payloadWithoutPhoto } = payload;
+          ({ data, error } = await supabase
+            .from('lost_documents')
+            .insert(payloadWithoutPhoto)
+            .select()
+            .single());
+        }
 
         if (!error && data) {
           const created = data as LostDocument;

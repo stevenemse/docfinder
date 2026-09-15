@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { PaymentProviderType } from '../types';
+import { CheckoutSection } from './CheckoutSection';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -116,8 +117,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Provider Selection */}
+              <CheckoutSection step={1} title="Choisissez votre opérateur" subtitle="Mobile Money Cameroun" />
               <div className="form-group">
-                <label className="form-label">Sélectionnez votre opérateur Mobile Money au Cameroun :</label>
+                <label className="form-label">Opérateur de paiement :</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   {/* MTN MoMo */}
                   <div
@@ -158,6 +160,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               {/* Phone Input */}
+              <CheckoutSection step={2} title="Numéro à débiter" subtitle="Une demande de confirmation USSD y sera envoyée" />
               <div className="form-group">
                 <label className="form-label">Numéro de téléphone mobile (+237) *</label>
                 <div style={{ display: 'flex', alignItems: 'center' }}>

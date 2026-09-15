@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
-import { 
-  X, 
-  Search, 
-  HelpCircle, 
+import React, { useState, useEffect } from 'react';
+import {
+  X,
+  Search,
+  HelpCircle,
   Sparkles,
-  Lock
+  Lock,
+  FileImage,
+  ImageIcon,
+  Trash2,
+  MapPin,
+  Calendar,
+  User,
+  Hash,
+  ShieldCheck
 } from 'lucide-react';
 import type { DocumentType, LostDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
+import { dataService } from '../services/dataService';
+import { CheckoutSection } from './CheckoutSection';
 
 interface ReportLostModalProps {
   isOpen: boolean;
@@ -37,39 +47,92 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
     'Quel est le lieu exact de naissance inscrit sur la pièce ?'
   );
   const [secretAnswer, setSecretAnswer] = useState<string>('');
+
+  // Photo de référence privée (crédibilité) — optionnelle
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+
+  // Les types arrivent async (Supabase) : si l'état initial pointait vers le
+  // mock 'dt-1', on resynchronise dès que la vraie liste est chargée.
+  useEffect(() => {
+    if (docTypes.length > 0 && !docTypes.some(d => d.id === docTypeId)) {
+      setDocTypeId(docTypes[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docTypes]);
+
+  if (!isOpen) return null;
+
+  const handlePickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    setReferenceFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setReferencePreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setReferenceFile(null);
+    setReferencePreview(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setUploadingPhoto(!!referenceFile);
 
-    const newLost: Omit<LostDocument, 'id' | 'created_at' | 'updated_at'> = {
-      seeker_id: seekerProfileId,
-      document_type_id: docTypeId,
-      full_name_search: fullName.trim(),
-      doc_number_partial: partialDocNum.trim() || undefined,
-      // Sécurité : SHA-256 — le numéro et la réponse secrète ne sont jamais stockés en clair
-      doc_number_hash: partialDocNum ? await sha256Hex(partialDocNum) : undefined,
-      lost_region: region,
-      lost_city: city,
-      approx_loss_zone: approxZone || undefined,
-      lost_date_approx: lostDate,
-      secret_proof_question: secretQuestion,
-      secret_proof_answer_hash: await sha256Hex(secretAnswer),
-      status: 'published'
-    };
+    try {
+      // Upload de la photo de référence (bucket privé vault)
+      let referenceImagePath: string | null = null;
+      if (referenceFile) {
+        try {
+          const up = await dataService.uploadReferenceImage(referenceFile, seekerProfileId);
+          referenceImagePath = up.path;
+          setUploadingPhoto(false);
+        } catch {
+          // La photo est optionnelle : on continue sans elle en cas d'échec
+          referenceImagePath = null;
+          setUploadingPhoto(false);
+        }
+      }
 
-    const saved: LostDocument = {
-      ...newLost,
-      id: `lost-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+      const newLost: Omit<LostDocument, 'id' | 'created_at' | 'updated_at'> = {
+        seeker_id: seekerProfileId,
+        document_type_id: docTypeId,
+        full_name_search: fullName.trim(),
+        doc_number_partial: partialDocNum.trim() || undefined,
+        // Sécurité : SHA-256 — le numéro et la réponse secrète ne sont jamais stockés en clair
+        doc_number_hash: partialDocNum ? await sha256Hex(partialDocNum) : undefined,
+        lost_region: region,
+        lost_city: city,
+        approx_loss_zone: approxZone || undefined,
+        lost_date_approx: lostDate,
+        secret_proof_question: secretQuestion,
+        secret_proof_answer_hash: await sha256Hex(secretAnswer),
+        reference_image_path: referenceImagePath,
+        status: 'published'
+      };
 
-    onLostCreated(saved);
-    setIsSuccess(true);
+      const saved: LostDocument = {
+        ...newLost,
+        id: `lost-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      onLostCreated(saved);
+      setIsSuccess(true);
+    } finally {
+      setIsSubmitting(false);
+      setUploadingPhoto(false);
+    }
   };
-
-  if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -157,7 +220,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="alert-security-box">
                 <Lock size={18} style={{ flexShrink: 0, color: 'var(--gold-600)' }} />
                 <div>
@@ -168,9 +231,12 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 </div>
               </div>
 
+              {/* ÉTAPE 1 — La pièce */}
+              <CheckoutSection step={1} title="La pièce égarée" />
+
               <div className="form-group">
-                <label className="form-label">Type de document égaré *</label>
-                <select 
+                <label className="form-label">Type de document *</label>
+                <select
                   className="form-select"
                   value={docTypeId}
                   onChange={(e) => setDocTypeId(e.target.value)}
@@ -182,7 +248,10 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Nom et prénom inscrits sur la pièce *</label>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <User size={13} />
+                  Nom et prénom inscrits sur la pièce *
+                </label>
                 <input
                   type="text"
                   className="form-input"
@@ -194,7 +263,10 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Numéro partiel de la pièce (si mémorisé)</label>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Hash size={13} />
+                  Numéro partiel de la pièce (si mémorisé)
+                </label>
                 <input
                   type="text"
                   className="form-input"
@@ -204,10 +276,73 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 />
               </div>
 
+              {/* Photo de référence — optionnelle, privée */}
+              <div>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <FileImage size={13} />
+                  Photo de la pièce (fortement recommandé)
+                </label>
+                {referencePreview ? (
+                  <div className="ref-upload-zone has-file">
+                    <div className="ref-upload-preview">
+                      <img src={referencePreview} alt="Aperçu de la pièce" className="ref-upload-thumb" />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="ref-upload-title">Photo jointe ✓</div>
+                        <div className="ref-upload-sub">
+                          Stockée en privé — visible uniquement par vous et les modérateurs DPO pour accélérer la vérification.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        title="Retirer la photo"
+                        style={{
+                          background: 'var(--red-50)',
+                          border: '1px solid var(--red-100)',
+                          color: 'var(--red-600)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="ref-upload-zone" htmlFor="ref-photo-input">
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                      <ImageIcon size={26} color="var(--primary-600)" />
+                      <div className="ref-upload-title">Joindre une photo ou un scan de la pièce</div>
+                      <div className="ref-upload-sub">
+                        Ex : photo prise avec votre téléphone avant la perte, scan anciennement numérisé…
+                        <br />
+                        Optionnel mais crédibilise fortement votre dossier.
+                      </div>
+                    </div>
+                    <input
+                      id="ref-photo-input"
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handlePickPhoto}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* ÉTAPE 2 — Où et quand */}
+              <CheckoutSection step={2} title="Où et quand ?" />
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label">Région de la perte *</label>
-                  <select 
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <MapPin size={12} />
+                    Région *
+                  </label>
+                  <select
                     className="form-select"
                     value={region}
                     onChange={(e) => setRegion(e.target.value)}
@@ -250,7 +385,10 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Date approximative de la perte</label>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Calendar size={13} />
+                  Date approximative de la perte
+                </label>
                 <input
                   type="date"
                   className="form-input"
@@ -259,7 +397,9 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 />
               </div>
 
-              {/* Secret ownership challenge */}
+              {/* ÉTAPE 3 — Preuve secrète */}
+              <CheckoutSection step={3} title="Preuve secrète de propriété" subtitle="Non publique — sert à vérifier les réclamations" />
+
               <div style={{
                 background: 'var(--slate-50)',
                 border: '1px solid var(--border-color)',
@@ -271,12 +411,12 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               }}>
                 <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--slate-800)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <HelpCircle size={16} color="var(--primary-700)" />
-                  Preuve Secrète de Propriété (Non publique)
+                  Question de vérification confidentielle
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" style={{ fontSize: '0.78rem' }}>
-                    Question de vérification :
+                    Question :
                   </label>
                   <select
                     className="form-select"
@@ -315,9 +455,17 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 type="submit"
                 className="btn-cta-lost"
                 style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '10px' }}
+                disabled={isSubmitting}
               >
-                Lancer la recherche automatique 🚀
+                {isSubmitting
+                  ? (uploadingPhoto ? 'Envoi de la photo...' : 'Enregistrement...')
+                  : 'Lancer la recherche automatique 🚀'}
               </button>
+
+              <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <ShieldCheck size={12} color="var(--primary-600)" />
+                Données chiffrées SHA-256 · photo stockée en coffre privé
+              </div>
             </form>
           )}
         </div>

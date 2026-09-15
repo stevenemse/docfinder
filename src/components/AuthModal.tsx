@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, AlertCircle, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, ShieldCheck, AlertCircle, Phone, Mail, ChevronDown, ChevronUp, UserRound, KeyRound } from 'lucide-react';
+import { CheckoutSection } from './CheckoutSection';
 import { authService } from '../services/authService';
 import type { Profile } from '../types';
 
@@ -218,17 +219,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* REGISTER FORM */}
             {mode === 'register' && (
               <>
+                {/* Étape 1 — Identité */}
+                <CheckoutSection step={1} title="Qui êtes-vous ?" subtitle="Comme inscrit sur vos pièces officielles" />
+
                 {/* Full Name */}
                 <div className="form-group">
                   <label className="form-label">Nom et Prénom *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="ex: Chantal Kamga ou Paul Eto'o"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required
-                  />
+                  <div className="input-icon-wrap">
+                    <UserRound size={15} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="ex: Chantal Kamga ou Paul Eto'o"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 {/* Phone — Identifiant principal */}
@@ -265,18 +272,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </p>
                 </div>
 
+                {/* Étape 2 — Sécurité */}
+                <CheckoutSection step={2} title="Sécurisez votre compte" />
+
                 {/* Password */}
                 <div className="form-group">
                   <label className="form-label">Mot de Passe * (min. 6 caractères)</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                  />
+                  <div className="input-icon-wrap">
+                    <KeyRound size={15} />
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
                 </div>
 
                 {/* Optional Email — Collapsible */}
@@ -353,31 +366,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* LOGIN FORM */}
             {mode === 'login' && (
               <>
+                <CheckoutSection title="Vos identifiants" subtitle="Numéro de téléphone + mot de passe" />
+
                 <div className="form-group">
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={14} />
                     Numéro de téléphone ou adresse email
                   </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="+237 6xx xx xx xx ou email@exemple.com"
-                    value={phoneOrEmail}
-                    onChange={(e) => setPhoneOrEmail(e.target.value)}
-                    required
-                  />
+                  <div className="input-icon-wrap">
+                    <UserRound size={15} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="+237 6xx xx xx xx ou email@exemple.com"
+                      value={phoneOrEmail}
+                      onChange={(e) => setPhoneOrEmail(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Mot de Passe</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <div className="input-icon-wrap">
+                    <KeyRound size={15} />
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 {/* Légal — accessible depuis la connexion aussi */}

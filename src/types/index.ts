@@ -87,6 +87,9 @@ export interface LostDocument {
   lost_date_approx?: string | null;
   secret_proof_question?: string | null;
   secret_proof_answer_hash?: string | null;
+  // Photo de référence privée de la pièce (scans/photos gardés par le chercheur)
+  // — chemin vers le bucket privé "vault", jamais exposé publiquement
+  reference_image_path?: string | null;
   status: DocStatus;
   created_at: string;
   updated_at: string;
