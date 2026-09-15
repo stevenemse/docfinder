@@ -428,9 +428,8 @@ export function App() {
           <div>
             <div className="footer-col-title">Contact</div>
             <div className="footer-contact">
-              <div>✉️ contact@docfinder.cm</div>
-              <div>🔒 dpo@docfinder.cm</div>
-              <div>📞 +237 690 00 00 00</div>
+              <a className="footer-link" href="mailto:docfinder@gmail.com">✉️ docfinder@gmail.com</a>
+              <a className="footer-link" href="tel:+237686033789">📞 +237 686 03 37 89</a>
               <div>📍 Yaoundé, Cameroun</div>
             </div>
           </div>

@@ -9,7 +9,8 @@ import {
   LogIn, 
   UserPlus,
   User,
-  FileText
+  Mail,
+  Phone
 } from 'lucide-react';
 import type { Profile } from '../types';
 
@@ -35,14 +36,30 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenFoundModal,
   onOpenLostModal,
-  onOpenProfile,
-  onOpenLegal
+  onOpenProfile
 }) => {
   const role = profile?.role;
   const isAdmin = role === 'admin' || role === 'moderator';
 
   return (
     <header className="header-glass">
+      {/* Bandeau contact — desktop uniquement (la confidentialité reste dans le footer) */}
+      <div className="topbar">
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <a className="topbar-item" href="mailto:docfinder@gmail.com">
+              <Mail size={12} />
+              docfinder@gmail.com
+            </a>
+            <a className="topbar-item" href="tel:+237686033789">
+              <Phone size={12} />
+              +237 686 03 37 89
+            </a>
+          </div>
+          <div className="topbar-right">Service national de restitution — République du Cameroun</div>
+        </div>
+      </div>
+
       <div className="header-content">
         {/* Brand */}
         <div className="brand-wrapper" onClick={() => setCurrentTab('home')}>
@@ -77,13 +94,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Search size={15} />
                 Recherche
-              </button>
-              <button
-                className="desktop-nav-btn"
-                onClick={() => onOpenLegal('privacy')}
-              >
-                <FileText size={15} />
-                Confidentialité
               </button>
             </>
           )}

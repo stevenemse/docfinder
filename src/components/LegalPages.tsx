@@ -14,9 +14,9 @@ const CONTACT_BLOCK = (
   <div className="legal-contact-box">
     <strong>Délégué à la Protection des Données (DPO) — DocFinder Cameroun</strong>
     <br />
-    Email : <a href="mailto:dpo@docfinder.cm" style={{ color: 'var(--primary-700)', fontWeight: 700 }}>dpo@docfinder.cm</a>
+    Email : <a href="mailto:docfinder@gmail.com" style={{ color: 'var(--primary-700)', fontWeight: 700 }}>docfinder@gmail.com</a>
     <br />
-    Téléphone : +237 690 00 00 00 (service réclamations données personnelles)
+    Téléphone : +237 686 03 37 89 (service réclamations données personnelles)
     <br />
     <span style={{ fontSize: '0.82rem' }}>
       Vous pouvez également saisir l'autorité de protection des données compétente au Cameroun en cas de litige.

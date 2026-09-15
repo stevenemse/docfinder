@@ -135,14 +135,14 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
       </div>
 
       {/* Region Selector */}
-      <div style={{ padding: '0 16px 14px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ padding: '0 16px 14px 16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <MapPin size={16} color="var(--slate-500)" />
         <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--slate-600)' }}>Région :</span>
         <select
           value={selectedRegion}
           onChange={(e) => setSelectedRegion(e.target.value)}
           className="form-select"
-          style={{ width: 'auto', padding: '4px 10px', fontSize: '0.8rem', borderRadius: 'var(--radius-full)' }}
+          style={{ width: 'auto', minWidth: 0, maxWidth: '100%', flexShrink: 1, padding: '4px 10px', fontSize: '0.8rem', borderRadius: 'var(--radius-full)' }}
         >
           {REGIONS_CAMEROON.map(reg => (
             <option key={reg} value={reg}>{reg}</option>
