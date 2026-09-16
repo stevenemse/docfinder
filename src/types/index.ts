@@ -21,7 +21,7 @@ export type ClaimStatus = 'submitted' | 'info_needed' | 'verified' | 'rejected' 
 
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'expired' | 'refunded';
 
-export type PaymentProviderType = 'mtn_momo' | 'orange_money';
+export type PaymentProviderType = 'mtn_momo' | 'orange_money' | 'geniuspay';
 
 // Profil Citoyen Unifié
 // Un même compte peut poster des found_documents (comme trouveur) 

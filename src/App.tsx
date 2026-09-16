@@ -113,23 +113,40 @@ export function App() {
       // Analytics : une visite anonyme par chargement d'app (sans donnée perso)
       dataService.recordPageView('/');
 
-      // Retour du checkout GeniusPay : ?payment=success&ref=MTX-...
-      // Le webhook reste la source de vérité ; ici on rafraîchit l'état pour
-      // l'utilisateur dès que l'agrégateur a validé la transaction.
+      // Retour du checkout GeniusPay : ?payment=success (avec ou sans ref).
+      // Le webhook reste la source de vérité ; ici on réconcilie les paiements
+      // 'pending' via gp-payment-status (service-to-service) pour un état frais.
       const params = new URLSearchParams(window.location.search);
       const payRef = params.get('ref');
-      // Formats GeniusPay : MTX-… (live) et SANDBOX_… (sandbox)
-      if (params.get('payment') === 'success' && payRef && /^[A-Z]{3,10}[-_][A-Z0-9]{6,40}$/i.test(payRef)) {
-        const paidPayment = await dataService.confirmGeniusPayPayment(payRef);
-        if (paidPayment && paidPayment.recovery_request_id) {
+      const payFlag = params.get('payment');
+      if (payFlag === 'success') {
+        const paidPayment = payRef && /^[A-Z]{3,10}[-_][A-Z0-9]{6,40}$/i.test(payRef)
+          ? await dataService.confirmGeniusPayPayment(payRef)
+          : (await dataService.reconcilePendingPayments()) > 0
+            ? { recovered: true } as unknown as Payment
+            : null;
+        if (paidPayment) {
           await refreshAllDataRef.current();
           showToast('Paiement confirmé ! Instructions de retrait débloquées.');
           setCurrentTab('dashboard');
         } else {
           showToast('Paiement en cours de vérification — le statut sera mis à jour dans quelques instants.');
         }
-        // Nettoyage de l'URL (sans rechargement)
         window.history.replaceState({}, '', window.location.pathname);
+      } else if (payFlag === 'error') {
+        showToast('Paiement non abouti — vous pouvez réessayer depuis vos dossiers.');
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (session.isAuthenticated) {
+        // Réconciliation automatique : couvre les cas où l'utilisateur n'est pas
+        // revenu sur l'app après le checkout ou si le webhook GeniusPay traîne.
+        const fixed = await dataService.reconcilePendingPayments();
+        if (fixed > 0) {
+          const pays = await dataService.getPayments();
+          setPayments(pays);
+          const reqs2 = await dataService.getRecoveryRequests();
+          setRecoveryRequests(reqs2);
+          showToast(`${fixed} paiement${fixed > 1 ? 's' : ''} confirmé${fixed > 1 ? 's' : ''} ! Restitution débloquée.`);
+        }
       }
     }
     init();

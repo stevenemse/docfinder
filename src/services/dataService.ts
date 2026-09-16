@@ -211,6 +211,57 @@ export const dataService = {
     return { path, previewDataUrl: compressed };
   },
 
+  /**
+   * Upload d'une image privée (File) dans le coffre vault, dossier
+   * `<profileId>/<subfolder>/…`. Retourne { path, previewDataUrl } — path peut
+   * être null si l'upload échoue (best effort, jamais bloquant).
+   */
+  async uploadPrivateImage(file: File, profileId: string, subfolder: string): Promise<{
+    path: string | null;
+    previewDataUrl: string;
+  }> {
+    // Compression client (max 720px) pour un upload léger
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('read error'));
+      reader.readAsDataURL(file);
+    });
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error('decode error'));
+      im.src = dataUrl;
+    });
+    const scale = Math.min(1, 720 / img.naturalWidth);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas indisponible');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const compressed = canvas.toDataURL('image/jpeg', 0.8);
+
+    let path: string | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const blob = await (await fetch(compressed)).blob();
+        path = `${profileId}/${subfolder}/${Date.now()}.jpg`;
+        const { error } = await supabase.storage
+          .from('vault')
+          .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+        if (error) {
+          console.warn('Upload vault refusé:', error.message);
+          path = null;
+        }
+      } catch (err) {
+        console.warn('Erreur Storage vault:', err);
+        path = null;
+      }
+    }
+    return { path, previewDataUrl: compressed };
+  },
+
   /** URL signée temporaire (1 h) pour lire une photo de référence privée (modérateurs). */
   async getReferenceImageUrl(path: string): Promise<string | null> {
     if (!path || !isSupabaseConfigured()) return null;
@@ -688,6 +739,8 @@ export const dataService = {
       body: JSON.stringify({
         recovery_request_id: params.requestId,
         phone: params.phone,
+        // Origine du frontend pour la redirection GeniusPay après paiement
+        return_origin: window.location.origin,
       }),
     });
 
@@ -718,6 +771,31 @@ export const dataService = {
     const body = await res.json().catch(() => null);
     if (!body?.paid || !body?.payment) return null;
     return body.payment as Payment;
+  },
+
+  /**
+   * Réconciliation des paiements restés 'pending' : au chargement de l'app,
+   * chaque paiement GeniusPay non confirmé est revérifié serveur-à-serveur
+   * (gp-payment-status → API marchande). Couvre le cas où l'utilisateur ne
+   * revient pas sur l'app après le checkout ou si le webhook traîne.
+   * Retourne le nombre de paiements passés en 'paid'.
+   */
+  async reconcilePendingPayments(): Promise<number> {
+    if (!isSupabaseConfigured()) return 0;
+    try {
+      const pending = (await this.getPayments()).filter(
+        p => p.provider === 'geniuspay' && p.status === 'pending' && p.transaction_ref
+      );
+      if (pending.length === 0) return 0;
+      let fixed = 0;
+      for (const p of pending.slice(0, 3)) {
+        const paid = await this.confirmGeniusPayPayment(p.transaction_ref);
+        if (paid) fixed++;
+      }
+      return fixed;
+    } catch {
+      return 0;
+    }
   },
 
   async getPayments(): Promise<Payment[]> {

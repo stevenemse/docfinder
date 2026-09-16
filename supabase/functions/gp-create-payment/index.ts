@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   }
 
   // 2. Paramètres : recovery_request_id + téléphone à débiter
-  let body: { recovery_request_id?: string; phone?: string };
+  let body: { recovery_request_id?: string; phone?: string; return_origin?: string };
   try {
     body = await req.json();
   } catch {
@@ -117,10 +117,21 @@ Deno.serve(async (req) => {
   }
 
   // 4. Création de la transaction GeniusPay (mode checkout hébergé)
+  // Origin de retour : fournie par le frontend (window.location.origin), avec
+  // garde-fous (protocole http/https uniquement — jamais une URL arbitraire).
+  // Après paiement, GeniusPay redirige vers ?payment=success : l'app reconnaît
+  // le retour et réconcilie les paiements pending (gp-payment-status).
   let reference: string;
   let checkoutUrl: string;
   try {
-    const origin = req.headers.get('Origin') || 'https://docfinder-cm.vercel.app';
+    const rawOrigin = (body.return_origin || req.headers.get('Origin') || '').trim();
+    let origin = 'https://docfinder-cm.vercel.app';
+    try {
+      const u = new URL(rawOrigin);
+      if (u.protocol === 'http:' || u.protocol === 'https:') origin = u.origin;
+    } catch {
+      /* origin par défaut */
+    }
     const gpRes = await fetch(`${GP_API_BASE}/payments`, {
       method: 'POST',
       headers: {
@@ -137,8 +148,8 @@ Deno.serve(async (req) => {
           name: profile.display_name,
           phone,
         },
-        success_url: `${origin}`,
-        error_url: `${origin}`,
+        success_url: `${origin}/?payment=success`,
+        error_url: `${origin}/?payment=error`,
         metadata: {
           recovery_request_id: requestId,
           user_id: profile.id,
