@@ -13,7 +13,17 @@ interface ProfilePageProps {
 export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpdated, showToast }) => {
   // ---- Informations personnelles ----
   const [displayName, setDisplayName] = useState(profile.display_name || '');
-  const [phone, setPhone] = useState(profile.phone || '');
+  // Format local 9 chiffres (le +237 est implicite et affiché dans le label)
+  const [phone, setPhone] = useState(() => {
+    const d = (profile.phone || '').replace(/\D/g, '');
+    const local = d.startsWith('237') ? d.slice(3) : d;
+    return [
+      local.slice(0, 4),
+      local.slice(4, 6),
+      local.slice(6, 8),
+      local.slice(8, 9)
+    ].filter(Boolean).join(' ');
+  });
   const [email, setEmail] = useState(profile.email || '');
 
   // ---- Changement de mot de passe ----
@@ -38,8 +48,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
       return;
     }
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 9) {
-      setInfoMsg({ type: 'err', text: 'Numéro de téléphone invalide (9 chiffres attendus après +237).' });
+    if (digits.length !== 9 || !digits.startsWith('6')) {
+      setInfoMsg({ type: 'err', text: 'Numéro invalide : saisissez les 9 chiffres après le +237 (ex : 6XX XX XX XX).' });
       return;
     }
 
@@ -216,14 +226,25 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
           <div className="form-group">
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Phone size={13} />
-              Téléphone (identifiant)
+              Téléphone (identifiant) — +237
             </label>
             <input
               type="tel"
               className="form-input"
+              inputMode="numeric"
+              maxLength={12}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+237 6xx xx xx xx"
+              onChange={(e) => {
+                // Affichage harmonisé : 9 chiffres max, format 4-2-2-2
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                setPhone([
+                  digits.slice(0, 4),
+                  digits.slice(4, 6),
+                  digits.slice(6, 8),
+                  digits.slice(8, 9)
+                ].filter(Boolean).join(' '));
+              }}
+              placeholder="6XX XX XX XX"
             />
           </div>
 

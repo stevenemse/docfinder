@@ -75,6 +75,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setIsLoading(false);
           return;
         }
+        // Numéro camerounais : exactement 9 chiffres, commençant par 6 (MTN/Orange)
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length !== 9 || !phoneDigits.startsWith('6')) {
+          setErrorMsg('Numéro invalide : saisissez les 9 chiffres après le +237 (ex : 6XX XX XX XX).');
+          setIsLoading(false);
+          return;
+        }
         if (password.length < 6) {
           setErrorMsg('Le mot de passe doit contenir au moins 6 caractères.');
           setIsLoading(false);
@@ -238,37 +245,54 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                 </div>
 
-                {/* Phone — Identifiant principal */}
+                {/* Phone — Identifiant principal (saisie 9 chiffres uniquement) */}
                 <div className="form-group">
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={14} />
-                    Numéro de Téléphone (Cameroun) * — <span style={{ color: 'var(--primary-700)', fontWeight: 800 }}>Identifiant de connexion</span>
+                    Numéro de Téléphone * — <span style={{ color: 'var(--primary-700)', fontWeight: 800 }}>Identifiant de connexion</span>
                   </label>
                   <div style={{ display: 'flex' }}>
                     <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
                       padding: '10px 12px',
-                      background: 'var(--primary-50)',
-                      border: '1px solid var(--primary-200)',
+                      background: 'var(--slate-100)',
+                      border: '1px solid var(--border-color)',
                       borderRight: 'none',
                       borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
-                      fontSize: '0.85rem',
+                      fontSize: '0.88rem',
                       fontWeight: 800,
-                      color: 'var(--primary-800)'
+                      color: 'var(--slate-700)',
+                      userSelect: 'none'
                     }}>
-                      🇨🇲 +237
+                      <span style={{ fontSize: '1rem', lineHeight: 1 }}>🇨🇲</span>
+                      +237
                     </span>
                     <input
                       type="tel"
                       className="form-input"
                       style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}
-                      placeholder="6xx xx xx xx (MTN ou Orange)"
+                      placeholder="6XX XX XX XX"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      maxLength={12}
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        // 9 chiffres max, formatage automatique 4-2-2-2
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                        setPhone([
+                          digits.slice(0, 4),
+                          digits.slice(4, 6),
+                          digits.slice(6, 8),
+                          digits.slice(8, 9)
+                        ].filter(Boolean).join(' '));
+                      }}
                       required
                     />
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '4px' }}>
-                    Ce numéro sera votre identifiant de connexion et permettra les futures notifications SMS.
+                    Les 9 chiffres après le +237 (MTN ou Orange). Ce numéro sera votre identifiant de connexion.
                   </p>
                 </div>
 
