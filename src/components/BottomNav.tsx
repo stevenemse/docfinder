@@ -143,9 +143,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         </>
       )}
 
-      {/* ADMIN / MODÉRATEUR */}
+      {/* ADMIN / MODÉRATEUR — ordre naturel : Accueil → outils → Profil */}
       {isAuthenticated && isAdmin && (
         <>
+          <button
+            className={`bottom-nav-item ${currentTab === 'home' ? 'active' : ''}`}
+            onClick={() => setCurrentTab('home')}
+          >
+            <Home size={20} />
+            <span>Accueil</span>
+          </button>
+
           <button
             className={`bottom-nav-item ${currentTab === 'admin' ? 'active' : ''}`}
             onClick={() => setCurrentTab('admin')}
@@ -160,14 +168,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           >
             <Search size={20} />
             <span>Documents</span>
-          </button>
-
-          <button
-            className={`bottom-nav-item ${currentTab === 'home' ? 'active' : ''}`}
-            onClick={() => setCurrentTab('home')}
-          >
-            <Home size={20} />
-            <span>Accueil</span>
           </button>
 
           <button

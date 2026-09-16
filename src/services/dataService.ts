@@ -7,7 +7,10 @@ import type {
   Match,
   RecoveryRequest,
   Payment,
-  PaymentProviderType
+  PaymentProviderType,
+  AdminStats,
+  AdminProfileRow,
+  AuditLog
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -676,5 +679,80 @@ export const dataService = {
       }
     }
     return getLocal<Payment[]>(STORAGE_KEYS.PAYMENTS, []);
+  },
+
+  // 7. Dashboard admin (RPC sécurisées — accès modérateur uniquement)
+  async getAdminStats(): Promise<AdminStats | null> {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const { data, error } = await supabase.rpc('admin_dashboard_stats');
+      if (error) {
+        console.warn('RPC admin_dashboard_stats:', error.message);
+        return null;
+      }
+      return data as unknown as AdminStats;
+    } catch {
+      return null;
+    }
+  },
+
+  async getAdminProfiles(): Promise<AdminProfileRow[] | null> {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const { data, error } = await supabase.rpc('admin_list_profiles');
+      if (error) {
+        console.warn('RPC admin_list_profiles:', error.message);
+        return null;
+      }
+      return data as unknown as AdminProfileRow[];
+    } catch {
+      return null;
+    }
+  },
+
+  async adminSetUserStatus(profileId: string, status: 'active' | 'suspended' | 'blocked'): Promise<boolean> {
+    if (!isSupabaseConfigured()) return false;
+    try {
+      const { error } = await supabase.rpc('admin_set_user_status', {
+        p_profile_id: profileId,
+        p_status: status
+      });
+      if (error) {
+        console.warn('RPC admin_set_user_status:', error.message);
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async getAuditLogs(): Promise<AuditLog[]> {
+    if (!isSupabaseConfigured()) return [];
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) {
+        console.warn('audit_logs:', error.message);
+        return [];
+      }
+      return (data || []) as unknown as AuditLog[];
+    } catch {
+      return [];
+    }
+  },
+
+  /** Enregistrement anonyme d'une visite (analytics légers, aucune donnée perso). */
+  async recordPageView(path: string = '/'): Promise<void> {
+    if (!isSupabaseConfigured()) return;
+    try {
+      const device = window.innerWidth < 768 ? 'mobile' : 'desktop';
+      await supabase.from('page_views').insert({ path, device });
+    } catch {
+      // silencieux — les analytics ne doivent jamais casser la navigation
+    }
   }
 };

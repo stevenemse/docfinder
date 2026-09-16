@@ -175,3 +175,48 @@ export interface SiteSetting {
   value_safe: Record<string, any>;
   updated_at: string;
 }
+
+// Dashboard admin — statistiques agrégées (RPC admin_dashboard_stats)
+export interface AdminDailyPoint {
+  day: string;
+  visits: number;
+  docs: number;
+}
+
+export interface AdminStats {
+  users: number;
+  citizens: number;
+  moderators: number;
+  suspended: number;
+  protectedDocs: number;
+  lostDeclarations: number;
+  publishedFound: number;
+  restoredDocs: number;
+  matches: number;
+  strongMatches: number;
+  claims: number;
+  pendingClaims: number;
+  approvedClaims: number;
+  paidTotal: number;
+  visitsTotal: number;
+  visits7d: number;
+  visitsToday: number;
+  mobileShare: number;
+  dailySeries: AdminDailyPoint[];
+  topRegions: { region: string; count: number }[];
+  docTypeBreakdown: { type: string; count: number }[];
+}
+
+// Compte citoyen vu par le modérateur (RPC admin_list_profiles)
+export interface AdminProfileRow {
+  id: string;
+  role: UserRole;
+  display_name: string;
+  phone: string;
+  email: string | null;
+  is_verified: boolean;
+  status: 'active' | 'suspended' | 'blocked';
+  lost_count: number;
+  found_count: number;
+  created_at: string;
+}

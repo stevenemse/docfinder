@@ -105,6 +105,9 @@ export function App() {
 
       const pays = await dataService.getPayments();
       setPayments(pays);
+
+      // Analytics : une visite anonyme par chargement d'app (sans donnée perso)
+      dataService.recordPageView('/');
     }
     init();
   }, []);
@@ -377,8 +380,11 @@ export function App() {
               recoveryRequests={recoveryRequests}
               payments={payments}
               foundDocs={foundDocs}
+              docTypes={docTypes}
+              isAdmin={profile?.role === 'admin' || profile?.role === 'moderator'}
               onApproveRequest={handleApproveRequest}
               onRejectRequest={handleRejectRequest}
+              showToast={showToast}
             />
           </div>
         )}

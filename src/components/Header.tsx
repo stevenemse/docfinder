@@ -175,9 +175,15 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
 
-          {/* ADMIN / MODÉRATEUR */}
+          {/* ADMIN / MODÉRATEUR — ordre naturel : Accueil → outils → Profil */}
           {isAuthenticated && isAdmin && (
             <>
+              <button
+                className={`desktop-nav-btn ${currentTab === 'home' ? 'active' : ''}`}
+                onClick={() => setCurrentTab('home')}
+              >
+                Accueil
+              </button>
               <button
                 className={`desktop-nav-btn ${currentTab === 'admin' ? 'active' : ''}`}
                 onClick={() => setCurrentTab('admin')}
@@ -198,12 +204,6 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <User size={15} />
                 Mon Profil
-              </button>
-              <button
-                className={`desktop-nav-btn ${currentTab === 'home' ? 'active' : ''}`}
-                onClick={() => setCurrentTab('home')}
-              >
-                Accueil
               </button>
             </>
           )}
