@@ -28,6 +28,14 @@ const GP_API_BASE = 'https://geniuspay.ci/api/v1/merchant';
 const REPLAY_TOLERANCE_SECONDS = 300; // 5 minutes — cf. doc GeniusPay
 const EXPECTED_FEE_XAF = 2000;        // forfait restitution DocFinder
 
+// Valeurs acceptées par la contrainte SQL payments_provider_check — toute
+// autre valeur renvoyée par GeniusPay (ex : "mobile_money" générique)
+// retombe sur 'geniuspay' pour ne pas faire échouer l'upsert.
+const ALLOWED_PROVIDERS = new Set([
+  'mtn_momo', 'orange_money', 'geniuspay', 'wave',
+  'pawapay', 'paystack', 'moov_money', 'airtel_money', 'card',
+]);
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -35,16 +43,6 @@ const CORS_HEADERS = {
 };
 
 // ------------------------------------------------------------------- helpers
-function hexToBytes(hex: string): Uint8Array {
-  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
-  if (clean.length % 2 !== 0) throw new Error('Hex invalide');
-  const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
 async function hmacSha256Hex(secret: string, message: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -130,6 +128,9 @@ Deno.serve(async (req) => {
   const eventType = event || payload.event || '';
   const meta = (payload.data?.metadata || {}) as Record<string, unknown>;
   const requestId = typeof meta.recovery_request_id === 'string' ? meta.recovery_request_id : '';
+  const provider = ALLOWED_PROVIDERS.has(payload.data?.payment_method || '')
+    ? payload.data!.payment_method!
+    : 'geniuspay';
 
   if (!reference || !requestId) {
     // Événement sans référence/metadata : accuser réception sans rien faire
@@ -178,7 +179,7 @@ Deno.serve(async (req) => {
           {
             recovery_request_id: requestId,
             transaction_ref: reference,
-            provider: payload.data?.payment_method || 'geniuspay',
+            provider,
             amount: EXPECTED_FEE_XAF,
             currency: 'XAF',
             status: 'paid',
@@ -251,13 +252,13 @@ Deno.serve(async (req) => {
       const { error: upErr } = await supabase
         .from('payments')
         .upsert(
-          {
-            recovery_request_id: requestId,
-            transaction_ref: reference,
-            provider: payload.data?.payment_method || 'geniuspay',
-            amount: EXPECTED_FEE_XAF,
-            currency: 'XAF',
-            status,
+        {
+          recovery_request_id: requestId,
+          transaction_ref: reference,
+          provider,
+          amount: EXPECTED_FEE_XAF,
+          currency: 'XAF',
+          status,
             idempotency_key: `webhook-${reference}`,
             provider_response: { event: eventType, gp_status: payload.data?.status },
           },
