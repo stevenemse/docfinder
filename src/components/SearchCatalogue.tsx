@@ -48,7 +48,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedType, setSelectedType] = useState<string>(initialTypeId);
-  const [selectedRegion, setSelectedRegion] = useState<string>(initialRegion);
+  const [selectedRegion, setSelectedRegion] = useState<string>(initialRegion === 'all' ? 'Toutes' : initialRegion);
 
   const filteredDocs = foundDocs.filter(doc => {
     // Type filter

@@ -223,7 +223,8 @@ export function App() {
 
   // Search from Hero
   const handleHeroSearchSubmit = (query: string, typeId: string, region: string) => {
-    setSearchParams({ query, typeId, region });
+    // Le hero utilise 'all' pour « sans filtre » ; le catalogue attend 'Toutes' pour la région
+    setSearchParams({ query, typeId, region: region === 'all' ? 'Toutes' : region });
     setCurrentTab('search');
   };
 
