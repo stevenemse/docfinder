@@ -129,17 +129,14 @@ body {
   }
 }
 
-/* Header & Navigation */
+/* Header & Navigation — fond opaque, net au scroll (pas d'effet verre) */
 .header-glass {
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background-color: rgba(255, 255, 255, 0.92);
+  background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
 }
 
 .header-content {
@@ -295,9 +292,7 @@ body {
   left: 0;
   right: 0;
   z-index: 50;
-  background-color: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: #ffffff;
   border-top: 1px solid var(--border-color);
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
   display: flex;
