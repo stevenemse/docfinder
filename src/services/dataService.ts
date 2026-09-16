@@ -663,6 +663,63 @@ export const dataService = {
     return newPayment;
   },
 
+  // ============================================================================
+  // GeniusPay — Paiements réels (Edge Functions côté serveur, clés secrètes
+  // JAMAIS exposées au client). Appel des Edge Functions Supabase avec le JWT
+  // de la session courante.
+  // ============================================================================
+  async createGeniusPayPayment(params: {
+    requestId: string;
+    phone: string;
+  }): Promise<{ checkoutUrl: string; reference: string }> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      throw new Error('Connectez-vous avant de procéder au paiement.');
+    }
+
+    const functionsUrl = import.meta.env.VITE_SUPABASE_URL!.replace(/\/$/, '');
+    const res = await fetch(`${functionsUrl}/functions/v1/gp-create-payment`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recovery_request_id: params.requestId,
+        phone: params.phone,
+      }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body?.checkout_url) {
+      throw new Error(body?.error || 'Initialisation du paiement impossible. Réessayez.');
+    }
+    return { checkoutUrl: body.checkout_url, reference: body.reference };
+  },
+
+  /**
+   * Confirmation au retour de la page de paiement (?payment=success&ref=MTX-...).
+   * Statut interrogé via l'Edge Function gp-payment-status (service_role) :
+   * la vraie source de vérité reste le webhook GeniusPay, mais on peut
+   * rafraîchir la ligne dès que l'agrégateur marque 'completed'.
+   */
+  async confirmGeniusPayPayment(reference: string): Promise<Payment | null> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return null;
+
+    const functionsUrl = import.meta.env.VITE_SUPABASE_URL!.replace(/\/$/, '');
+    const res = await fetch(`${functionsUrl}/functions/v1/gp-payment-status?ref=${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+
+    const body = await res.json().catch(() => null);
+    if (!body?.paid || !body?.payment) return null;
+    return body.payment as Payment;
+  },
+
   async getPayments(): Promise<Payment[]> {
     if (isSupabaseConfigured()) {
       try {

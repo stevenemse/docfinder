@@ -13,6 +13,7 @@ import {
   ScanFace,
   Smartphone,
   BadgeCheck,
+  MessagesSquare,
   Car,
   Plane,
   GraduationCap,
@@ -352,15 +353,17 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
         </div>
       </section>
 
-      {/* ============ CTA contact final ============ */}
+      {/* ============ CTA contact final (centré, comme la section confiance) ============ */}
       <section className="contact-band reveal">
-        <div>
-          <div className="contact-band-title">Un document à signaler ? Une question ?</div>
-          <p className="contact-band-text">
-            Notre équipe nationale vous répond du lundi au samedi. Écrivez-nous ou appelez le
-            numéro officiel DocFinder.
-          </p>
-        </div>
+        <span className="contact-band-kicker">
+          <MessagesSquare size={14} />
+          Support national
+        </span>
+        <div className="contact-band-title">Un document à signaler ? Une question ?</div>
+        <p className="contact-band-text">
+          Notre équipe nationale vous répond du lundi au samedi. Écrivez-nous ou appelez le
+          numéro officiel DocFinder.
+        </p>
         <div className="contact-actions">
           <a className="contact-btn contact-btn-solid" href="mailto:docfinder@gmail.com">
             <Search size={16} />

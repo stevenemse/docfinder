@@ -10,7 +10,8 @@ import {
   Car, 
   GraduationCap, 
   Briefcase, 
-  FileText 
+  FileText,
+  Globe
 } from 'lucide-react';
 import type { FoundDocument, DocumentType } from '../types';
 
@@ -114,40 +115,61 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
         </div>
       </div>
 
-      {/* Document Type Pills */}
+      {/* Document Type Pills — avec compteurs live */}
       <div className="filter-pills-scroll">
         <button
           className={`filter-pill ${selectedType === 'all' ? 'active' : ''}`}
           onClick={() => setSelectedType('all')}
         >
           Tous les documents
+          <span className="filter-pill-count">{foundDocs.length}</span>
         </button>
-        {docTypes.map(dt => (
-          <button
-            key={dt.id}
-            className={`filter-pill ${selectedType === dt.id ? 'active' : ''}`}
-            onClick={() => setSelectedType(dt.id)}
-          >
-            {getDocTypeIcon(dt.slug)}
-            {dt.name.split('(')[0]}
-          </button>
-        ))}
+        {docTypes.map(dt => {
+          const typeCount = foundDocs.filter(d => d.document_type_id === dt.id).length;
+          if (typeCount === 0) return null;
+          return (
+            <button
+              key={dt.id}
+              className={`filter-pill ${selectedType === dt.id ? 'active' : ''}`}
+              onClick={() => setSelectedType(dt.id)}
+            >
+              {getDocTypeIcon(dt.slug)}
+              {dt.name.split('(')[0]}
+              <span className="filter-pill-count">{typeCount}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Region Selector */}
-      <div style={{ padding: '0 16px 14px 16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        <MapPin size={16} color="var(--slate-500)" />
-        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--slate-600)' }}>Région :</span>
-        <select
-          value={selectedRegion}
-          onChange={(e) => setSelectedRegion(e.target.value)}
-          className="form-select"
-          style={{ width: 'auto', minWidth: 0, maxWidth: '100%', flexShrink: 1, padding: '4px 10px', fontSize: '0.8rem', borderRadius: 'var(--radius-full)' }}
+      {/* Region Chips — liste moderne cliquable */}
+      <div className="region-chips-row">
+        <span className="region-chips-label">
+          <MapPin size={14} color="var(--primary-700)" />
+          Régions
+        </span>
+        <button
+          className={`region-chip ${selectedRegion === 'Toutes' ? 'active' : ''}`}
+          onClick={() => setSelectedRegion('Toutes')}
         >
-          {REGIONS_CAMEROON.map(reg => (
-            <option key={reg} value={reg}>{reg}</option>
-          ))}
-        </select>
+          <Globe size={13} />
+          <span className="region-chip-name">Toutes</span>
+        </button>
+        {REGIONS_CAMEROON.map(reg => {
+          const regionKey = reg.split(' ')[0].toLowerCase();
+          const regionCount = foundDocs.filter(d => d.region.toLowerCase().includes(regionKey)).length;
+          if (regionCount === 0) return null;
+          return (
+            <button
+              key={reg}
+              className={`region-chip ${selectedRegion === reg ? 'active' : ''}`}
+              onClick={() => setSelectedRegion(reg)}
+            >
+              <span className="region-chip-name">{reg.split(' (')[0]}</span>
+              <span className="region-chip-city">{reg.match(/\(([^)]+)\)/)?.[1]}</span>
+              <span className="filter-pill-count">{regionCount}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Cards Grid */}

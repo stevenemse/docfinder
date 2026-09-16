@@ -5,6 +5,7 @@
   --primary-600: #107c41;
   --primary-500: #16a34a;
   --primary-100: #dcfce7;
+  --primary-300: #6ee7b7;
   --primary-50: #f0fdf4;
 
   --gold-700: #92400e;
@@ -1063,8 +1064,10 @@ html {
 .process-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  padding-top: 14px;
+  gap: 22px;
+  padding-top: 34px;
+  max-width: 1160px;
+  margin: 0 auto;
 }
 
 @media (min-width: 640px) {
@@ -1084,9 +1087,22 @@ html {
   background: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 18px;
-  padding: 24px 18px 18px;
+  padding: 26px 18px 16px;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* Connecteur entre les étapes (desktop uniquement) */
+@media (min-width: 1024px) {
+  .process-card:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 36px;
+    right: -21px;
+    width: 20px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-300), var(--primary-500));
+  }
 }
 
 .process-card:hover {
@@ -1128,28 +1144,31 @@ html {
    CARTE CONTACT / CTA FINAL
    ======================== */
 .contact-band {
-  margin: 40px var(--gutter) 0;
+  margin: 40px auto 0;
+  max-width: 720px;
   background: linear-gradient(135deg, #0b3d26 0%, #06281a 100%);
   border-radius: var(--radius-xl);
   color: #ffffff;
-  padding: 28px clamp(20px, 3vw, 40px);
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
+  padding: 30px clamp(20px, 3vw, 40px);
+  text-align: center;
 }
 
-@media (min-width: 860px) {
-  .contact-band {
-    grid-template-columns: 1.2fr 0.8fr;
-    align-items: center;
-    gap: 32px;
-  }
+.contact-band-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--primary-300);
 }
 
 .contact-band-title {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 800;
   letter-spacing: -0.4px;
+  margin-top: 8px;
 }
 
 .contact-band-text {
@@ -1157,12 +1176,17 @@ html {
   color: #a7d9c0;
   line-height: 1.6;
   margin-top: 8px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .contact-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
+  margin-top: 20px;
 }
 
 .contact-btn {
@@ -1385,6 +1409,32 @@ html {
   margin-top: 4px;
 }
 
+/* Grille des moyens de paiement acceptés (modale paiement) */
+.accepted-methods-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 480px) {
+  .accepted-methods-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.accepted-method-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--slate-600);
+  text-align: center;
+}
+
 /* Section Title */
 .section-header {
   display: flex;
@@ -1480,12 +1530,10 @@ html {
 
 .filter-pills-scroll::-webkit-scrollbar {
   display: none;
-}
-
-.filter-pill {
+}.filter-pill {
   white-space: nowrap;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
+  padding: 8px 15px;
+  border-radius: 14px;
   font-size: 0.8rem;
   font-weight: 600;
   background: var(--surface-card);
@@ -1495,14 +1543,92 @@ html {
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
-
+.filter-pill:hover {
+  border-color: var(--primary-300);
+  color: var(--primary-800);
+  transform: translateY(-1px);
+}
 .filter-pill.active {
   background: var(--primary-700);
   color: #ffffff;
   border-color: var(--primary-700);
   box-shadow: 0 2px 8px rgba(13, 92, 58, 0.25);
+}
+
+/* Pastille compte à l'intérieur d'une pill filtre */
+.filter-pill-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--slate-100);
+  color: var(--slate-600);
+}
+.filter-pill.active .filter-pill-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Liste moderne des régions — chips cliquables */
+.region-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 var(--gutter) 16px var(--gutter);
+  align-items: center;
+}
+.region-chips-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--slate-500);
+  margin-right: 2px;
+}
+.region-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
+  color: var(--slate-700);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.region-chip:hover {
+  border-color: var(--primary-300);
+  transform: translateY(-1px);
+}
+.region-chip.active {
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 4px 12px -4px rgba(13, 92, 58, 0.45);
+}
+.region-chip-name {
+  font-weight: 700;
+}
+.region-chip-city {
+  font-size: 0.68rem;
+  opacity: 0.72;
+}
+@media (max-width: 480px) {
+  .region-chip-city {
+    display: none;
+  }
 }
 
 /* Document Cards Grid — s'étire jusqu'à 4 colonnes sur très grands écrans */

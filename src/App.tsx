@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { HomeHero } from './components/HomeHero';
@@ -72,6 +72,10 @@ export function App() {
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Référence mutable vers refreshAllData (utilisable depuis les effets sans
+  // dépendance de cycle)
+  const refreshAllDataRef = useRef<() => Promise<void>>(async () => {});
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -108,6 +112,24 @@ export function App() {
 
       // Analytics : une visite anonyme par chargement d'app (sans donnée perso)
       dataService.recordPageView('/');
+
+      // Retour du checkout GeniusPay : ?payment=success&ref=MTX-...
+      // Le webhook reste la source de vérité ; ici on rafraîchit l'état pour
+      // l'utilisateur dès que l'agrégateur a validé la transaction.
+      const params = new URLSearchParams(window.location.search);
+      const payRef = params.get('ref');
+      if (params.get('payment') === 'success' && payRef && /^MTX-/i.test(payRef)) {
+        const paidPayment = await dataService.confirmGeniusPayPayment(payRef);
+        if (paidPayment && paidPayment.recovery_request_id) {
+          await refreshAllDataRef.current();
+          showToast('Paiement confirmé ! Instructions de retrait débloquées.');
+          setCurrentTab('dashboard');
+        } else {
+          showToast('Paiement en cours de vérification — le statut sera mis à jour dans quelques instants.');
+        }
+        // Nettoyage de l'URL (sans rechargement)
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
     init();
   }, []);
@@ -128,6 +150,11 @@ export function App() {
     const pays = await dataService.getPayments();
     setPayments(pays);
   };
+
+  // Maintien de la référence à jour pour les effets (init, retours paiement)
+  useEffect(() => {
+    refreshAllDataRef.current = refreshAllData;
+  });
 
   // Auth Handlers
   const handleOpenAuth = (mode: 'login' | 'register') => {

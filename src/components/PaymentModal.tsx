@@ -6,11 +6,14 @@ import {
   ShieldCheck, 
   Lock,
   Loader2,
-  PhoneCall
+  PhoneCall,
+  AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { PaymentProviderType } from '../types';
 import { CheckoutSection } from './CheckoutSection';
+import { dataService } from '../services/dataService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -25,36 +28,55 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   recoveryRequestId,
   onPaymentSuccess
 }) => {
-  const [selectedProvider, setSelectedProvider] = useState<PaymentProviderType>('mtn_momo');
-  const [phoneNumber, setPhoneNumber] = useState<string>('677123456');
-  const [paymentStep, setPaymentStep] = useState<'form' | 'ussd_pending' | 'success'>('form');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [paymentStep, setPaymentStep] = useState<'form' | 'redirecting' | 'ussd_pending' | 'success' | 'error'>('form');
   const [transactionRef, setTransactionRef] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   if (!isOpen) return null;
 
-  const handleInitiatePayment = (e: React.FormEvent) => {
+  /**
+   * Production : création de la transaction via l'Edge Function gp-create-payment
+   * (clés marchandes GeniusPay côté serveur uniquement), puis redirection vers
+   * la page de checkout hébergée (MTN MoMo, Orange Money, Wave, carte…).
+   * La confirmation finale arrive par webhook GeniusPay + retour ?payment=success&ref=…
+   *
+   * Mode démo (sans Supabase) : simulation USSD conservée.
+   */
+  const handleInitiatePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPaymentStep('ussd_pending');
 
-    const generatedRef = `TX-CMR-${Date.now().toString().slice(-6)}`;
-    setTransactionRef(generatedRef);
+    // Mode démo — simulation locale
+    if (!isSupabaseConfigured()) {
+      const generatedRef = `TX-CMR-${Date.now().toString().slice(-6)}`;
+      setTransactionRef(generatedRef);
+      setPaymentStep('ussd_pending');
+      setTimeout(() => {
+        setPaymentStep('success');
+        onPaymentSuccess(recoveryRequestId, 'mtn_momo' as PaymentProviderType, generatedRef);
+        try {
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+        } catch (err) {
+          console.log('Confetti error:', err);
+        }
+      }, 3200);
+      return;
+    }
 
-    // Simulate USSD prompt confirmation after 3.2 seconds
-    setTimeout(() => {
-      setPaymentStep('success');
-      onPaymentSuccess(recoveryRequestId, selectedProvider, generatedRef);
-
-      // Trigger celebration confettis!
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (err) {
-        console.log('Confetti error:', err);
-      }
-    }, 3200);
+    // Production — checkout GeniusPay hébergé
+    setErrorMessage('');
+    setPaymentStep('redirecting');
+    try {
+      const { checkoutUrl, reference } = await dataService.createGeniusPayPayment({
+        requestId: recoveryRequestId,
+        phone: phoneNumber
+      });
+      setTransactionRef(reference);
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Erreur inconnue');
+      setPaymentStep('error');
+    }
   };
 
   return (
@@ -116,51 +138,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               </div>
 
-              {/* Provider Selection */}
-              <CheckoutSection step={1} title="Choisissez votre opérateur" subtitle="Mobile Money Cameroun" />
-              <div className="form-group">
-                <label className="form-label">Opérateur de paiement :</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {/* MTN MoMo */}
-                  <div
-                    className={`momo-option-card ${selectedProvider === 'mtn_momo' ? 'selected-mtn' : ''}`}
-                    onClick={() => setSelectedProvider('mtn_momo')}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#b45309' }}>
-                        MTN MoMo
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
-                        Mobile Money
-                      </div>
-                    </div>
-                    <div className="momo-brand-icon" style={{ background: '#f59e0b', color: '#ffffff' }}>
-                      MTN
-                    </div>
-                  </div>
-
-                  {/* Orange Money */}
-                  <div
-                    className={`momo-option-card ${selectedProvider === 'orange_money' ? 'selected-orange' : ''}`}
-                    onClick={() => setSelectedProvider('orange_money')}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#c2410c' }}>
-                        Orange Money
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
-                        OM Cameroun
-                      </div>
-                    </div>
-                    <div className="momo-brand-icon" style={{ background: '#ea580c', color: '#ffffff' }}>
-                      OM
-                    </div>
-                  </div>
+              {/* Moyens acceptés (page de checkout hébergée GeniusPay) */}
+              <CheckoutSection step={1} title="Moyens de paiement acceptés" subtitle="Choix effectué sur la page sécurisée" />
+              <div className="accepted-methods-grid">
+                <div className="accepted-method-chip">
+                  <div className="momo-brand-icon" style={{ background: '#f59e0b', color: '#ffffff' }}>MTN</div>
+                  MTN MoMo
+                </div>
+                <div className="accepted-method-chip">
+                  <div className="momo-brand-icon" style={{ background: '#ea580c', color: '#ffffff' }}>OM</div>
+                  Orange Money
+                </div>
+                <div className="accepted-method-chip">
+                  <div className="momo-brand-icon" style={{ background: '#0ea5e9', color: '#ffffff' }}>WV</div>
+                  Wave
+                </div>
+                <div className="accepted-method-chip">
+                  <div className="momo-brand-icon" style={{ background: 'var(--slate-700)', color: '#ffffff' }}>CB</div>
+                  Carte bancaire
                 </div>
               </div>
 
               {/* Phone Input */}
-              <CheckoutSection step={2} title="Numéro à débiter" subtitle="Une demande de confirmation USSD y sera envoyée" />
+              <CheckoutSection step={2} title="Votre numéro mobile" subtitle="Pour la confirmation du débit" />
               <div className="form-group">
                 <label className="form-label">Numéro de téléphone mobile (+237) *</label>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -180,9 +180,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     type="tel"
                     className="form-input"
                     style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}
-                    placeholder="6xx xx xx xx"
+                    placeholder="6XX XX XX XX"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
+                    pattern="[0-9 ]{9,12}"
                     required
                   />
                 </div>
@@ -193,7 +194,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div>
                   <strong>Sécurité de la Transaction :</strong>
                   <p style={{ marginTop: '2px', fontSize: '0.76rem' }}>
-                    Une notification USSD Push vous invitera à taper votre code secret sur votre téléphone. Aucune donnée bancaire n'est conservée.
+                    Vous serez redirigé vers la page de paiement sécurisée GeniusPay pour confirmer
+                    le débit avec votre code secret. Aucune donnée bancaire n'est conservée par DocFinder.
                   </p>
                 </div>
               </div>
@@ -203,9 +205,55 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 className="btn-cta-lost"
                 style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
               >
-                Valider et payer 2 000 FCFA →
+                Payer 2 000 FCFA en toute sécurité →
               </button>
             </form>
+          )}
+
+          {paymentStep === 'redirecting' && (
+            <div style={{ textAlign: 'center', padding: '32px 12px' }}>
+              <Loader2 size={44} className="animate-spin" color="var(--primary-700)" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                Connexion à la plateforme de paiement…
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
+                Ouverture de la page de paiement sécurisée GeniusPay. Vous y choisirez votre
+                moyen de paiement (MTN MoMo, Orange Money, Wave, carte) et confirmerez le débit
+                de <strong>2 000 FCFA</strong>.
+              </p>
+            </div>
+          )}
+
+          {paymentStep === 'error' && (
+            <div style={{ textAlign: 'center', padding: '24px 12px' }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: '#fef2f2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <AlertTriangle size={34} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                Paiement non initialisé
+              </h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
+                {errorMessage}
+              </p>
+              <button
+                type="button"
+                className="btn-cta-lost"
+                style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', width: '100%', marginTop: '20px' }}
+                onClick={() => setPaymentStep('form')}
+              >
+                Réessayer
+              </button>
+            </div>
           )}
 
           {paymentStep === 'ussd_pending' && (
@@ -215,7 +263,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 Autorisation USSD en cours...
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
-                Veuillez consulter votre téléphone mobile <strong>+237 {phoneNumber}</strong> et confirmer le débit de <strong>2 000 FCFA</strong> avec votre code secret {selectedProvider === 'mtn_momo' ? 'MTN MoMo' : 'Orange Money'}.
+                Veuillez consulter votre téléphone mobile <strong>+237 {phoneNumber}</strong> et confirmer le débit de <strong>2 000 FCFA</strong> avec votre code secret.
               </p>
 
               <div style={{
@@ -252,7 +300,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </h3>
 
               <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', marginTop: '6px' }}>
-                Reçu n° <strong>{transactionRef}</strong> — 2 000 FCFA ({selectedProvider === 'mtn_momo' ? 'MTN MoMo' : 'Orange Money'})
+                Reçu n° <strong>{transactionRef}</strong> — 2 000 FCFA
               </p>
 
               {/* Unlocked contact pointer (les coordonnées réelles du trouveur
