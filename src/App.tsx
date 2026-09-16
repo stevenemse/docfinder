@@ -118,7 +118,8 @@ export function App() {
       // l'utilisateur dès que l'agrégateur a validé la transaction.
       const params = new URLSearchParams(window.location.search);
       const payRef = params.get('ref');
-      if (params.get('payment') === 'success' && payRef && /^MTX-/i.test(payRef)) {
+      // Formats GeniusPay : MTX-… (live) et SANDBOX_… (sandbox)
+      if (params.get('payment') === 'success' && payRef && /^[A-Z]{3,10}[-_][A-Z0-9]{6,40}$/i.test(payRef)) {
         const paidPayment = await dataService.confirmGeniusPayPayment(payRef);
         if (paidPayment && paidPayment.recovery_request_id) {
           await refreshAllDataRef.current();

@@ -41,18 +41,28 @@ Deno.serve(async (req) => {
   if (!authHeader.startsWith('Bearer ')) {
     return json(401, { paid: false, error: 'Authentification requise' });
   }
-  const supabase = createClient(
+  // Client authentifié : sert UNIQUEMENT à valider la session de l'appelant.
+  const authClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_ANON_KEY')!,
     { global: { headers: { Authorization: authHeader } }, auth: { persistSession: false } },
   );
-  const { data: authData } = await supabase.auth.getUser();
+  const { data: authData } = await authClient.auth.getUser();
   if (!authData?.user) {
     return json(401, { paid: false, error: 'Session invalide' });
   }
+  // Client privilégié : les écritures (statut paid + déblocage) contournent la
+  // RLS, comme dans gp-webhook — la RLS ne permet pas à un utilisateur de
+  // passer ses propres paiements en 'paid'.
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false } },
+  );
 
   const reference = new URL(req.url).searchParams.get('ref') || '';
-  if (!/^MTX-[A-Z0-9]+$/i.test(reference)) {
+  // Formats officiels : MTX-XXXXXXXXXX (live) et SANDBOX_XXXXXXXXX (sandbox)
+  if (!/^[A-Z]{3,10}[-_][A-Z0-9]{6,40}$/i.test(reference)) {
     return json(422, { paid: false, error: 'Référence invalide' });
   }
 
@@ -62,7 +72,7 @@ Deno.serve(async (req) => {
     return json(500, { paid: false, error: 'Configuration marchande manquante' });
   }
 
-  // 1. Statut réel côté GeniusPay
+  // 1. Statut réel côté GeniusPay (source de vérité, jamais le client)
   const gpRes = await fetch(`${GP_API_BASE}/payments/${encodeURIComponent(reference)}`, {
     headers: { 'X-API-Key': apiKey, 'X-API-Secret': apiSecret },
   });
@@ -87,12 +97,18 @@ Deno.serve(async (req) => {
     .single();
 
   if (payment && payment.status !== 'paid') {
-    const now = new Date().toISOString();
-    await supabase
+    const now = new Date().toISOString();      await supabase
       .from('payments')
       .update({ status: 'paid', paid_at: now, updated_at: now })
       .eq('transaction_ref', reference);
   }
+
+  // Relecture : renvoyer l'état à jour (paid), pas la ligne lue avant update
+  const { data: freshPayment } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('transaction_ref', reference)
+    .maybeSingle();
 
   // 3. Déblocage (idempotent — même contrat que gp-webhook)
   const { data: request } = await supabase
@@ -127,6 +143,6 @@ Deno.serve(async (req) => {
   return json(200, {
     paid: true,
     reference,
-    payment: payment || null,
+    payment: freshPayment || payment || null,
   });
 });

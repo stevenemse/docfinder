@@ -127,10 +127,11 @@ Deno.serve(async (req) => {
         'X-API-Key': apiKey,
         'X-API-Secret': apiSecret,
         'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
         amount: FEE_XAF,
-        currency: 'XAF',
+        currency: 'XOF', // XOF/XAF sont arrimés 1:1 — l'API n'accepte que XOF/EUR/USD
         description: 'DocFinder — Frais de restitution sécurisée',
         customer: {
           name: profile.display_name,
@@ -145,18 +146,39 @@ Deno.serve(async (req) => {
         },
       }),
     });
-    const gpBody = await gpRes.json();
-    if (!gpRes.ok || !gpBody?.data?.checkout_url || !gpBody?.data?.reference) {
-      console.error('GeniusPay init error:', gpRes.status, JSON.stringify(gpBody));
+    const gpText = await gpRes.text();
+    let gpBody: {
+      success?: boolean;
+      data?: { checkout_url?: string; reference?: string; payment_url?: string };
+      error?: { message?: string } | string;
+    } | null = null;
+    try {
+      gpBody = JSON.parse(gpText);
+    } catch {
+      // Réponse non-JSON (page HTML, challenge anti-bot…) — on renvoie un extrait
+      const snippet = gpText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+      console.error('GeniusPay init: réponse non-JSON', gpRes.status, snippet);
       return json(502, {
-        error: gpBody?.error?.message || 'Initialisation du paiement refusée par GeniusPay',
+        error: `GeniusPay a répondu HTTP ${gpRes.status} sans JSON${snippet ? ` — ${snippet}` : ''}`,
+      });
+    }
+    if (!gpRes.ok || !gpBody?.data?.checkout_url || !gpBody?.data?.reference) {
+      console.error('GeniusPay init error:', gpRes.status, gpText.slice(0, 300));
+      const errMsg = typeof gpBody?.error === 'string'
+        ? gpBody.error
+        : gpBody?.error?.message;
+      return json(502, {
+        error: errMsg
+          ? `GeniusPay (HTTP ${gpRes.status}) : ${errMsg}`
+          : `Initialisation refusée par GeniusPay (HTTP ${gpRes.status})`,
       });
     }
     reference = gpBody.data.reference;
-    checkoutUrl = gpBody.data.checkout_url;
+    checkoutUrl = gpBody.data.checkout_url || gpBody.data.payment_url!;
   } catch (err) {
-    console.error('Appel GeniusPay:', err);
-    return json(502, { error: 'GeniusPay injoignable' });
+    const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    console.error('Appel GeniusPay:', msg);
+    return json(502, { error: `GeniusPay injoignable (${msg.slice(0, 120)})` });
   }
 
   // 5. Ligne payments 'pending' (le webhook GeniusPay la passera en 'paid')
