@@ -7,12 +7,14 @@ import {
   Eraser,
   Camera,
   Undo2,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import type { DocumentType, FoundDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
 import { dataService } from '../services/dataService';
 import { CheckoutSection } from './CheckoutSection';
+import { autoDetectZones } from '../lib/autoRedact';
 
 interface ReportFoundModalProps {
   isOpen: boolean;
@@ -69,6 +71,46 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
   const [masks, setMasks] = useState<MaskZone[]>([]); // en coordonnées image
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
+  // ── Caviardage automatique ──────────────────────────────────────────────
+  const [autoScan, setAutoScan] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
+  const [autoScanInfo, setAutoScanInfo] = useState<{ faces: number; textBands: number } | null>(null);
+
+  // Analyse automatique dès que l'image est chargée à l'étape 3
+  useEffect(() => {
+    if (step !== 3 || !photoSrc || !imgDims) return;
+    let cancelled = false;
+    const img = imgRef.current;
+    if (!img) return;
+    setAutoScan('running');
+    setAutoScanInfo(null);
+    (async () => {
+      try {
+        const { zones, faces, textBands } = await autoDetectZones(img);
+        if (cancelled) return;
+        // Convertit en zones de masque : les zones IA débordent volontairement
+        // de l'image → clamp aux dimensions réelles (échelle 1:1, coords image).
+        const clamped: MaskZone[] = zones.map(z => ({
+          x: Math.max(0, Math.round(z.x)),
+          y: Math.max(0, Math.round(z.y)),
+          w: Math.max(24, Math.round(z.w)),
+          h: Math.max(20, Math.round(z.h))
+        }));
+        setMasks(prev => {
+          // Préserve les zones posées manuellement (identifiées par leur
+          // taille standard), remplace uniquement les zones auto précédentes.
+          const isAutoSized = (m: MaskZone) => !(m.w === MASK_W && m.h === MASK_H);
+          const kept = prev.filter(isAutoSized);
+          return [...kept, ...clamped];
+        });
+        setAutoScanInfo({ faces, textBands });
+        setAutoScan('done');
+      } catch {
+        if (!cancelled) setAutoScan('failed');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [step, photoSrc, imgDims]);
 
   const handlePhotoSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPhotoError(null);
@@ -505,6 +547,56 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
               {/* 2. Caviardage tactile sur l'image réelle */}
               {photoSrc && canvasSize.w > 0 && (
                 <div className="canvas-redaction-container">
+                  {/* Statut de l'analyse automatique */}
+                  {autoScan === 'running' && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      background: 'var(--primary-50, #ecfdf5)', border: '1px solid var(--primary-100, #d1fae5)',
+                      borderRadius: 'var(--radius-md)', padding: '9px 12px', fontSize: '0.78rem',
+                      color: 'var(--primary-800, #065f46)', fontWeight: 600
+                    }}>
+                      <Loader2 size={14} className="animate-spin" />
+                      Analyse automatique : détection des visages et des zones de texte…
+                    </div>
+                  )}
+                  {autoScan === 'done' && autoScanInfo && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+                      background: 'var(--primary-50, #ecfdf5)', border: '1px solid var(--primary-100, #d1fae5)',
+                      borderRadius: 'var(--radius-md)', padding: '9px 12px', fontSize: '0.78rem',
+                      color: 'var(--primary-800, #065f46)'
+                    }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                        <Sparkles size={14} color="var(--primary-700)" />
+                        {autoScanInfo.faces > 0
+                          ? `${autoScanInfo.faces} visage${autoScanInfo.faces > 1 ? 's' : ''} + ${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte masqués automatiquement — vérifiez et ajustez au toucher.`
+                          : `${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte masquée${autoScanInfo.textBands > 1 ? 's' : ''} automatiquement — vérifiez et ajustez au toucher.`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setAutoScan('idle'); setAutoScanInfo(null); setMasks([]); setTimeout(() => setAutoScan('running'), 0); }}
+                        style={{
+                          background: 'none', border: 'none', color: 'var(--primary-700)',
+                          fontWeight: 700, fontSize: '0.72rem', cursor: 'pointer', flexShrink: 0,
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Relancer
+                      </button>
+                    </div>
+                  )}
+                  {autoScan === 'failed' && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+                      borderRadius: 'var(--radius-md)', padding: '9px 12px', fontSize: '0.78rem',
+                      color: '#92400e', fontWeight: 600
+                    }}>
+                      <AlertTriangle size={14} />
+                      Analyse auto indisponible — caviardez manuellement en touchant l'image.
+                    </div>
+                  )}
+
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--slate-700)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Sparkles size={14} color="var(--primary-700)" />
                     Touchez l'image pour caviarder ({masks.length} zone{masks.length > 1 ? 's' : ''})
