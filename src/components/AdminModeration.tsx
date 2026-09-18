@@ -19,7 +19,12 @@ import {
   PlayCircle,
   ShieldBan,
   Smartphone,
-  Activity
+  Activity,
+  Trash2,
+  Pencil,
+  FolderOpen,
+  Save,
+  X
 } from 'lucide-react';
 import type {
   RecoveryRequest,
@@ -28,7 +33,9 @@ import type {
   AuditLog,
   AdminStats,
   AdminProfileRow,
-  DocumentType
+  AdminDocumentRow,
+  DocumentType,
+  DocStatus
 } from '../types';
 import { dataService } from '../services/dataService';
 
@@ -43,7 +50,19 @@ interface AdminModerationProps {
   showToast: (msg: string) => void;
 }
 
-type AdminTab = 'overview' | 'users' | 'requests' | 'payments' | 'audit';
+type AdminTab = 'overview' | 'documents' | 'users' | 'requests' | 'payments' | 'audit';
+
+/** Libellés français des statuts de document. */
+const DOC_STATUS_LABELS: Record<DocStatus, string> = {
+  pending_verification: 'En attente',
+  published: 'Publié',
+  matched: 'Apparié',
+  claimed: 'Réclamé',
+  restored: 'Restitué',
+  rejected: 'Rejeté',
+  archived: 'Archivé'
+};
+const DOC_STATUSES = Object.keys(DOC_STATUS_LABELS) as DocStatus[];
 
 /**
  * Photo de référence privée du chercheur (bucket vault).
@@ -197,6 +216,10 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminProfileRow[] | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [adminDocs, setAdminDocs] = useState<{ found: AdminDocumentRow[]; lost: AdminDocumentRow[] } | null>(null);
+  const [editingDoc, setEditingDoc] = useState<AdminDocumentRow | null>(null);
+  const [editForm, setEditForm] = useState({ title: '', region: '', city: '', status: 'published' });
+  const [busyDocId, setBusyDocId] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
   const pendingRequests = recoveryRequests.filter(r => r.verification_status === 'pending');
@@ -206,15 +229,17 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     let cancelled = false;
     (async () => {
       setLoadingData(true);
-      const [s, u, logs] = await Promise.all([
+      const [s, u, logs, docs] = await Promise.all([
         dataService.getAdminStats(),
         dataService.getAdminProfiles(),
-        dataService.getAuditLogs()
+        dataService.getAuditLogs(),
+        dataService.getAdminDocuments()
       ]);
       if (!cancelled) {
         setStats(s);
         setUsers(u);
         setAuditLogs(logs);
+        setAdminDocs(docs);
         setLoadingData(false);
       }
     })();
@@ -233,6 +258,155 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   };
 
   const typeName = (typeId: string) => docTypes.find(t => t.id === typeId)?.name || 'Document';
+
+  // ------- CRUD documents (onglet Documents) -------
+  const refreshAdminDocs = async () => setAdminDocs(await dataService.getAdminDocuments());
+
+  const openEditDoc = (doc: AdminDocumentRow) => {
+    setEditingDoc(doc);
+    setEditForm({ title: doc.title, region: doc.region, city: doc.city, status: doc.status });
+  };
+
+  const handleSaveDoc = async () => {
+    if (!editingDoc) return;
+    setBusyDocId(editingDoc.id);
+    const ok = await dataService.adminUpdateDocument(editingDoc.kind, editingDoc.id, {
+      title: editForm.title.trim() || undefined,
+      region: editForm.region.trim() || undefined,
+      city: editForm.city.trim() || undefined,
+      status: editForm.status as DocStatus
+    });
+    setBusyDocId(null);
+    if (ok) {
+      showToast('Document mis à jour.');
+      setEditingDoc(null);
+      refreshAdminDocs();
+    } else {
+      showToast('Mise à jour refusée — exécutez supabase/migration-admin-crud-documents.sql.');
+    }
+  };
+
+  const handleDeleteDoc = async (doc: AdminDocumentRow) => {
+    if (!window.confirm(
+      `Supprimer définitivement « ${doc.title} » ?\n\n` +
+      'Cette action efface aussi les correspondances, demandes de restitution et paiements liés, ' +
+      'ainsi que les images du coffre privé. Elle est journalisée et irréversible.'
+    )) return;
+    setBusyDocId(doc.id);
+    const ok = await dataService.adminDeleteDocument(doc.kind, doc.id);
+    setBusyDocId(null);
+    if (ok) {
+      showToast('Document supprimé définitivement.');
+      if (editingDoc?.id === doc.id) setEditingDoc(null);
+      refreshAdminDocs();
+    } else {
+      showToast('Suppression refusée — exécutez supabase/migration-admin-crud-documents.sql.');
+    }
+  };
+
+  const docRow = (doc: AdminDocumentRow) => (
+    <div key={doc.id} className="admin-doc-row" style={{ flexWrap: 'wrap' }}>
+      <div className="admin-doc-thumb">
+        {doc.masked_image_url && !doc.masked_image_url.startsWith('data:')
+          ? <img src={doc.masked_image_url} alt="" />
+          : <FileImage size={18} />}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="admin-doc-name">{doc.title}</div>
+        <div className="admin-doc-meta">
+          {doc.kind === 'found' ? 'Trouvé' : 'Perte'} · {doc.city} ({doc.region})
+          {doc.doc_number_partial ? ` · N° ${doc.doc_number_partial}` : ''}
+          {' · '}ajouté le {new Date(doc.created_at).toLocaleDateString('fr-FR')}
+        </div>
+      </div>
+      <span className={`admin-badge ${doc.status}`}>{DOC_STATUS_LABELS[doc.status] ?? doc.status}</span>
+      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+        <button
+          onClick={() => editingDoc?.id === doc.id ? setEditingDoc(null) : openEditDoc(doc)}
+          title="Modifier"
+          style={{
+            background: 'var(--slate-100)', color: 'var(--slate-700)', border: 'none',
+            borderRadius: 'var(--radius-md)', padding: '6px 9px', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.72rem'
+          }}
+        >
+          {editingDoc?.id === doc.id ? <X size={12} /> : <Pencil size={12} />}
+          {editingDoc?.id === doc.id ? 'Fermer' : 'Modifier'}
+        </button>
+        <button
+          onClick={() => handleDeleteDoc(doc)}
+          disabled={busyDocId === doc.id}
+          title="Supprimer définitivement"
+          style={{
+            background: 'var(--red-50)', color: 'var(--red-700)', border: '1px solid var(--red-100)',
+            borderRadius: 'var(--radius-md)', padding: '6px 9px', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, fontSize: '0.72rem'
+          }}
+        >
+          {busyDocId === doc.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+          Supprimer
+        </button>
+      </div>
+
+      {editingDoc?.id === doc.id && (
+        <div style={{
+          width: '100%', marginTop: '10px', padding: '12px',
+          background: 'var(--slate-50)', borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-color)', display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px'
+        }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--slate-600)' }}>
+            Titre / Nom
+            <input
+              value={editForm.title}
+              onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+              style={{ padding: '7px 9px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.8rem', fontWeight: 500 }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--slate-600)' }}>
+            Région
+            <input
+              value={editForm.region}
+              onChange={e => setEditForm(f => ({ ...f, region: e.target.value }))}
+              style={{ padding: '7px 9px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.8rem', fontWeight: 500 }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--slate-600)' }}>
+            Ville
+            <input
+              value={editForm.city}
+              onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))}
+              style={{ padding: '7px 9px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.8rem', fontWeight: 500 }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--slate-600)' }}>
+            Statut
+            <select
+              value={editForm.status}
+              onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+              style={{ padding: '7px 9px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', fontSize: '0.8rem', fontWeight: 500 }}
+            >
+              {DOC_STATUSES.map(s => <option key={s} value={s}>{DOC_STATUS_LABELS[s]}</option>)}
+            </select>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'end', gap: '8px' }}>
+            <button
+              onClick={handleSaveDoc}
+              disabled={busyDocId === doc.id}
+              style={{
+                background: 'var(--primary-700)', color: '#ffffff', border: 'none',
+                borderRadius: 'var(--radius-md)', padding: '8px 14px', cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700, fontSize: '0.76rem'
+              }}
+            >
+              {busyDocId === doc.id ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   const tabBtn = (tab: AdminTab, label: string) => (
     <button
@@ -285,6 +459,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
         overflowX: 'auto'
       }}>
         {tabBtn('overview', 'Vue d\'ensemble')}
+        {tabBtn('documents', `Documents (${adminDocs ? (adminDocs.found.length + adminDocs.lost.length) : '…'})`)}
         {tabBtn('users', `Citoyens (${stats?.users ?? '…'})`)}
         {tabBtn('requests', `Preuves à modérer (${pendingRequests.length})`)}
         {tabBtn('payments', `Transactions (${payments.length})`)}
@@ -484,6 +659,48 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
         </div>
       )}
 
+      {/* ============ TAB: DOCUMENTS ============ */}
+      {adminTab === 'documents' && (
+        <div className="admin-card">
+          <div className="admin-card-head">
+            <div className="admin-card-title">
+              <FolderOpen size={17} color="var(--primary-700)" />
+              Gestion des documents
+            </div>
+            <div className="admin-card-sub">Tous statuts · modification & suppression définitive</div>
+          </div>
+
+          {loadingData ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--slate-500)' }}>
+              <Loader2 size={22} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+              Chargement des documents…
+            </div>
+          ) : !adminDocs ? (
+            <div style={{ color: 'var(--red-700)', fontSize: '0.8rem', padding: '12px 0', display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <AlertTriangle size={16} />
+              RPC admin_list_all_documents indisponible — exécutez supabase/migration-admin-crud-documents.sql dans le SQL Editor.
+            </div>
+          ) : (adminDocs.found.length === 0 && adminDocs.lost.length === 0) ? (
+            <div style={{ color: 'var(--slate-500)', fontSize: '0.8rem' }}>Aucun document en base.</div>
+          ) : (
+            <>
+              {adminDocs.found.length > 0 && (
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary-800)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 0 2px' }}>
+                  Documents trouvés ({adminDocs.found.length})
+                </div>
+              )}
+              {adminDocs.found.map(docRow)}
+              {adminDocs.lost.length > 0 && (
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary-800)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '12px 0 2px' }}>
+                  Déclarations de perte ({adminDocs.lost.length})
+                </div>
+              )}
+              {adminDocs.lost.map(docRow)}
+            </>
+          )}
+        </div>
+      )}
+
       {/* ============ TAB: USERS ============ */}
       {adminTab === 'users' && (
         <div className="admin-card">
@@ -673,31 +890,37 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               Aucun paiement enregistré pour l'instant.
             </div>
           ) : (
-            payments.map(pay => (
-              <div
-                key={pay.id}
-                style={{
-                  background: 'var(--surface-card)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '12px 14px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--slate-900)' }}>
-                    {pay.amount.toLocaleString('fr-FR')} {pay.currency} — {pay.provider === 'mtn_momo' ? 'MTN MoMo' : 'Orange Money'}
+            payments.map(pay => {
+              const badge = pay.status === 'paid'
+                ? <span className="admin-badge published">Payé ✔</span>
+                : pay.status === 'pending'
+                  ? <span className="admin-badge pending_verification">En attente</span>
+                  : <span className="admin-badge rejected">{pay.status}</span>;
+              return (
+                <div
+                  key={pay.id}
+                  style={{
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--slate-900)' }}>
+                      {pay.amount.toLocaleString('fr-FR')} {pay.currency} — {pay.provider === 'mtn_momo' ? 'MTN MoMo' : pay.provider === 'orange_money' ? 'Orange Money' : 'GeniusPay'}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
+                      Réf : {pay.transaction_ref} | {new Date(pay.created_at).toLocaleString('fr-FR')}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
-                    Réf : {pay.transaction_ref} | Idempotence : {pay.idempotency_key}
-                  </div>
+                  {badge}
                 </div>
-
-                <span className="admin-badge published">Confirmé Webhook ✔</span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

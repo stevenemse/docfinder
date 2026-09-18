@@ -10,6 +10,8 @@ import type {
   PaymentProviderType,
   AdminStats,
   AdminProfileRow,
+  AdminDocumentRow,
+  DocStatus,
   AuditLog
 } from '../types';
 
@@ -880,7 +882,67 @@ export const dataService = {
     }
   },
 
-  /** Enregistrement anonyme d'une visite (analytics légers, aucune donnée perso). */
+  // 8. CRUD documents (console admin) -----------------------------------------
+
+  /** Liste complète des documents (tous statuts) pour la console admin. */
+  async getAdminDocuments(): Promise<{ found: AdminDocumentRow[]; lost: AdminDocumentRow[] } | null> {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const { data, error } = await supabase.rpc('admin_list_all_documents');
+      if (error) {
+        console.warn('RPC admin_list_all_documents:', error.message);
+        return null;
+      }
+      return data as unknown as { found: AdminDocumentRow[]; lost: AdminDocumentRow[] };
+    } catch {
+      return null;
+    }
+  },
+
+  /** Édition d'un document (titre, région, ville, statut) — modérateur. */
+  async adminUpdateDocument(
+    kind: 'found' | 'lost',
+    docId: string,
+    patch: { title?: string; region?: string; city?: string; status?: DocStatus }
+  ): Promise<boolean> {
+    if (!isSupabaseConfigured()) return false;
+    try {
+      const { error } = await supabase.rpc('admin_update_document', {
+        p_kind: kind,
+        p_doc_id: docId,
+        p_title: patch.title ?? null,
+        p_region: patch.region ?? null,
+        p_city: patch.city ?? null,
+        p_status: patch.status ?? null
+      });
+      if (error) {
+        console.warn('RPC admin_update_document:', error.message);
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  /** Suppression définitive d'un document (images Storage incluses) — modérateur. */
+  async adminDeleteDocument(kind: 'found' | 'lost', docId: string): Promise<boolean> {
+    if (!isSupabaseConfigured()) return false;
+    try {
+      const { error } = await supabase.rpc('admin_delete_document', {
+        p_kind: kind,
+        p_doc_id: docId
+      });
+      if (error) {
+        console.warn('RPC admin_delete_document:', error.message);
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   async recordPageView(path: string = '/'): Promise<void> {
     if (!isSupabaseConfigured()) return;
     try {

@@ -169,6 +169,21 @@ export interface AuditLog {
   created_at: string;
 }
 
+// Ligne générique d'un document dans la console admin (RPC admin_list_all_documents)
+export interface AdminDocumentRow {
+  id: string;
+  kind: 'found' | 'lost';
+  title: string;
+  status: DocStatus;
+  region: string;
+  city: string;
+  doc_number_partial?: string | null;
+  masked_image_url?: string | null;
+  original_image_path?: string | null;
+  reference_image_path?: string | null;
+  created_at: string;
+}
+
 export interface SiteSetting {
   id: string;
   key: string;
