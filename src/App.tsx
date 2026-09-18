@@ -13,6 +13,7 @@ import { AuthModal } from './components/AuthModal';
 import { LegalPages, type LegalDoc } from './components/LegalPages';
 import { ProfilePage } from './components/ProfilePage';
 import { CookieConsent } from './components/CookieConsent';
+import { InstallPrompt } from './components/InstallPrompt';
 import { authService } from './services/authService';
 import { dataService } from './services/dataService';
 import { isSupabaseConfigured } from './services/supabaseClient';
@@ -148,6 +149,26 @@ export function App() {
           showToast(`${fixed} paiement${fixed > 1 ? 's' : ''} confirmé${fixed > 1 ? 's' : ''} ! Restitution débloquée.`);
         }
       }
+
+      // Raccourcis PWA (manifest) : ?action=report-lost | report-found | dossiers
+      // → ouvre la vue correspondante, avec garde d'authentification habituelle
+      // (même logique que handleLostClick/handleFoundClick, inlinée car les
+      // handlers sont déclarés après ce useEffect — cf. lint immutability).
+      const pwaAction = params.get('action');
+      if (pwaAction === 'report-lost' || pwaAction === 'report-found') {
+        const wantFound = pwaAction === 'report-found';
+        if (session.isAuthenticated) {
+          if (wantFound) setIsFoundModalOpen(true);
+          else setIsLostModalOpen(true);
+        } else {
+          setPendingAction(wantFound ? 'open_found' : 'open_lost');
+          setAuthModalMode('register');
+          setIsAuthModalOpen(true);
+        }
+      } else if (pwaAction === 'dossiers') {
+        setCurrentTab('dashboard');
+      }
+      if (pwaAction) window.history.replaceState({}, '', window.location.pathname);
     }
     init();
   }, []);
@@ -571,6 +592,7 @@ export function App() {
 
       {/* Bandeau consentement cookies (production) */}
       <CookieConsent onOpenCookiesPolicy={() => setLegalDoc('cookies')} />
+      <InstallPrompt />
     </div>
   );
 }

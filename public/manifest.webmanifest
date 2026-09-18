@@ -1,0 +1,57 @@
+{
+  "name": "DocFinder Cameroun — Retrouvez vos documents perdus",
+  "short_name": "DocFinder",
+  "description": "Plateforme sécurisée pour retrouver vos pièces officielles égarées (CNI, passeport, permis) sans compromettre vos données personnelles.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0d5c3a",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Déclarer une perte",
+      "short_name": "Perte",
+      "description": "Déclarer un document perdu et lancer la recherche automatique",
+      "url": "/?action=report-lost",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Signaler un document trouvé",
+      "short_name": "Trouvé",
+      "description": "Signaler une pièce trouvée en la caviardant automatiquement",
+      "url": "/?action=report-found",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mes dossiers",
+      "short_name": "Dossiers",
+      "description": "Suivre mes déclarations et correspondances",
+      "url": "/?action=dossiers",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

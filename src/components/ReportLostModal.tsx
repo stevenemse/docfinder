@@ -336,7 +336,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               {/* ÉTAPE 2 — Où et quand */}
               <CheckoutSection step={2} title="Où et quand ?" />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="form-grid-2">
                 <div className="form-group">
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <MapPin size={12} />

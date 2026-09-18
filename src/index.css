@@ -1781,12 +1781,41 @@ html {
   }
 
   .modal-content {
-    max-height: 92dvh;
+    max-height: 94dvh;
+    height: 94dvh;
+  }
+
+  .modal-header {
+    padding: 12px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-card);
   }
 
   .modal-body {
-    padding: 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 14px;
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+    gap: 12px;
+  }
+
+  /* Champs tactiles confortables (≥ 44px) + iOS ne zoome plus (≥ 16px) */
+  .modal-body .form-input,
+  .modal-body .form-select,
+  .modal-body .form-textarea {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+
+  /* La grille Région/Ville passe en 1 colonne sur petits écrans */
+  .modal-body .form-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Titres de section plus compacts */
+  .modal-body .modal-title {
+    font-size: 1.02rem;
   }
 }
 
@@ -1800,7 +1829,7 @@ html {
 .modal-content {
   background: var(--surface-card);
   width: 100%;
-  max-height: 90vh;
+  max-height: 90dvh;
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   display: flex;
   flex-direction: column;
@@ -1901,6 +1930,13 @@ html {
   background-color: #ffffff;
   outline: none;
   transition: border-color 0.2s;
+}
+
+/* Grille 2 colonnes (Région/Ville…) — 1 colonne sous 480px via .modal-body */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
