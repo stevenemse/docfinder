@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { User, Phone, Mail, KeyRound, Save, Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { User, Phone, Mail, KeyRound, Save, Loader2, CheckCircle2, AlertCircle, ShieldCheck, Bell, BellOff } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { normalizePhone } from '../services/authService';
+import { pushService } from '../services/pushService';
 import type { Profile } from '../types';
 
 interface ProfilePageProps {
@@ -34,6 +35,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
   const [savingPwd, setSavingPwd] = useState(false);
   const [infoMsg, setInfoMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [pwdMsg, setPwdMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // ---- Notifications push ----
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushGranted, setPushGranted] = useState(() => pushService.permission() === 'granted');
+  const [pushSupported] = useState(() => pushService.isSupported());
 
   const infoDirty =
     displayName !== (profile.display_name || '') ||
@@ -301,6 +307,85 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
         <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '12px', lineHeight: 1.5 }}>
           ⚠️ Si vous changez votre numéro de téléphone, celui-ci devient votre nouvel identifiant
           de connexion à partir de votre prochaine session.
+        </p>
+      </div>
+
+      {/* Carte notifications push */}
+      <div className="profile-card">
+        <div className="profile-card-title">
+          <Bell size={16} />
+          Notifications — Alertes de correspondance
+        </div>
+
+        <p style={{ fontSize: '0.8rem', color: 'var(--slate-600)', lineHeight: 1.55, margin: '0 0 12px' }}>
+          Recevez une alerte sur cet appareil dès qu'un <strong>document trouvé</strong>{' '}
+          correspond à l'une de vos déclarations de perte — sans avoir à surveiller l'application.
+        </p>
+
+        {!pushSupported ? (
+          <p style={{ fontSize: '0.78rem', color: 'var(--slate-500)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <BellOff size={14} /> Non supporté par ce navigateur (installez l'app pour y accéder).
+          </p>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {!pushGranted ? (
+              <button
+                className="profile-save-btn"
+                onClick={async () => {
+                  setPushBusy(true);
+                  const r = await pushService.enable(profile.id);
+                  setPushGranted(pushService.permission() === 'granted');
+                  setPushBusy(false);
+                  showToast(r.message);
+                }}
+                disabled={pushBusy}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                {pushBusy ? <Loader2 size={15} className="animate-pulse-slow" /> : <Bell size={15} />}
+                {pushBusy ? 'Activation...' : 'Activer les notifications'}
+              </button>
+            ) : (
+              <>
+                <button
+                  className="profile-save-btn"
+                  onClick={async () => {
+                    setPushBusy(true);
+                    const r = await pushService.sendTest();
+                    setPushBusy(false);
+                    showToast(r.message);
+                  }}
+                  disabled={pushBusy}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  {pushBusy ? <Loader2 size={15} className="animate-pulse-slow" /> : <Bell size={15} />}
+                  {pushBusy ? 'Envoi...' : 'Tester la notification'}
+                </button>
+                <button
+                  onClick={async () => {
+                    setPushBusy(true);
+                    const r = await pushService.disable(profile.id);
+                    setPushGranted(pushService.permission() === 'granted' && false);
+                    setPushBusy(false);
+                    showToast(r.message);
+                  }}
+                  disabled={pushBusy}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '8px',
+                    background: 'none', border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)', padding: '10px 14px',
+                    fontSize: '0.82rem', fontWeight: 700, color: 'var(--slate-600)', cursor: 'pointer'
+                  }}
+                >
+                  <BellOff size={15} /> Désactiver
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        <p style={{ fontSize: '0.7rem', color: 'var(--slate-500)', marginTop: '10px', lineHeight: 1.5 }}>
+          Un seul abonnement par appareil — vous pouvez le retirer à tout moment.
+          Aucune donnée personnelle n'est incluse dans les notifications.
         </p>
       </div>
 

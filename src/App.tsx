@@ -14,6 +14,14 @@ import { LegalPages, type LegalDoc } from './components/LegalPages';
 import { ProfilePage } from './components/ProfilePage';
 import { CookieConsent } from './components/CookieConsent';
 import { InstallPrompt } from './components/InstallPrompt';
+import { OfflineBanner } from './components/OfflineBanner';
+import {
+  cacheFoundDocs,
+  cacheMyDossiers,
+  getCachedFoundDocs,
+  getCachedMyDossiers,
+  clearOfflineCache
+} from './lib/offlineCache';
 import { authService } from './services/authService';
 import { dataService } from './services/dataService';
 import { isSupabaseConfigured } from './services/supabaseClient';
@@ -92,12 +100,28 @@ export function App() {
       setIsAuthenticated(session.isAuthenticated);
       setProfile(session.profile);
 
+      // Mode hors-ligne : si le réseau est coupé, on restaure d'abord le cache
+      // (catalogue + dossiers personnels) pour une app immédiatement utile.
+      if (!navigator.onLine) {
+        const cachedFound = getCachedFoundDocs(session.profile?.id ?? null);
+        if (cachedFound) setFoundDocs(cachedFound as FoundDocument[]);
+        const cached = getCachedMyDossiers(session.profile?.id ?? null);
+        if (cached) {
+          setLostDocs(cached.lost as LostDocument[]);
+          setMatches(cached.matches as Match[]);
+          setRecoveryRequests(cached.recoveries as RecoveryRequest[]);
+          setPayments(cached.payments as Payment[]);
+        }
+      }
+
       // Data
       const types = await dataService.getDocumentTypes();
       setDocTypes(types);
 
       const found = await dataService.getFoundDocuments();
       setFoundDocs(found);
+      // Cache pour consultation hors ligne (public, sans donnée sensible)
+      cacheFoundDocs(session.profile?.id ?? null, found);
 
       const lost = await dataService.getLostDocuments();
       setLostDocs(lost);
@@ -110,6 +134,15 @@ export function App() {
 
       const pays = await dataService.getPayments();
       setPayments(pays);
+      // Cache des dossiers personnels (perte, matches, restitutions, paiements)
+      if (session.isAuthenticated && session.profile) {
+        cacheMyDossiers(session.profile.id, {
+          lost,
+          matches: m,
+          recoveries: reqs,
+          payments: pays
+        });
+      }
 
       // Analytics : une visite anonyme par chargement d'app (sans donnée perso)
       dataService.recordPageView('/');
@@ -218,6 +251,7 @@ export function App() {
 
   const handleLogout = async () => {
     await authService.logout();
+    clearOfflineCache(profile?.id ?? null); // purge les dossiers mis en cache
     setIsAuthenticated(false);
     setProfile(null);
     setCurrentTab('home');
@@ -591,6 +625,7 @@ export function App() {
       />
 
       {/* Bandeau consentement cookies (production) */}
+      <OfflineBanner />
       <CookieConsent onOpenCookiesPolicy={() => setLegalDoc('cookies')} />
       <InstallPrompt />
     </div>
