@@ -34,18 +34,15 @@ ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "push_subs_select_own" ON public.push_subscriptions;
 CREATE POLICY "push_subs_select_own" ON public.push_subscriptions
-  FOR SELECT USING (profile_id IN (SELECT id FROM public.profiles WHERE user_id = auth.uid()));
+  FOR SELECT USING (profile_id = public.current_profile_id());
 
 DROP POLICY IF EXISTS "push_subs_insert_own" ON public.push_subscriptions;
 CREATE POLICY "push_subs_insert_own" ON public.push_subscriptions
-  FOR INSERT WITH CHECK (
-    profile_id IN (SELECT id FROM public.profiles WHERE user_id = auth.uid())
-    AND is_active_profile()
-  );
+  FOR INSERT WITH CHECK (profile_id = public.current_profile_id());
 
 DROP POLICY IF EXISTS "push_subs_delete_own" ON public.push_subscriptions;
 CREATE POLICY "push_subs_delete_own" ON public.push_subscriptions
-  FOR DELETE USING (profile_id IN (SELECT id FROM public.profiles WHERE user_id = auth.uid()));
+  FOR DELETE USING (profile_id = public.current_profile_id());
 
 -- service_role (Edge Function d'envoi) : contournement complet RLS par défaut
 -- (le rôle bypassrls est attribué à service_role sur Supabase).
