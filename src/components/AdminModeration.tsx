@@ -246,14 +246,73 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     return () => { cancelled = true; };
   }, []);
 
-  const handleSetStatus = async (row: AdminProfileRow, status: 'active' | 'suspended' | 'blocked') => {
+  // ------- Modale de motif (suppression document & statut compte) -------
+  const [reasonModal, setReasonModal] = useState<{
+    kind: 'delete_doc' | 'user_status';
+    doc?: AdminDocumentRow;
+    row?: AdminProfileRow;
+    status?: 'active' | 'suspended' | 'blocked';
+    title: string;
+    description: string;
+    confirmLabel: string;
+    reason: string;
+    busy: boolean;
+    error?: string;
+  } | null>(null);
+
+  const openDeleteDoc = (doc: AdminDocumentRow) => setReasonModal({
+    kind: 'delete_doc',
+    doc,
+    title: 'Supprimer définitivement',
+    description: `« ${doc.title} » sera effacé avec ses correspondances, demandes de restitution et paiements liés, ainsi que les images du coffre privé. Action irréversible, journalisée avec votre nom.`,
+    confirmLabel: 'Supprimer',
+    reason: '',
+    busy: false
+  });
+
+  const openUserStatus = (row: AdminProfileRow, status: 'active' | 'suspended' | 'blocked') => {
     if (status === row.status) return;
-    const ok = await dataService.adminSetUserStatus(row.id, status);
-    if (ok) {
-      showToast(`Compte de ${row.display_name} : ${status === 'active' ? 'réactivé' : status === 'suspended' ? 'suspendu' : 'bloqué'}.`);
-      setUsers(await dataService.getAdminProfiles());
-    } else {
-      showToast("Action refusée (droits insuffisants ou RPC absente — exécutez la migration).");
+    setReasonModal({
+      kind: 'user_status',
+      row,
+      status,
+      title: status === 'active' ? 'Réactiver le compte' : status === 'suspended' ? 'Suspendre le compte' : 'Bloquer le compte',
+      description: `${row.display_name} (${row.phone}) — le motif sera visible dans le journal d'audit.`,
+      confirmLabel: status === 'active' ? 'Réactiver' : status === 'suspended' ? 'Suspendre' : 'Bloquer',
+      reason: '',
+      busy: false
+    });
+  };
+
+  const confirmReasonAction = async () => {
+    if (!reasonModal) return;
+    const reason = reasonModal.reason.trim();
+    if (!reason) {
+      setReasonModal({ ...reasonModal, error: 'Le motif est obligatoire.' });
+      return;
+    }
+    setReasonModal({ ...reasonModal, busy: true, error: undefined });
+
+    if (reasonModal.kind === 'delete_doc' && reasonModal.doc) {
+      const ok = await dataService.adminDeleteDocument(reasonModal.doc.kind, reasonModal.doc.id, reason);
+      if (ok) {
+        showToast('Document supprimé définitivement (motif journalisé).');
+        if (editingDoc?.id === reasonModal.doc.id) setEditingDoc(null);
+        refreshAdminDocs();
+        setReasonModal(null);
+      } else {
+        setReasonModal(m => m ? { ...m, busy: false, error: 'Suppression refusée — exécutez supabase/migration-admin-crud-documents.sql (motif requis).' } : null);
+      }
+    } else if (reasonModal.kind === 'user_status' && reasonModal.row && reasonModal.status) {
+      const st = reasonModal.status;
+      const ok = await dataService.adminSetUserStatus(reasonModal.row.id, st, reason);
+      if (ok) {
+        showToast(`Compte de ${reasonModal.row.display_name} : ${st === 'active' ? 'réactivé' : st === 'suspended' ? 'suspendu' : 'bloqué'} (motif journalisé).`);
+        setUsers(await dataService.getAdminProfiles());
+        setReasonModal(null);
+      } else {
+        setReasonModal(m => m ? { ...m, busy: false, error: "Action refusée — exécutez supabase/migration-admin-crud-documents.sql (version avec motif)." } : null);
+      }
     }
   };
 
@@ -286,23 +345,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     }
   };
 
-  const handleDeleteDoc = async (doc: AdminDocumentRow) => {
-    if (!window.confirm(
-      `Supprimer définitivement « ${doc.title} » ?\n\n` +
-      'Cette action efface aussi les correspondances, demandes de restitution et paiements liés, ' +
-      'ainsi que les images du coffre privé. Elle est journalisée et irréversible.'
-    )) return;
-    setBusyDocId(doc.id);
-    const ok = await dataService.adminDeleteDocument(doc.kind, doc.id);
-    setBusyDocId(null);
-    if (ok) {
-      showToast('Document supprimé définitivement.');
-      if (editingDoc?.id === doc.id) setEditingDoc(null);
-      refreshAdminDocs();
-    } else {
-      showToast('Suppression refusée — exécutez supabase/migration-admin-crud-documents.sql.');
-    }
-  };
+
 
   const docRow = (doc: AdminDocumentRow) => (
     <div key={doc.id} className="admin-doc-row" style={{ flexWrap: 'wrap' }}>
@@ -334,7 +377,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           {editingDoc?.id === doc.id ? 'Fermer' : 'Modifier'}
         </button>
         <button
-          onClick={() => handleDeleteDoc(doc)}
+          onClick={() => openDeleteDoc(doc)}
           disabled={busyDocId === doc.id}
           title="Supprimer définitivement"
           style={{
@@ -748,16 +791,16 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                 {isAdmin && u.role === 'citizen' && (
                   <div className="admin-user-actions">
                     {u.status === 'active' ? (
-                      <button onClick={() => handleSetStatus(u, 'suspended')} title="Suspendre le compte">
+                      <button onClick={() => openUserStatus(u, 'suspended')} title="Suspendre le compte">
                         <PauseCircle size={12} /> Suspendre
                       </button>
                     ) : (
-                      <button className="active-btn" onClick={() => handleSetStatus(u, 'active')} title="Réactiver le compte">
+                      <button className="active-btn" onClick={() => openUserStatus(u, 'active')} title="Réactiver le compte">
                         <PlayCircle size={12} /> Réactiver
                       </button>
                     )}
                     {u.status !== 'blocked' && (
-                      <button className="danger" onClick={() => handleSetStatus(u, 'blocked')} title="Bloquer définitivement">
+                      <button className="danger" onClick={() => openUserStatus(u, 'blocked')} title="Bloquer définitivement">
                         <ShieldBan size={12} /> Bloquer
                       </button>
                     )}
@@ -975,6 +1018,92 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* ============ MODALE MOTIF OBLIGATOIRE ============ */}
+      {reasonModal && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget && !reasonModal.busy) setReasonModal(null); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <div style={{
+            background: 'var(--surface-card, #ffffff)', borderRadius: 'var(--radius-lg)',
+            width: 'min(440px, 100%)', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: '0 24px 64px rgba(0, 0, 0, 0.3)', padding: '22px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 'var(--radius-full)', flexShrink: 0,
+                background: reasonModal.kind === 'delete_doc' ? 'var(--red-50)' : 'var(--gold-100, #fef3c7)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                {reasonModal.kind === 'delete_doc'
+                  ? <Trash2 size={18} color="var(--red-600)" />
+                  : reasonModal.status === 'active' ? <PlayCircle size={18} color="#b45309" /> : <ShieldBan size={18} color="#b45309" />}
+              </div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--slate-900)' }}>{reasonModal.title}</div>
+            </div>
+
+            <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', margin: '0 0 14px', lineHeight: 1.5 }}>
+              {reasonModal.description}
+            </p>
+
+            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 800, color: 'var(--slate-700)', marginBottom: '6px' }}>
+              Motif de la décision <span style={{ color: 'var(--red-600)' }}>*</span>
+            </label>
+            <textarea
+              value={reasonModal.reason}
+              onChange={e => setReasonModal(m => m ? { ...m, reason: e.target.value, error: undefined } : null)}
+              placeholder={reasonModal.kind === 'delete_doc'
+                ? 'Ex : document frauduleux, doublon, demande du propriétaire…'
+                : 'Ex : signalements abusifs répétés, usurpation suspectée…'}
+              rows={3}
+              autoFocus
+              maxLength={500}
+              style={{
+                width: '100%', resize: 'vertical', minHeight: '72px',
+                padding: '10px 12px', borderRadius: 'var(--radius-md)',
+                border: reasonModal.error ? '1.5px solid var(--red-500)' : '1px solid var(--border-color)',
+                fontSize: '0.85rem', fontFamily: 'inherit', boxSizing: 'border-box'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.68rem' }}>
+              <span style={{ color: 'var(--red-600)', fontWeight: 600 }}>{reasonModal.error || ''}</span>
+              <span style={{ color: 'var(--slate-400)' }}>{reasonModal.reason.length}/500</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button
+                onClick={() => setReasonModal(null)}
+                disabled={reasonModal.busy}
+                style={{
+                  background: 'var(--slate-100)', color: 'var(--slate-700)', border: 'none',
+                  borderRadius: 'var(--radius-md)', padding: '9px 16px', fontWeight: 700,
+                  fontSize: '0.8rem', cursor: 'pointer'
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmReasonAction}
+                disabled={reasonModal.busy}
+                style={{
+                  background: reasonModal.kind === 'delete_doc' ? 'var(--red-600)' : 'var(--primary-700)',
+                  color: '#ffffff', border: 'none', borderRadius: 'var(--radius-md)',
+                  padding: '9px 18px', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                {reasonModal.busy && <Loader2 size={13} className="animate-spin" />}
+                {reasonModal.confirmLabel}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

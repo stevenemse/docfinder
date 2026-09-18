@@ -847,12 +847,13 @@ export const dataService = {
     }
   },
 
-  async adminSetUserStatus(profileId: string, status: 'active' | 'suspended' | 'blocked'): Promise<boolean> {
+  async adminSetUserStatus(profileId: string, status: 'active' | 'suspended' | 'blocked', reason: string): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
     try {
       const { error } = await supabase.rpc('admin_set_user_status', {
         p_profile_id: profileId,
-        p_status: status
+        p_status: status,
+        p_reason: reason
       });
       if (error) {
         console.warn('RPC admin_set_user_status:', error.message);
@@ -903,7 +904,7 @@ export const dataService = {
   async adminUpdateDocument(
     kind: 'found' | 'lost',
     docId: string,
-    patch: { title?: string; region?: string; city?: string; status?: DocStatus }
+    patch: { title?: string; region?: string; city?: string; status?: DocStatus; reason?: string }
   ): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
     try {
@@ -913,7 +914,8 @@ export const dataService = {
         p_title: patch.title ?? null,
         p_region: patch.region ?? null,
         p_city: patch.city ?? null,
-        p_status: patch.status ?? null
+        p_status: patch.status ?? null,
+        p_reason: patch.reason ?? null
       });
       if (error) {
         console.warn('RPC admin_update_document:', error.message);
@@ -925,13 +927,14 @@ export const dataService = {
     }
   },
 
-  /** Suppression définitive d'un document (images Storage incluses) — modérateur. */
-  async adminDeleteDocument(kind: 'found' | 'lost', docId: string): Promise<boolean> {
+  /** Suppression définitive d'un document (motif OBLIGATOIRE, journalisé). */
+  async adminDeleteDocument(kind: 'found' | 'lost', docId: string, reason: string): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
     try {
       const { error } = await supabase.rpc('admin_delete_document', {
         p_kind: kind,
-        p_doc_id: docId
+        p_doc_id: docId,
+        p_reason: reason
       });
       if (error) {
         console.warn('RPC admin_delete_document:', error.message);

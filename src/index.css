@@ -120,13 +120,8 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 84px; /* Space for mobile bottom bar */
-}
-
-@media (min-width: 768px) {
-  .app-container {
-    padding-bottom: 32px;
-  }
+  /* Pas de padding-bottom ici : le footer étend son propre fond sombre
+     derrière la barre de navigation mobile (aucune bande claire dessous). */
 }
 
 /* Header & Navigation — fond opaque, net au scroll (pas d'effet verre) */
@@ -2052,14 +2047,16 @@ html {
   background: linear-gradient(180deg, #0b3d26 0%, #06281a 100%);
   color: #d1fae5;
   margin-top: 40px;
-  padding: 36px var(--gutter) 20px var(--gutter);
+  /* La hauteur de la bottom-nav mobile est absorbée par le fond sombre
+     du footer (au lieu d'une bande claire via padding du conteneur). */
+  padding: 36px var(--gutter) calc(92px + env(safe-area-inset-bottom)) var(--gutter);
 }
 
 @media (min-width: 768px) {
   .app-footer {
     margin-top: 56px;
     padding-top: 44px;
-    padding-bottom: 24px;
+    padding-bottom: 24px; /* desktop : pas de bottom-nav */
   }
 }
 
