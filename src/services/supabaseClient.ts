@@ -29,7 +29,9 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false
+      // Détecte la session dans l'URL (#access_token=…) : indispensable au
+      // retour du flux OAuth Google (retour implicite avec jeton dans le hash).
+      detectSessionInUrl: true
     }
   }
 );
