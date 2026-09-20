@@ -92,6 +92,13 @@ export function App() {
     }, 4000);
   };
 
+  // Navigation : remonter en haut de page à chaque changement de vue
+  // (navbar, bottom-nav mobile, pages légales) — sinon on atterrit
+  // à la position de scroll de la vue précédente.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [currentTab, legalDoc]);
+
   // Load Initial Session & Data
   useEffect(() => {
     async function init() {
