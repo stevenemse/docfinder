@@ -486,7 +486,10 @@ export const dataService = {
           const rows = data as unknown as RecoveryRequest[];
           // Attache les contacts trouveur débloqués (RPC — le téléphone du
           // trouveur n'est jamais exposé dans la table recovery_requests).
+          // RPC authentifiée : inutile (et 401) pour un visiteur anonyme.
           try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('anonyme');
             const { data: contacts } = await supabase.rpc('get_unlocked_contacts');
             if (contacts) {
               const map = new Map(

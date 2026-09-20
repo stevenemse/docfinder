@@ -313,6 +313,16 @@ export const authService = {
         .single();
 
       if (error || !created) {
+        // Course possible (double montage React, double onglet) : un autre
+        // appel a créé le profil entre notre SELECT et notre INSERT. On relit.
+        if (error && (error as { code?: string }).code === '23505') {
+          const { data: existing } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (existing) return existing as Profile;
+        }
         console.warn('ensureProfile : échec auto-création :', error?.message);
         return null;
       }

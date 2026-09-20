@@ -83,13 +83,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
     setSavingInfo(true);
     try {
       if (isSupabaseConfigured()) {
-        // 1. Met à jour l'identifiant d'authentification si le numéro a changé
+        // 1. Met à jour l'identifiant d'authentification si le numéro a changé —
+        //    UNIQUEMENT si l'email d'auth actuel est un alias téléphone.
+        //    (Comptes Google : on préserve l'email Google comme identifiant.)
         if (normalizedPhone !== profile.phone) {
-          const newAuthEmail = `${normalizedPhone.replace(/\D/g, '')}@phone.docfinder.cm`;
-          const { error: authErr } = await supabase.auth.updateUser({ email: newAuthEmail });
-          if (authErr) {
-            // Non bloquant : certains projets exigent une confirmation par email
-            console.warn('Mise à jour email auth (non bloquant):', authErr.message);
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const authEmail = user?.email ?? '';
+            if (authEmail.endsWith('@phone.docfinder.cm')) {
+              const newAuthEmail = `${normalizedPhone.replace(/\D/g, '')}@phone.docfinder.cm`;
+              const { error: authErr } = await supabase.auth.updateUser({ email: newAuthEmail });
+              if (authErr) {
+                // Non bloquant : certains projets exigent une confirmation par email
+                console.warn('Mise à jour email auth (non bloquant):', authErr.message);
+              }
+            }
+          } catch (authCheckErr) {
+            console.warn('Vérification email auth (non bloquant):', authCheckErr);
           }
         }
 
