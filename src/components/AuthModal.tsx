@@ -4,6 +4,15 @@ import { CheckoutSection } from './CheckoutSection';
 import { authService } from '../services/authService';
 import type { Profile } from '../types';
 
+const GoogleIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 18 18" aria-hidden="true">
+    <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
+    <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z" />
+    <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
+    <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.42 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
+  </svg>
+);
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,8 +44,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   if (!isOpen) return null;
+
+  const handleGoogle = async () => {
+    setErrorMsg(null);
+    setIsGoogleLoading(true);
+    const res = await authService.signInWithGoogle();
+    if (res.error) {
+      setErrorMsg(res.error);
+      setIsGoogleLoading(false);
+      return;
+    }
+    // Filet de sécurité : si la redirection vers Google n'a pas eu lieu
+    // (bloqueur de navigation, provider non activé…), on restaure le bouton.
+    window.setTimeout(() => {
+      setIsGoogleLoading(false);
+      setErrorMsg(
+        "La redirection vers Google n'a pas abouti. Si le problème persiste, " +
+        'le provider Google n\'est peut-être pas encore activé côté serveur — ' +
+        'utilisez le formulaire numéro + mot de passe en attendant.'
+      );
+    }, 8000);
+  };
 
   const handleSwitchMode = (newMode: 'login' | 'register') => {
     setMode(newMode);
@@ -182,6 +213,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Body */}
         <div className="modal-body">
+          {/* Connexion Google — zéro friction */}
+          <button
+            type="button"
+            onClick={handleGoogle}
+            disabled={isGoogleLoading || isLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              width: '100%',
+              background: '#ffffff',
+              color: 'var(--slate-800)',
+              border: '1.5px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 20px',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              cursor: isGoogleLoading ? 'wait' : 'pointer',
+              transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+              marginBottom: '16px'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--slate-400)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(15,23,42,0.08)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
+          >
+            {isGoogleLoading
+              ? <span style={{ fontSize: '0.85rem', color: 'var(--slate-500)' }}>Redirection vers Google…</span>
+              : <>
+                  <GoogleIcon size={18} />
+                  Continuer avec Google
+                </>}
+          </button>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '14px',
+            color: 'var(--slate-400)',
+            fontSize: '0.75rem',
+            fontWeight: 600
+          }}>
+            <span style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+            ou avec votre numéro
+            <span style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
+          </div>
           {/* Unified Citizen Info Banner */}
           <div style={{
             background: 'var(--primary-50)',
@@ -252,20 +329,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     Numéro de Téléphone * — <span style={{ color: 'var(--primary-700)', fontWeight: 800 }}>Identifiant de connexion</span>
                   </label>
                   <div style={{ display: 'flex' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '10px 12px',
-                      background: 'var(--slate-100)',
-                      border: '1px solid var(--border-color)',
-                      borderRight: 'none',
-                      borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
-                      fontSize: '0.88rem',
-                      fontWeight: 800,
-                      color: 'var(--slate-700)',
-                      userSelect: 'none'
-                    }}>
+                    <span className="phone-prefix">
                       <span style={{ fontSize: '1rem', lineHeight: 1 }}>🇨🇲</span>
                       +237
                     </span>

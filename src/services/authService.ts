@@ -72,11 +72,17 @@ export const authService = {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          const { data: profile } = await supabase
+          let { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', session.user.id)
             .single();
+
+          // Session sans profil = retour OAuth (premier login Google) :
+          // on auto-crée le profil depuis les métadonnées Google.
+          if (!profile) {
+            profile = await authService.ensureProfile();
+          }
 
           if (profile) {
             return {
@@ -246,6 +252,75 @@ export const authService = {
 
     localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(demoProfile));
     return { profile: demoProfile };
+  },
+
+  // Connexion / inscription via Google (OAuth) — zéro friction :
+  // un clic, l'utilisateur choisit son compte Google et revient connecté.
+  // Le profil est auto-créé au retour (ensureProfile) avec le nom Google.
+  async signInWithGoogle(): Promise<{ error?: string }> {
+    if (!isSupabaseConfigured()) {
+      return { error: 'Google n\'est disponible qu\'en ligne. Utilisez le formulaire numéro + mot de passe.' };
+    }
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          queryParams: { prompt: 'select_account' }
+        }
+      });
+      if (error) return { error: error.message };
+      // Redirection vers Google en cours — le retour passera par getInitialSession
+      return {};
+    } catch (err: any) {
+      return { error: err.message || 'Erreur de connexion Google' };
+    }
+  },
+
+  // Crée le profil s'il n'existe pas encore (retour OAuth, premier login Google)
+  async ensureProfile(): Promise<Profile | null> {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return null;
+      const user = session.user;
+
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (existing) return existing as Profile;
+
+      // Auto-création : nom depuis Google, téléphone laissé à compléter
+      const displayName =
+        (user.user_metadata?.full_name as string) ||
+        (user.user_metadata?.name as string) ||
+        (user.email ? user.email.split('@')[0] : 'Utilisateur Google');
+
+      const { data: created, error } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: user.id,
+          role: 'citizen' as const,
+          display_name: displayName,
+          phone: null,
+          email: user.email ?? null,
+          is_verified: true,
+          status: 'active' as const
+        })
+        .select()
+        .single();
+
+      if (error || !created) {
+        console.warn('ensureProfile : échec auto-création :', error?.message);
+        return null;
+      }
+      return created as Profile;
+    } catch (err) {
+      console.warn('ensureProfile :', err);
+      return null;
+    }
   },
 
   // Accès rapide pour tests
