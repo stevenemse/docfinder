@@ -2766,16 +2766,45 @@ html {
   gap: 4px;
   height: 110px;
   padding-top: 6px;
+  max-width: 100%;
 }
 
 .admin-bar-col {
   flex: 1;
+  min-width: 0; /* essentiel : permet aux colonnes de rétrécir sous la largeur du texte */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   height: 100%;
   justify-content: flex-end;
+}
+
+/* Mobile : alléger les étiquettes (1 jour sur 2, puis 1 sur 3 en dessous de 400px)
+   pour que 14 colonnes tiennent sans déborder — la date complète reste en info-bulle.
+   Les étiquettes visibles peuvent déborder sur les colonnes voisines masquées. */
+@media (max-width: 640px) {
+  .admin-bars {
+    gap: 3px;
+  }
+
+  .admin-bar-col:nth-child(2n) .admin-bar-label {
+    display: none;
+  }
+
+  .admin-bar-col:nth-child(2n+1) .admin-bar-label {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 400px) {
+  .admin-bar-col:not(:nth-child(3n+1)) .admin-bar-label {
+    display: none;
+  }
+
+  .admin-bar-col:nth-child(3n+1) .admin-bar-label {
+    white-space: nowrap;
+  }
 }
 
 .admin-bar {
