@@ -380,6 +380,22 @@ body {
 .dashboard-tabs > button {
   flex-shrink: 0;
   white-space: nowrap;
+  padding: 9px 13px;
+  min-height: 44px;
+}
+
+/* Section titres : ne pas casser sur mobile */
+.section-header {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-header .section-title {
+  min-width: 0;
+}
+
+.section-header .section-title span {
+  overflow-wrap: anywhere;
 }
 
 /* Très petits écrans : le tag CAMEROUN décoratif est masqué pour libérer la marque */
@@ -2619,62 +2635,129 @@ html {
   font-weight: 600;
 }
 
-/* KPI grid */
+/* KPI grid — colonnes stables (fini les rangées inégales avec orphelin) :
+   2 colonnes sur mobile, 3 dès 640px, 3 sur desktop (6 KPIs = 2 rangées pleines) */
 .admin-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
+@media (min-width: 640px) {
+  .admin-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .admin-kpi {
-  background: var(--slate-50);
+  background: var(--surface-card);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 12px 12px 11px;
   display: flex;
   flex-direction: column;
   gap: 2px;
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
-.admin-kpi::after {
+.admin-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  border-color: var(--primary-100);
+}
+
+/* Liseré coloré en haut selon le ton de la carte */
+.admin-kpi::before {
   content: '';
   position: absolute;
-  right: -14px;
-  top: -14px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--primary-100);
-  opacity: 0.5;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-300));
+}
+
+.admin-kpi.tone-gold::before {
+  background: linear-gradient(90deg, var(--gold-400), var(--gold-100));
+}
+
+.admin-kpi.tone-warn::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+/* Pastille d'icône */
+.admin-kpi-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-50);
+  color: var(--primary-700);
+  margin-bottom: 7px;
+  flex-shrink: 0;
+}
+
+.admin-kpi.tone-gold .admin-kpi-icon {
+  background: var(--gold-50);
+  color: var(--gold-700);
+}
+
+.admin-kpi.tone-warn .admin-kpi-icon {
+  background: #fef3c7;
+  color: #b45309;
 }
 
 .admin-kpi-value {
-  font-size: 1.35rem;
+  font-size: clamp(1.15rem, 3.5vw, 1.4rem);
   font-weight: 800;
   color: var(--slate-900);
   letter-spacing: -0.5px;
-  z-index: 1;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-kpi-label {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 700;
   color: var(--slate-500);
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  z-index: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
 }
 
 .admin-kpi-delta {
   font-size: 0.64rem;
   font-weight: 700;
-  z-index: 1;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Les valeurs longues (revenus en F CFA) restent lisibles sur petits écrans */
+@media (max-width: 420px) {
+  .admin-kpi {
+    padding: 11px 10px 10px;
+  }
 }
 
 .admin-kpi-delta.up { color: var(--primary-600); }
 .admin-kpi-delta.warn { color: var(--gold-600); }
+
+/* Colonne latérale (Restitutions) : toujours 2 cartes côte à côte,
+   même sur desktop où la grille globale passe à 3 colonnes */
+.admin-side-col .admin-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 
 /* Mini bar chart (visites 14 jours) */
 .admin-bars {

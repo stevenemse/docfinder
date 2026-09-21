@@ -183,14 +183,17 @@ const ReferencePhotoCard: React.FC<{ path: string }> = ({ path }) => {
   );
 };
 
-/** Petite carte KPI */
+/** Petite carte KPI moderne (pastille d'icône + liseré tonal) */
 const Kpi: React.FC<{
   value: string | number;
   label: string;
   delta?: string;
   deltaTone?: 'up' | 'warn';
-}> = ({ value, label, delta, deltaTone = 'up' }) => (
-  <div className="admin-kpi">
+  tone?: 'primary' | 'gold' | 'warn';
+  icon?: React.ReactNode;
+}> = ({ value, label, delta, deltaTone = 'up', tone = 'primary', icon }) => (
+  <div className={`admin-kpi${tone !== 'primary' ? ` tone-${tone}` : ''}`}>
+    {icon && <div className="admin-kpi-icon">{icon}</div>}
     <div className="admin-kpi-value">{value}</div>
     <div className="admin-kpi-label">{label}</div>
     {delta && <div className={`admin-kpi-delta ${deltaTone}`}>{delta}</div>}
@@ -524,12 +527,12 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                 <div className="admin-card-sub">Temps réel — base Supabase</div>
               </div>
               <div className="admin-kpis">
-                <Kpi value={stats?.protectedDocs ?? foundDocs.length} label="Documents protégés" delta={stats ? `+${stats.publishedFound} publiés` : undefined} />
-                <Kpi value={stats?.lostDeclarations ?? 0} label="Déclarations de perte" />
-                <Kpi value={stats?.users ?? '…'} label="Comptes citoyens" delta={stats?.suspended ? `${stats.suspended} suspendus` : 'aucune suspension'} deltaTone={stats?.suspended ? 'warn' : 'up'} />
-                <Kpi value={stats?.pendingClaims ?? pendingRequests.length} label="Preuves à valider" deltaTone="warn" />
-                <Kpi value={`${(stats?.paidTotal ?? totalRevenue).toLocaleString('fr-FR')} F`} label="Revenus MoMo" />
-                <Kpi value={stats?.strongMatches ?? 0} label="Correspondances fortes" />
+                <Kpi value={stats?.protectedDocs ?? foundDocs.length} label="Documents protégés" delta={stats ? `+${stats.publishedFound} publiés` : undefined} icon={<FileCheck2 size={16} />} />
+                <Kpi value={stats?.lostDeclarations ?? 0} label="Déclarations de perte" icon={<FileImage size={16} />} />
+                <Kpi value={stats?.users ?? '…'} label="Comptes citoyens" delta={stats?.suspended ? `${stats.suspended} suspendus` : 'aucune suspension'} deltaTone={stats?.suspended ? 'warn' : 'up'} icon={<Users size={16} />} />
+                <Kpi value={stats?.pendingClaims ?? pendingRequests.length} label="Preuves à valider" deltaTone="warn" tone="warn" icon={<AlertTriangle size={16} />} />
+                <Kpi value={`${(stats?.paidTotal ?? totalRevenue).toLocaleString('fr-FR')} F`} label="Revenus MoMo" tone="gold" icon={<CreditCard size={16} />} />
+                <Kpi value={stats?.strongMatches ?? 0} label="Correspondances fortes" icon={<Activity size={16} />} />
               </div>
             </div>
 
@@ -693,9 +696,9 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               <div className="admin-card-head">
                 <div className="admin-card-title"><CreditCard size={16} color="var(--primary-700)" /> Restitutions</div>
               </div>
-              <div className="admin-kpis" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                <Kpi value={stats?.approvedClaims ?? 0} label="Preuves validées" />
-                <Kpi value={stats?.restoredDocs ?? 0} label="Docs restitués" />
+              <div className="admin-kpis">
+                <Kpi value={stats?.approvedClaims ?? 0} label="Preuves validées" icon={<CheckCircle2 size={16} />} />
+                <Kpi value={stats?.restoredDocs ?? 0} label="Docs restitués" tone="gold" icon={<Lock size={16} />} />
               </div>
             </div>
           </div>
