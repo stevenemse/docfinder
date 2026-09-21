@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { DocumentType, LostDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
+import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
 import { dataService } from '../services/dataService';
 import { CheckoutSection } from './CheckoutSection';
 
@@ -40,7 +41,8 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
   const [fullName, setFullName] = useState<string>('');
   const [partialDocNum, setPartialDocNum] = useState<string>('');
   const [region, setRegion] = useState<string>('Centre');
-  const [city, setCity] = useState<string>('Yaoundé');
+  const [city, setCity] = useState<string>(citiesOfRegion('Centre')[0]);
+  const [cityOther, setCityOther] = useState<string>('');
   const [approxZone, setApproxZone] = useState<string>('');
   const [lostDate, setLostDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [secretQuestion, setSecretQuestion] = useState<string>(
@@ -110,7 +112,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         // Sécurité : SHA-256 — le numéro et la réponse secrète ne sont jamais stockés en clair
         doc_number_hash: partialDocNum ? await sha256Hex(partialDocNum) : undefined,
         lost_region: region,
-        lost_city: city,
+        lost_city: city === CITY_OTHER ? cityOther.trim() : city,
         approx_loss_zone: approxZone || undefined,
         lost_date_approx: lostDate || new Date().toISOString().split('T')[0],
         secret_proof_question: secretQuestion,
@@ -345,31 +347,46 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                   <select
                     className="form-select"
                     value={region}
-                    onChange={(e) => setRegion(e.target.value)}
+                    onChange={(e) => {
+                      const r = e.target.value;
+                      setRegion(r);
+                      setCity(citiesOfRegion(r)[0] ?? '');
+                      setCityOther('');
+                    }}
                   >
-                    <option value="Centre">Centre</option>
-                    <option value="Littoral">Littoral</option>
-                    <option value="Ouest">Ouest</option>
-                    <option value="Sud-Ouest">Sud-Ouest</option>
-                    <option value="Nord-Ouest">Nord-Ouest</option>
-                    <option value="Nord">Nord</option>
-                    <option value="Extrême-Nord">Extrême-Nord</option>
-                    <option value="Adamaoua">Adamaoua</option>
-                    <option value="Est">Est</option>
-                    <option value="Sud">Sud</option>
+                    {regionNames().map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Ville *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="ex: Yaoundé"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                  <select
+                    className="form-select"
+                    value={city === CITY_OTHER ? CITY_OTHER : city}
+                    onChange={(e) => {
+                      if (e.target.value === CITY_OTHER) {
+                        setCity(CITY_OTHER);
+                      } else {
+                        setCity(e.target.value);
+                        setCityOther('');
+                      }
+                    }}
                     required
-                  />
+                  >
+                    {citiesOfRegion(region).map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value={CITY_OTHER}>Autre (préciser)…</option>
+                  </select>
+                  {city === CITY_OTHER && (
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ marginTop: '8px' }}
+                      placeholder="Nom de la ville ou du village"
+                      value={cityOther}
+                      onChange={(e) => setCityOther(e.target.value)}
+                      required
+                    />
+                  )}
                 </div>
               </div>
 

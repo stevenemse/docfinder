@@ -15,6 +15,7 @@ import { sha256Hex } from '../lib/crypto';
 import { dataService } from '../services/dataService';
 import { CheckoutSection } from './CheckoutSection';
 import { autoDetectZones } from '../lib/autoRedact';
+import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
 
 interface ReportFoundModalProps {
   isOpen: boolean;
@@ -47,7 +48,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
   const [fullName, setFullName] = useState<string>('');
   const [docNumber, setDocNumber] = useState<string>('');
   const [region, setRegion] = useState<string>('Centre');
-  const [city, setCity] = useState<string>('Yaoundé');
+  const [city, setCity] = useState<string>(citiesOfRegion('Centre')[0]);
+  const [cityOther, setCityOther] = useState<string>('');
   const [approxLocation, setApproxLocation] = useState<string>('');
   const [foundDate, setFoundDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [privateNotes, setPrivateNotes] = useState<string>('');
@@ -203,10 +205,10 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     return `${start}****${end}`;
   };
 
-  const computeMaskedTitle = () => {
+  const computeMaskedTitle = (effectiveCity: string) => {
     const selectedDocType = docTypes.find(dt => dt.id === docTypeId);
     const typeLabel = selectedDocType ? selectedDocType.name.split('(')[0].trim() : 'Document';
-    if (!fullName.trim()) return `${typeLabel} — Trouvé à ${city}`;
+    if (!fullName.trim()) return `${typeLabel} — Trouvé à ${effectiveCity}`;
     const parts = fullName.trim().split(' ');
     const maskedName = parts.map((p, idx) => {
       if (p.length <= 2) return p;
@@ -245,9 +247,11 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     }
     setSubmitting(true);
     try {
+      // « Autre (préciser) » → on enregistre la ville saisie librement
+      const finalCity = city === CITY_OTHER ? cityOther.trim() : city;
       const redactedImageUrl = renderRedactedFullSize() || photoSrc;
       const partialNum = computePartialNumber(docNumber);
-      const maskedTitle = computeMaskedTitle();
+      const maskedTitle = computeMaskedTitle(finalCity);
 
       // Original → coffre privé vault (visible par l'utilisateur + modérateurs
       // uniquement). Best effort : le flux continue même si l'upload échoue.
@@ -268,7 +272,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
         doc_number_hash: await sha256Hex(docNumber),
         doc_number_partial: partialNum,
         region,
-        city,
+        city: finalCity,
         approx_location: approxLocation || 'Centre-ville',
         found_date: foundDate || new Date().toISOString().split('T')[0],
         masked_image_url: redactedImageUrl,
@@ -364,31 +368,46 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   <select 
                     className="form-select"
                     value={region}
-                    onChange={(e) => setRegion(e.target.value)}
+                    onChange={(e) => {
+                      const r = e.target.value;
+                      setRegion(r);
+                      setCity(citiesOfRegion(r)[0] ?? '');
+                      setCityOther('');
+                    }}
                   >
-                    <option value="Centre">Centre</option>
-                    <option value="Littoral">Littoral</option>
-                    <option value="Ouest">Ouest</option>
-                    <option value="Sud-Ouest">Sud-Ouest</option>
-                    <option value="Nord-Ouest">Nord-Ouest</option>
-                    <option value="Nord">Nord</option>
-                    <option value="Extrême-Nord">Extrême-Nord</option>
-                    <option value="Adamaoua">Adamaoua</option>
-                    <option value="Est">Est</option>
-                    <option value="Sud">Sud</option>
+                    {regionNames().map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Ville *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="ex: Yaoundé, Douala"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                  <select
+                    className="form-select"
+                    value={city === CITY_OTHER ? CITY_OTHER : city}
+                    onChange={(e) => {
+                      if (e.target.value === CITY_OTHER) {
+                        setCity(CITY_OTHER);
+                      } else {
+                        setCity(e.target.value);
+                        setCityOther('');
+                      }
+                    }}
                     required
-                  />
+                  >
+                    {citiesOfRegion(region).map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value={CITY_OTHER}>Autre (préciser)…</option>
+                  </select>
+                  {city === CITY_OTHER && (
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ marginTop: '8px' }}
+                      placeholder="Nom de la ville ou du village"
+                      value={cityOther}
+                      onChange={(e) => setCityOther(e.target.value)}
+                      required
+                    />
+                  )}
                 </div>
               </div>
 
