@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { X, ShieldCheck, AlertCircle, Phone, Mail, ChevronDown, ChevronUp, UserRound, KeyRound } from 'lucide-react';
 import { CheckoutSection } from './CheckoutSection';
 import { authService } from '../services/authService';
@@ -279,24 +280,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </span>
           </div>
 
-          {/* Error */}
-          {errorMsg && (
-            <div style={{
-              background: 'var(--red-50)',
-              border: '1px solid var(--red-100)',
-              color: 'var(--red-700)',
-              padding: '10px 14px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginTop: '12px'
-            }}>
-              <AlertCircle size={16} style={{ flexShrink: 0 }} />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          {/* Error — apparition discrète (transform/opacity uniquement, 180 ms) */}
+          <AnimatePresence initial={false}>
+            {errorMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                style={{
+                  background: 'var(--red-50)',
+                  border: '1px solid var(--red-100)',
+                  color: 'var(--red-700)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: '12px'
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{errorMsg}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
 
@@ -365,7 +374,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 {/* Password */}
                 <div className="form-group">
-                  <label className="form-label">Mot de Passe * (min. 6 caractères)</label>
+                  <label className="form-label">Mot de Passe * (min. 8 caractères)</label>
                   <div className="input-icon-wrap">
                     <KeyRound size={15} />
                     <input
@@ -375,7 +384,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                 </div>
@@ -403,17 +412,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {showEmailOption ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </button>
 
-                  {showEmailOption && (
-                    <div className="form-group" style={{ marginTop: '10px' }}>
-                      <input
-                        type="email"
-                        className="form-input"
-                        placeholder="votre.email@exemple.com (facultatif)"
-                        value={optionalEmail}
-                        onChange={(e) => setOptionalEmail(e.target.value)}
-                      />
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {showEmailOption && (
+                      <motion.div
+                        className="form-group"
+                        style={{ marginTop: '10px', overflow: 'hidden' }}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                      >
+                        <input
+                          type="email"
+                          className="form-input"
+                          placeholder="votre.email@exemple.com (facultatif)"
+                          value={optionalEmail}
+                          onChange={(e) => setOptionalEmail(e.target.value)}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Consentement RGPD / Loi n° 2024/017 — obligatoire */}

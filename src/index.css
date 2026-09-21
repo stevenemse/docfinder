@@ -1268,6 +1268,11 @@ html {
   .hero-blob {
     animation: none !important;
   }
+
+  /* Entrées en cascade également désactivées */
+  .admin-kpis > .admin-kpi {
+    animation: none !important;
+  }
 }
 
 /* ========================
@@ -2646,6 +2651,29 @@ html {
 @media (min-width: 640px) {
   .admin-kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Entrée en cascade des KPIs (CSS pur, 40 ms de décalage par carte) :
+   l'attention suit l'ordre de lecture au montage du dashboard. */
+.admin-kpis > .admin-kpi {
+  animation: kpi-in 0.28s ease-out both;
+}
+
+.admin-kpis > .admin-kpi:nth-child(2) { animation-delay: 40ms; }
+.admin-kpis > .admin-kpi:nth-child(3) { animation-delay: 80ms; }
+.admin-kpis > .admin-kpi:nth-child(4) { animation-delay: 120ms; }
+.admin-kpis > .admin-kpi:nth-child(5) { animation-delay: 160ms; }
+.admin-kpis > .admin-kpi:nth-child(6) { animation-delay: 200ms; }
+
+@keyframes kpi-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
