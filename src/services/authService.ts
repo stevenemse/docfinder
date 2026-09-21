@@ -277,7 +277,11 @@ export const authService = {
     }
   },
 
-  // Crée le profil s'il n'existe pas encore (retour OAuth, premier login Google)
+  // Crée le profil s'il n'existe pas encore (retour OAuth, premier login Google).
+  // Passe par la RPC serveur ensure_profile (SECURITY DEFINER) qui gère aussi
+  // l'ADOPTION d'un profil existant portant le même email — cas d'un compte
+  // créé avant via numéro/email : impossible côté client à cause des RLS.
+  // Repli sur la logique client si la RPC n'est pas encore déployée.
   async ensureProfile(): Promise<Profile | null> {
     if (!isSupabaseConfigured()) return null;
     try {
@@ -292,7 +296,16 @@ export const authService = {
         .maybeSingle();
       if (existing) return existing as Profile;
 
-      // Auto-création : nom depuis Google, téléphone laissé à compléter
+      // 1) RPC serveur (migration-ensure-profile.sql)
+      const { data: viaRpc, error: rpcError } = await supabase
+        .rpc('ensure_profile')
+        .maybeSingle();
+      if (!rpcError && viaRpc) return viaRpc as Profile;
+      if (rpcError) {
+        console.warn('ensureProfile : RPC indisponible, repli client :', rpcError.message);
+      }
+
+      // 2) Repli client : auto-création depuis les métadonnées Google
       const displayName =
         (user.user_metadata?.full_name as string) ||
         (user.user_metadata?.name as string) ||
@@ -316,12 +329,21 @@ export const authService = {
         // Course possible (double montage React, double onglet) : un autre
         // appel a créé le profil entre notre SELECT et notre INSERT. On relit.
         if (error && (error as { code?: string }).code === '23505') {
-          const { data: existing } = await supabase
+          const { data: raced } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', user.id)
             .maybeSingle();
-          if (existing) return existing as Profile;
+          if (raced) return raced as Profile;
+          // Conflit d'email : un profil porte déjà cet email (compte créé
+          // avant). Seule la RPC serveur peut l'adopter (RLS) — la migration
+          // supabase/migration-ensure-profile.sql doit être exécutée.
+          if (error && (error as { code?: string }).code === '23505' && (error as { message?: string }).message?.includes('profiles_email_key')) {
+            console.error(
+              'ensureProfile : un profil existe déjà avec cet email sous un autre compte. ' +
+              'Exécutez supabase/migration-ensure-profile.sql dans le SQL Editor pour activer la liaison automatique.'
+            );
+          }
         }
         console.warn('ensureProfile : échec auto-création :', error?.message);
         return null;
