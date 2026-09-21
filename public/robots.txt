@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+# Aucune route privée n'est exposée : l'app est une SPA à URL canonique unique,
+# les vues personnelles passent en noindex dynamiquement.
+Sitemap: https://docfinder-cm.vercel.app/sitemap.xml

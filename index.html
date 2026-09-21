@@ -11,10 +11,75 @@
     <meta name="apple-mobile-web-app-title" content="DocFinder" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0d5c3a" />
-    <meta name="description" content="DocFinder Cameroun : Plateforme mobile sécurisée pour retrouver vos pièces officielles égarées (CNI, passeport, permis) sans compromettre vos données personnelles." />
+
+    <!-- SEO principal -->
     <title>DocFinder Cameroun — Retrouvez vos documents perdus en toute sécurité</title>
+    <meta name="description" content="DocFinder Cameroun : plateforme sécurisée pour retrouver vos pièces officielles égarées (CNI, passeport, permis) sans compromettre vos données personnelles. Déclaration de perte, signalement de documents trouvés, restitution anonymisée." />
+    <meta name="keywords" content="document perdu Cameroun, CNI perdue, passeport perdu, permis perdu, retrouver carte nationale d'identité, document trouvé, Objets trouvés Cameroun, DocFinder" />
+    <meta name="author" content="DocFinder Cameroun" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://docfinder-cm.vercel.app/" />
+
+    <!-- Open Graph (partage Facebook, WhatsApp, LinkedIn) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DocFinder Cameroun" />
+    <meta property="og:title" content="DocFinder Cameroun — Retrouvez vos documents perdus en toute sécurité" />
+    <meta property="og:description" content="Déclarez la perte de votre CNI, passeport ou permis, et soyez alerté dès qu'un trouveur le signale. Restitution sécurisée et anonymisée." />
+    <meta property="og:url" content="https://docfinder-cm.vercel.app/" />
+    <meta property="og:image" content="https://docfinder-cm.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="DocFinder Cameroun — retrouvez vos documents perdus" />
+    <meta property="og:locale" content="fr_FR" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DocFinder Cameroun — Retrouvez vos documents perdus en toute sécurité" />
+    <meta name="twitter:description" content="Déclarez la perte de votre CNI, passeport ou permis, et soyez alerté dès qu'un trouveur le signale. Restitution sécurisée et anonymisée." />
+    <meta name="twitter:image" content="https://docfinder-cm.vercel.app/og-image.png" />
+
+    <!-- Données structurées -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://docfinder-cm.vercel.app/#org",
+          "name": "DocFinder Cameroun",
+          "url": "https://docfinder-cm.vercel.app/",
+          "logo": "https://docfinder-cm.vercel.app/icons/icon-512.png",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+237686033789",
+            "contactType": "customer service",
+            "availableLanguage": ["fr"]
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://docfinder-cm.vercel.app/#site",
+          "url": "https://docfinder-cm.vercel.app/",
+          "name": "DocFinder Cameroun",
+          "inLanguage": "fr-FR",
+          "publisher": { "@id": "https://docfinder-cm.vercel.app/#org" }
+        },
+        {
+          "@type": "WebApplication",
+          "name": "DocFinder",
+          "applicationCategory": "UtilityApplication",
+          "operatingSystem": "Web, Android, iOS",
+          "url": "https://docfinder-cm.vercel.app/",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "XAF" },
+          "description": "Plateforme camerounaise de restitution de documents officiels perdus : déclaration anonymisée, signalement par les trouveurs, matching sécurisé et restitution vérifiée."
+        }
+      ]
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://sbuqfmzraowfjoasrqrj.supabase.co">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
@@ -22,4 +87,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

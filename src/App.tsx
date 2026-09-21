@@ -11,6 +11,7 @@ import { UserDashboard } from './components/UserDashboard';
 import { AdminModeration } from './components/AdminModeration';
 import { AuthModal } from './components/AuthModal';
 import { LegalPages, type LegalDoc } from './components/LegalPages';
+import { setSeo, DEFAULT_TITLE, DEFAULT_DESCRIPTION } from './lib/seo';
 import { ProfilePage } from './components/ProfilePage';
 import { CookieConsent } from './components/CookieConsent';
 import { InstallPrompt } from './components/InstallPrompt';
@@ -97,6 +98,40 @@ export function App() {
   // à la position de scroll de la vue précédente.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [currentTab, legalDoc]);
+
+  // SEO dynamique : titre/description par vue ; vues privées en noindex
+  // (espace citoyen, console DPO, pages légales) pour garder un index
+  // moteur 100 % public et pertinent.
+  useEffect(() => {
+    if (legalDoc) {
+      const legalSeo: Record<LegalDoc, { title: string; description: string }> = {
+        privacy: {
+          title: 'Politique de confidentialité — DocFinder Cameroun',
+          description: "Comment DocFinder collecte, protège et anonymise vos données personnelles : photos caviardées sur votre appareil, coffre privé, droit à l'effacement."
+        },
+        terms: {
+          title: "Conditions générales d'utilisation — DocFinder Cameroun",
+          description: "Les règles d'usage de DocFinder : déclaration de perte, signalement de documents trouvés, restitution sécurisée et responsabilités."
+        },
+        cookies: {
+          title: 'Gestion des cookies — DocFinder Cameroun',
+          description: "DocFinder n'utilise aucun cookie publicitaire : uniquement le stockage local nécessaire à votre session et vos préférences."
+        }
+      };
+      setSeo(legalSeo[legalDoc]);
+      return;
+    }
+    if (currentTab === 'home') {
+      setSeo({ title: DEFAULT_TITLE, description: DEFAULT_DESCRIPTION });
+    } else {
+      // Vues applicatives privées : exclues de l'index
+      setSeo({
+        title: 'DocFinder — Espace sécurisé',
+        description: 'Espace personnel DocFinder (connexion requise).',
+        noindex: true
+      });
+    }
   }, [currentTab, legalDoc]);
 
   // Load Initial Session & Data
