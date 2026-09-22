@@ -4,6 +4,8 @@ import { sha256Hex } from '../lib/crypto';
 import type {
   Partner,
   PartnerWallet,
+  PartnerWalletFull,
+  WalletWithdrawal,
   PartnerEarning,
   AppNotification,
   DocumentHandover,
@@ -872,7 +874,14 @@ export const dataService = {
   async getMyNotifications(): Promise<AppNotification[]> {
     const { data, error } = await supabase.rpc('get_my_notifications');
     if (error) return [];
-    return (Array.isArray(data) ? data[0] : data) as AppNotification[];
+    // La fonction retourne un JSONB : supabase-js livre déjà la valeur décodée
+    // (tableau). On tolère aussi un éventuel emballage [tableau].
+    let list: unknown = data;
+    if (Array.isArray(list) && list.length > 0 && Array.isArray(list[0])) {
+      list = list[0];
+    }
+    if (!Array.isArray(list)) return [];
+    return (list as AppNotification[]).filter(n => n && typeof n.id === 'string');
   },
 
   async markNotificationsRead(ids: string[]): Promise<void> {
@@ -1252,5 +1261,46 @@ export const dataService = {
     } catch {
       // silencieux — les analytics ne doivent jamais casser la navigation
     }
+  },
+
+  // ─── Wallet partenaire : solde + retraits par palier ───
+
+  /** Wallet complet du partenaire connecté (null si aucun partenaire lié). */
+  async getMyPartnerWallet(): Promise<PartnerWalletFull | null> {
+    if (!isSupabaseConfigured()) return null;
+    const { data, error } = await supabase.rpc('get_my_partner_wallet');
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as PartnerWalletFull | null;
+  },
+
+  /** Demande de retrait (minimum 5 000 FCFA, solde disponible requis). */
+  async requestWalletWithdrawal(amount: number, phone: string, method: 'mtn_momo' | 'orange_money'): Promise<void> {
+    const { error } = await supabase.rpc('request_wallet_withdrawal', {
+      p_amount: amount,
+      p_phone: phone,
+      p_method: method
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  /** Liste admin de toutes les demandes de retrait. */
+  async getAdminWithdrawals(): Promise<WalletWithdrawal[]> {
+    const { data, error } = await supabase.rpc('get_admin_withdrawals');
+    if (error) throw new Error(error.message);
+    let list: unknown = data;
+    if (Array.isArray(list) && list.length > 0 && Array.isArray(list[0])) {
+      list = list[0];
+    }
+    return Array.isArray(list) ? (list as WalletWithdrawal[]) : [];
+  },
+
+  /** Traitement admin d'un retrait : paid | rejected (+ motif). */
+  async processWalletWithdrawal(withdrawalId: string, action: 'paid' | 'rejected', reason?: string): Promise<void> {
+    const { error } = await supabase.rpc('process_wallet_withdrawal', {
+      p_withdrawal_id: withdrawalId,
+      p_action: action,
+      p_reason: reason ?? null
+    });
+    if (error) throw new Error(error.message);
   }
 };

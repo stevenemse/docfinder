@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   ScanLine, ShieldCheck, AlertCircle, CheckCircle2, Loader2, User,
-  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck
+  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck, Wallet
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { citiesOfRegion, regionNames } from '../lib/cameroonGeo';
-import type { LookupResult } from '../types';
+import type { LookupResult, PartnerWalletFull } from '../types';
 
 /**
  * Page Partenaire — dépôt/retrait vérifié.
@@ -13,7 +13,7 @@ import type { LookupResult } from '../types';
  * Le partenaire : saisit ou scanne le code → vérifie le nom du destinataire →
  * confirme la remise → les fonds séquestrés sont libérés automatiquement.
  */
-export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: boolean }> = ({ onBack, isAuthenticated = false }) => {
   const [code, setCode] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [lookup, setLookup] = useState<LookupResult | null>(null);
@@ -22,7 +22,12 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ recipient: string; funds: boolean } | null>(null);
   const [history, setHistory] = useState<{ code: string; name: string; at: string }[]>([]);
-  const [tab, setTab] = useState<'scan' | 'register'>('scan');
+  const [tab, setTab] = useState<'scan' | 'confirm-deposit' | 'register' | 'wallet'>('scan');
+
+  // Confirmation de dépôt (code présenté par le trouveur)
+  const [depCode, setDepCode] = useState('');
+  const [depChecking, setDepChecking] = useState(false);
+  const [depSuccess, setDepSuccess] = useState<{ pickupCode: string; recipient: string } | null>(null);
 
   // Inscription partenaire
   const [regName, setRegName] = useState('');
@@ -35,15 +40,73 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [regSubmitting, setRegSubmitting] = useState(false);
   const [regSuccess, setRegSuccess] = useState(false);
 
-  // Code pré-rempli depuis le QR scanné : #partenaire?code=XXXXXXXX
+  // Wallet partenaire (onglet visible uniquement si connecté)
+  const [wallet, setWallet] = useState<PartnerWalletFull | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [wdAmount, setWdAmount] = useState('');
+  const [wdPhone, setWdPhone] = useState('');
+  const [wdMethod, setWdMethod] = useState<'mtn_momo' | 'orange_money'>('mtn_momo');
+  const [wdSubmitting, setWdSubmitting] = useState(false);
+  const [wdMsg, setWdMsg] = useState<string | null>(null);
+  const [wdError, setWdError] = useState<string | null>(null);
+
+  const loadWallet = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setWalletLoading(true);
+    try {
+      setWallet(await dataService.getMyPartnerWallet());
+    } catch {
+      setWallet(null);
+    } finally {
+      setWalletLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    loadWallet();
+  }, [loadWallet]);
+
+  const handleWithdraw = async () => {
+    setWdError(null);
+    setWdMsg(null);
+    const amount = parseInt(wdAmount.replace(/\D/g, ''), 10);
+    if (!amount || amount < 5000) {
+      setWdError('Retrait minimum : 5 000 FCFA');
+      return;
+    }
+    if (wdPhone.trim().length < 9) {
+      setWdError('Numéro Mobile Money requis');
+      return;
+    }
+    setWdSubmitting(true);
+    try {
+      await dataService.requestWalletWithdrawal(amount, wdPhone.trim(), wdMethod);
+      setWdMsg(`Demande de ${amount.toLocaleString('fr-FR')} FCFA envoyée — traitement sous 48 h ouvrées.`);
+      setWdAmount('');
+      await loadWallet();
+    } catch (err) {
+      setWdError(err instanceof Error ? err.message : 'Erreur lors de la demande.');
+    } finally {
+      setWdSubmitting(false);
+    }
+  };
+
+  // Codes pré-remplis depuis le QR scanné :
+  //   #partenaire?code=XXXXXXXX → retrait (chercheur présent)
+  //   #partenaire?dep=XXXXXXXX  → confirmation de dépôt (trouveur présent)
   useEffect(() => {
     const hash = window.location.hash || '';
     const qIndex = hash.indexOf('?');
     if (qIndex === -1) return;
     const params = new URLSearchParams(hash.slice(qIndex + 1));
     const qrCode = params.get('code');
+    const qrDep = params.get('dep');
     if (qrCode && /^[A-Z2-9]{8}$/i.test(qrCode)) {
       setCode(qrCode.toUpperCase());
+      setTab('scan');
+    } else if (qrDep && /^[A-Z2-9]{8}$/i.test(qrDep)) {
+      setDepCode(qrDep.toUpperCase());
+      setTab('confirm-deposit');
     }
   }, []);
 
@@ -82,6 +145,21 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
       setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la validation.');
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const handleConfirmDeposit = async () => {
+    if (depCode.length !== 8) return;
+    setDepChecking(true);
+    setErrorMsg(null);
+    try {
+      const res = await dataService.confirmDeposit(depCode);
+      setDepSuccess({ pickupCode: res.pickupCode, recipient: res.recipientName });
+      setDepCode('');
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la confirmation.');
+    } finally {
+      setDepChecking(false);
     }
   };
 
@@ -146,10 +224,11 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         </button>
       </div>
 
-      {/* Onglets : Retrait / Devenir partenaire */}
+      {/* Onglets : Retrait / Dépôt / Devenir partenaire */}
       <div style={{
         display: 'flex', gap: '4px', marginBottom: '16px',
-        borderBottom: '1px solid var(--border-color)'
+        borderBottom: '1px solid var(--border-color)',
+        overflowX: 'auto'
       }}>
         <button
           onClick={() => setTab('scan')}
@@ -158,11 +237,24 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
             borderBottom: tab === 'scan' ? '3px solid var(--primary-700)' : '3px solid transparent',
             color: tab === 'scan' ? 'var(--primary-700)' : 'var(--slate-500)',
-            display: 'flex', alignItems: 'center', gap: '6px'
+            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
           }}
         >
           <ScanLine size={15} />
-          Confirmer un retrait
+          Retrait
+        </button>
+        <button
+          onClick={() => setTab('confirm-deposit')}
+          style={{
+            padding: '10px 14px', border: 'none', background: 'none',
+            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+            borderBottom: tab === 'confirm-deposit' ? '3px solid var(--primary-700)' : '3px solid transparent',
+            color: tab === 'confirm-deposit' ? 'var(--primary-700)' : 'var(--slate-500)',
+            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
+          }}
+        >
+          <PackageCheck size={15} />
+          Confirmer un dépôt
         </button>
         <button
           onClick={() => setTab('register')}
@@ -171,13 +263,142 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
             borderBottom: tab === 'register' ? '3px solid var(--primary-700)' : '3px solid transparent',
             color: tab === 'register' ? 'var(--primary-700)' : 'var(--slate-500)',
-            display: 'flex', alignItems: 'center', gap: '6px'
+            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
           }}
         >
           <Store size={15} />
           Devenir partenaire
         </button>
+        {isAuthenticated && (
+          <button
+            onClick={() => setTab('wallet')}
+            style={{
+              padding: '10px 14px', border: 'none', background: 'none',
+              fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+              borderBottom: tab === 'wallet' ? '3px solid var(--primary-700)' : '3px solid transparent',
+              color: tab === 'wallet' ? 'var(--primary-700)' : 'var(--slate-500)',
+              display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
+            }}
+          >
+            <Wallet size={15} />
+            Mon wallet
+          </button>
+        )}
       </div>
+
+      {tab === 'confirm-deposit' && (
+        depSuccess ? (
+          <div style={{
+            background: 'var(--primary-50)',
+            border: '1px solid var(--primary-100)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '24px',
+            textAlign: 'center'
+          }}>
+            <CheckCircle2 size={52} color="var(--primary-700)" style={{ margin: '0 auto 12px' }} />
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-900)' }}>
+              Dépôt confirmé !
+            </h2>
+            <p style={{ fontSize: '0.84rem', color: 'var(--slate-700)', marginTop: '6px', lineHeight: 1.55 }}>
+              Vous détenez désormais le document de <strong>{depSuccess.recipient}</strong>.
+              Le propriétaire a reçu son code de retrait : il se présentera chez vous
+              avec ce code <strong>et une pièce d'identité à son nom</strong>.
+            </p>
+            <div style={{
+              margin: '14px auto',
+              padding: '10px 16px',
+              background: 'var(--surface-card)',
+              border: '1px dashed var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              fontFamily: 'ui-monospace, monospace',
+              fontWeight: 800,
+              fontSize: '1.1rem',
+              letterSpacing: '0.12em',
+              color: 'var(--primary-800)',
+              display: 'inline-block'
+            }}>
+              {depSuccess.pickupCode}
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', marginBottom: '12px' }}>
+              Conservez ce code en cas de besoin d'assistance.
+            </div>
+            <button
+              className="btn-cta-lost"
+              style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
+              onClick={() => setDepSuccess(null)}
+            >
+              Confirmer un autre dépôt →
+            </button>
+          </div>
+        ) : (
+          <div style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '16px'
+          }}>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <PackageCheck size={16} color="var(--primary-700)" />
+              Le trouveur vous remet un document
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--slate-600)', lineHeight: 1.55, marginBottom: '12px' }}>
+              Saisissez le <strong>code de dépôt</strong> que le trouveur vous présente
+              (ou scannez son QR). Cette confirmation engage votre responsabilité :
+              vous attestez détenir la pièce chez vous.
+            </div>
+            <input
+              type="text"
+              className="form-input"
+              style={{
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: '1.4rem',
+                fontWeight: 800,
+                letterSpacing: '0.25em',
+                textAlign: 'center',
+                textTransform: 'uppercase'
+              }}
+              placeholder="XXXXXXXX"
+              autoComplete="off"
+              value={depCode}
+              onChange={(e) => setDepCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
+              onKeyDown={(e) => { if (e.key === 'Enter' && depCode.length === 8) handleConfirmDeposit(); }}
+            />
+            <button
+              type="button"
+              className="btn-cta-lost"
+              style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '10px', width: '100%' }}
+              disabled={depChecking || depCode.length !== 8}
+              onClick={handleConfirmDeposit}
+            >
+              {depChecking ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <Loader2 size={15} className="animate-spin" />
+                  Confirmation…
+                </span>
+              ) : (
+                'Je confirme détenir ce document →'
+              )}
+            </button>
+            {errorMsg && (
+              <div style={{
+                background: 'var(--red-50, #fef2f2)',
+                border: '1px solid var(--red-100, #fecaca)',
+                color: 'var(--red-700, #b91c1c)',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '10px'
+              }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+          </div>
+        )
+      )}
 
       {tab === 'register' && (
         regSuccess ? (
@@ -316,6 +537,183 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
               </button>
               <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', textAlign: 'center' }}>
                 Vérification par l'équipe DocFinder sous 48 h ouvrées.
+              </div>
+            </div>
+          </div>
+        )
+      )}
+
+      {tab === 'wallet' && (
+        walletLoading ? (
+          <div style={{ textAlign: 'center', padding: '32px', color: 'var(--slate-500)' }}>
+            <Loader2 size={22} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+            Chargement du wallet…
+          </div>
+        ) : !wallet ? (
+          <div style={{
+            background: 'var(--surface-card)', border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center',
+            fontSize: '0.84rem', color: 'var(--slate-600)'
+          }}>
+            <Wallet size={26} color="var(--slate-400)" style={{ margin: '0 auto 8px' }} />
+            <div style={{ fontWeight: 800, color: 'var(--slate-800)', marginBottom: '4px' }}>Aucun wallet</div>
+            Votre compte n'est lié à aucun point de dépôt. Soumettez une candidature depuis
+            l'onglet « Devenir partenaire » — une fois validée, votre wallet apparaîtra ici.
+          </div>
+        ) : wallet.partner_status !== 'active' ? (
+          <div style={{
+            background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+            borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center',
+            fontSize: '0.84rem', color: 'var(--slate-700)'
+          }}>
+            <Clock size={26} color="var(--gold-600, #b7791f)" style={{ margin: '0 auto 8px' }} />
+            <div style={{ fontWeight: 800, color: 'var(--slate-900)', marginBottom: '4px' }}>
+              Partenaire en attente de validation
+            </div>
+            Vous pouvez déjà confirmer des dépôts et des retraits avec vos codes.
+            Votre wallet (dividendes) sera actif dès la validation par l'administration.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Solde */}
+            <div style={{
+              background: 'linear-gradient(135deg, var(--primary-800), var(--primary-600))',
+              borderRadius: 'var(--radius-lg)', padding: '20px', color: '#fff'
+            }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Solde disponible — {wallet.partner_name}
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: 800, marginTop: '4px' }}>
+                {wallet.available_balance.toLocaleString('fr-FR')} <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>FCFA</span>
+              </div>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '0.72rem', opacity: 0.9 }}>
+                <span>Total gagné : {wallet.total_pending.toLocaleString('fr-FR')} F</span>
+                <span>Déjà payé : {wallet.total_paid.toLocaleString('fr-FR')} F</span>
+              </div>
+            </div>
+
+            {/* Historique retraits */}
+            {wallet.withdrawals.length > 0 && (
+              <div style={{
+                background: 'var(--surface-card)', border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-lg)', padding: '14px'
+              }}>
+                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--slate-800)', marginBottom: '8px' }}>
+                  Mes demandes de retrait
+                </div>
+                {wallet.withdrawals.map(w => (
+                  <div key={w.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: '10px', padding: '8px 0', borderBottom: '1px solid var(--slate-100, #f1f5f9)',
+                    fontSize: '0.8rem', flexWrap: 'wrap'
+                  }}>
+                    <div>
+                      <strong>{w.amount.toLocaleString('fr-FR')} F</strong>
+                      <span style={{ color: 'var(--slate-500)', marginLeft: '6px' }}>
+                        {new Date(w.requested_at).toLocaleDateString('fr-FR')} · {w.phone}
+                      </span>
+                      {w.reject_reason && (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--red-600, #c53030)' }}>Motif : {w.reject_reason}</div>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: '0.66rem', fontWeight: 800, padding: '3px 9px', borderRadius: 999,
+                      background: w.status === 'paid' ? 'var(--green-50, #ecfdf5)' : w.status === 'rejected' ? 'var(--red-50, #fef2f2)' : 'var(--gold-50, #fffbeb)',
+                      color: w.status === 'paid' ? 'var(--green-700, #047857)' : w.status === 'rejected' ? 'var(--red-700, #b91c1c)' : 'var(--gold-700, #a16207)',
+                      textTransform: 'uppercase', letterSpacing: '0.03em'
+                    }}>
+                      {w.status === 'paid' ? 'Payé' : w.status === 'rejected' ? 'Refusé' : 'En attente'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Nouvelle demande */}
+            <div style={{
+              background: 'var(--surface-card)', border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)', padding: '16px',
+              display: 'flex', flexDirection: 'column', gap: '12px'
+            }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Wallet size={16} color="var(--primary-700)" />
+                Demander un retrait
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--slate-600)' }}>
+                Retrait minimum : <strong>5 000 FCFA</strong>. Les dividendes s'accumulent à chaque
+                pièce récupérée chez vous — regroupez-les pour un retrait plus rentable.
+              </div>
+              <div className="form-grid-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Montant (FCFA) *</label>
+                  <input type="text" className="form-input" inputMode="numeric"
+                    placeholder="ex: 10000"
+                    value={wdAmount}
+                    onChange={(e) => setWdAmount(e.target.value.replace(/\D/g, '').slice(0, 7))} />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Opérateur *</label>
+                  <select className="form-select" value={wdMethod}
+                    onChange={(e) => setWdMethod(e.target.value as 'mtn_momo' | 'orange_money')}>
+                    <option value="mtn_momo">MTN MoMo</option>
+                    <option value="orange_money">Orange Money</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Numéro Mobile Money de réception *</label>
+                <input type="tel" className="form-input" inputMode="numeric"
+                  placeholder="6XX XX XX XX"
+                  value={wdPhone}
+                  onChange={(e) => setWdPhone(e.target.value.replace(/\D/g, '').slice(0, 9))} />
+              </div>
+
+              {wdError && (
+                <div style={{
+                  background: 'var(--red-50, #fef2f2)', border: '1px solid var(--red-100, #fecaca)',
+                  color: 'var(--red-700, #b91c1c)', padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)', fontSize: '0.8rem',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{wdError}</span>
+                </div>
+              )}
+              {wdMsg && (
+                <div style={{
+                  background: 'var(--green-50, #ecfdf5)', border: '1px solid var(--green-200, #a7f3d0)',
+                  color: 'var(--green-700, #047857)', padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)', fontSize: '0.8rem',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                  <span>{wdMsg}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="btn-cta-lost"
+                style={{
+                  backgroundColor: !wdSubmitting && parseInt(wdAmount || '0', 10) >= 5000 && wdPhone.length === 9 && !wdError
+                    ? 'var(--primary-700)' : 'var(--slate-300)',
+                  color: '#ffffff',
+                  cursor: !wdSubmitting && parseInt(wdAmount || '0', 10) >= 5000 && wdPhone.length === 9 ? 'pointer' : 'not-allowed'
+                }}
+                disabled={wdSubmitting || parseInt(wdAmount || '0', 10) < 5000 || wdPhone.length !== 9}
+                onClick={handleWithdraw}
+              >
+                {wdSubmitting ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <Loader2 size={15} className="animate-spin" />
+                    Envoi de la demande…
+                  </span>
+                ) : (
+                  `Demander le retrait${wallet.min_withdrawal ? ` (min. ${wallet.min_withdrawal.toLocaleString('fr-FR')} F)` : ''}`
+                )}
+              </button>
+              <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', textAlign: 'center' }}>
+                Traitement sous 48 h ouvrées par l'équipe DocFinder.
               </div>
             </div>
           </div>

@@ -13,6 +13,7 @@ import {
   Phone
 } from 'lucide-react';
 import type { Profile } from '../types';
+import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
   currentTab: string;
@@ -256,6 +257,9 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {/* Cloche notifications in-app (tous rôles connectés) */}
+              <NotificationBell enabled={isAuthenticated} />
+
               {/* Pill Profil — cliquable : ouvre la page Mon Profil */}
               <button
                 className="profile-pill"

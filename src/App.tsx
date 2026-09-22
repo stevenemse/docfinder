@@ -504,7 +504,7 @@ export function App() {
   if (isPartnerScan) {
     return (
       <div className="app-container">
-        <PartnerScanPage onBack={() => {
+        <PartnerScanPage isAuthenticated={isAuthenticated} onBack={() => {
           setIsPartnerScan(false);
           window.location.hash = '';
         }} />

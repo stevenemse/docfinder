@@ -181,14 +181,47 @@ export interface PartnerEarning {
   handover_id: string;
 }
 
+export type AppNotificationType =
+  | 'pickup_reminder' | 'handover_expired' | 'escrow_refunded' | 'partner_approved'
+  | 'deposit_confirmed' | 'payment_received' | 'withdrawal_requested'
+  | 'withdrawal_processed' | 'partner_registered' | 'partner_suspended';
+
 export interface AppNotification {
   id: string;
-  type: 'pickup_reminder' | 'handover_expired' | 'escrow_refunded' | 'partner_approved';
+  type: AppNotificationType;
   title: string;
   body?: string;
   recovery_request_id?: string;
   read: boolean;
   created_at: string;
+}
+
+// Demande de retrait du wallet partenaire
+export interface WalletWithdrawal {
+  id: string;
+  partner_id: string;
+  partner_name?: string;
+  amount: number;
+  phone: string;
+  method: 'mtn_momo' | 'orange_money';
+  status: 'pending' | 'paid' | 'rejected';
+  reject_reason?: string | null;
+  requested_at: string;
+  processed_at?: string | null;
+  partner_status?: string;
+}
+
+// Wallet complet du partenaire connecté (RPC get_my_partner_wallet)
+export interface PartnerWalletFull {
+  partner_id: string;
+  partner_name: string;
+  partner_status: string;
+  phone?: string | null;
+  available_balance: number;
+  total_pending: number;
+  total_paid: number;
+  min_withdrawal: number;
+  withdrawals: WalletWithdrawal[];
 }
 
 // Dépôt d'un document chez un partenaire (code de retrait associé)

@@ -26,7 +26,8 @@ import {
   Save,
   X,
   Store,
-  Wallet
+  Wallet,
+  Banknote
 } from 'lucide-react';
 import type {
   RecoveryRequest,
@@ -38,7 +39,8 @@ import type {
   AdminDocumentRow,
   DocumentType,
   DocStatus,
-  Partner
+  Partner,
+  WalletWithdrawal
 } from '../types';
 import { dataService } from '../services/dataService';
 
@@ -194,8 +196,14 @@ const Kpi: React.FC<{
   deltaTone?: 'up' | 'warn';
   tone?: 'primary' | 'gold' | 'warn';
   icon?: React.ReactNode;
-}> = ({ value, label, delta, deltaTone = 'up', tone = 'primary', icon }) => (
-  <div className={`admin-kpi${tone !== 'primary' ? ` tone-${tone}` : ''}`}>
+  onClick?: () => void;
+}> = ({ value, label, delta, deltaTone = 'up', tone = 'primary', icon, onClick }) => (
+  <div
+    className={`admin-kpi${tone !== 'primary' ? ` tone-${tone}` : ''}${onClick ? ' admin-kpi-clickable' : ''}`}
+    onClick={onClick}
+    role={onClick ? 'button' : undefined}
+    title={onClick ? 'Cliquer pour voir la liste' : undefined}
+  >
     {icon && <div className="admin-kpi-icon">{icon}</div>}
     <div className="admin-kpi-value">{value}</div>
     <div className="admin-kpi-label">{label}</div>
@@ -229,6 +237,15 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   const [editForm, setEditForm] = useState({ title: '', region: '', city: '', status: 'published' });
   const [busyDocId, setBusyDocId] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+
+  // Popups KPI (documents protégés / déclarations de perte)
+  const [kpiModal, setKpiModal] = useState<'found' | 'lost' | null>(null);
+
+  // Retraits wallet (onglet paiements)
+  const [withdrawals, setWithdrawals] = useState<WalletWithdrawal[] | null>(null);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [busyWdId, setBusyWdId] = useState<string | null>(null);
+  const [rejectingWd, setRejectingWd] = useState<{ id: string; reason: string } | null>(null);
 
   const pendingRequests = recoveryRequests.filter(r => r.verification_status === 'pending');
   const totalRevenue = payments.filter(p => p.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
@@ -270,8 +287,29 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     if (adminTab === 'partners' && adminPartners.length === 0 && !partnersLoading) {
       loadPartners();
     }
+    if (adminTab === 'payments' && withdrawals === null && !withdrawalsLoading) {
+      setWithdrawalsLoading(true);
+      dataService.getAdminWithdrawals()
+        .then(setWithdrawals)
+        .catch(() => setWithdrawals([]))
+        .finally(() => setWithdrawalsLoading(false));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminTab]);
+
+  const handleProcessWithdrawal = async (id: string, action: 'paid' | 'rejected', reason?: string) => {
+    setBusyWdId(id);
+    try {
+      await dataService.processWalletWithdrawal(id, action, reason);
+      showToast(action === 'paid' ? 'Retrait marqué payé ✓' : 'Retrait refusé');
+      setWithdrawals(w => w ? w.map(x => x.id === id ? { ...x, status: action } : x) : w);
+      setRejectingWd(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Erreur de traitement');
+    } finally {
+      setBusyWdId(null);
+    }
+  };
 
   const handlePartnerStatus = async (partnerId: string, status: string) => {
     try {
@@ -562,12 +600,15 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                 <div className="admin-card-sub">Temps réel — base Supabase</div>
               </div>
               <div className="admin-kpis">
-                <Kpi value={stats?.protectedDocs ?? foundDocs.length} label="Documents protégés" delta={stats ? `+${stats.publishedFound} publiés` : undefined} icon={<FileCheck2 size={16} />} />
-                <Kpi value={stats?.lostDeclarations ?? 0} label="Déclarations de perte" icon={<FileImage size={16} />} />
+                <Kpi value={stats?.protectedDocs ?? foundDocs.length} label="Documents protégés" delta={stats ? `+${stats.publishedFound} publiés` : undefined} icon={<FileCheck2 size={16} />} onClick={() => setKpiModal('found')} />
+                <Kpi value={stats?.lostDeclarations ?? 0} label="Déclarations de perte" icon={<FileImage size={16} />} onClick={() => setKpiModal('lost')} />
                 <Kpi value={stats?.users ?? '…'} label="Comptes citoyens" delta={stats?.suspended ? `${stats.suspended} suspendus` : 'aucune suspension'} deltaTone={stats?.suspended ? 'warn' : 'up'} icon={<Users size={16} />} />
                 <Kpi value={stats?.pendingClaims ?? pendingRequests.length} label="Preuves à valider" deltaTone="warn" tone="warn" icon={<AlertTriangle size={16} />} />
                 <Kpi value={`${(stats?.paidTotal ?? totalRevenue).toLocaleString('fr-FR')} F`} label="Revenus MoMo" tone="gold" icon={<CreditCard size={16} />} />
                 <Kpi value={stats?.strongMatches ?? 0} label="Correspondances fortes" icon={<Activity size={16} />} />
+              </div>
+              <div style={{ fontSize: '0.66rem', color: 'var(--slate-400)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Info size={11} /> Cliquez sur « Documents protégés » ou « Déclarations de perte » pour voir la liste détaillée.
               </div>
             </div>
 
@@ -966,7 +1007,85 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
       {/* ============ TAB: PAYMENTS ============ */}
       {adminTab === 'payments' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {payments.length === 0 ? (
+          {/* ── Retraits wallet partenaires ── */}
+          <div className="admin-card">
+            <div className="admin-card-head">
+              <div className="admin-card-title">
+                <Banknote size={17} color="var(--primary-700)" />
+                Retraits wallet partenaires
+              </div>
+              <div className="admin-card-sub">
+                Dividendes accumulés · minimum 5 000 FCFA par demande
+              </div>
+            </div>
+            {withdrawalsLoading ? (
+              <div style={{ textAlign: 'center', padding: '18px', color: 'var(--slate-500)' }}>
+                <Loader2 size={20} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                Chargement des retraits…
+              </div>
+            ) : !withdrawals || withdrawals.length === 0 ? (
+              <div style={{ color: 'var(--slate-500)', fontSize: '0.8rem', padding: '8px 0' }}>
+                Aucune demande de retrait pour l'instant.
+              </div>
+            ) : (
+              withdrawals.map(w => (
+                <div key={w.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+                  padding: '12px 0', borderBottom: '1px solid var(--slate-100, #f1f5f9)'
+                }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.86rem', color: 'var(--slate-900)' }}>
+                      {w.amount.toLocaleString('fr-FR')} FCFA — {w.partner_name}
+                      {w.partner_status !== 'active' && (
+                        <span className="admin-badge pending_verification" style={{ marginLeft: 8 }}>partenaire {w.partner_status}</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
+                      {w.method === 'mtn_momo' ? 'MTN MoMo' : 'Orange Money'} · {w.phone} · demandé le {new Date(w.requested_at).toLocaleString('fr-FR')}
+                      {w.reject_reason ? ` · Motif du refus : ${w.reject_reason}` : ''}
+                    </div>
+                  </div>
+                  {w.status === 'pending' ? (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        className="admin-action-btn"
+                        style={{ background: 'var(--green-50, #ecfdf5)', color: 'var(--green-700, #047857)', borderColor: 'var(--green-200, #a7f3d0)' }}
+                        disabled={busyWdId === w.id}
+                        onClick={() => handleProcessWithdrawal(w.id, 'paid')}
+                      >
+                        {busyWdId === w.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                        Marquer payé
+                      </button>
+                      <button
+                        className="admin-action-btn"
+                        style={{ background: 'var(--red-50, #fef2f2)', color: 'var(--red-700, #b91c1c)', borderColor: 'var(--red-200, #fecaca)' }}
+                        disabled={busyWdId === w.id}
+                        onClick={() => setRejectingWd({ id: w.id, reason: '' })}
+                      >
+                        <XCircle size={14} />
+                        Refuser
+                      </button>
+                    </div>
+                  ) : (
+                    <span className={`admin-badge ${w.status === 'paid' ? 'published' : 'rejected'}`}>
+                      {w.status === 'paid' ? 'Payé' : 'Refusé'}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* ── Paiements citoyens ── */}
+          <div className="admin-card">
+            <div className="admin-card-head">
+              <div className="admin-card-title">
+                <CreditCard size={17} color="var(--primary-700)" />
+                Paiements citoyens
+              </div>
+              <div className="admin-card-sub">{payments.length} transaction(s)</div>
+            </div>
+            {payments.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '32px', color: 'var(--slate-500)', fontSize: '0.85rem' }}>
               Aucun paiement enregistré pour l'instant.
             </div>
@@ -1003,6 +1122,59 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               );
             })
           )}
+            </div>
+        </div>
+      )}
+
+      {/* ============ POPUP REFUS RETRAIT (motif) ============ */}
+      {rejectingWd && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setRejectingWd(null); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <div style={{
+            background: 'var(--surface-card, #ffffff)', borderRadius: 'var(--radius-lg)',
+            width: 'min(440px, 100%)', boxShadow: '0 24px 64px rgba(0, 0, 0, 0.3)', padding: '22px'
+          }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--slate-900)', marginBottom: '6px' }}>
+              Refuser cette demande de retrait ?
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', margin: '0 0 12px' }}>
+              Le partenaire sera notifié et ses dividendes redeviendront disponibles.
+            </p>
+            <textarea
+              value={rejectingWd.reason}
+              onChange={e => setRejectingWd(m => m ? { ...m, reason: e.target.value } : null)}
+              placeholder="Motif du refus (ex : téléphone de réception erroné)"
+              style={{
+                width: '100%', minHeight: 80, padding: '10px 12px',
+                border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
+                fontSize: '0.84rem', fontFamily: 'inherit', resize: 'vertical', marginBottom: '12px'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setRejectingWd(null)}
+                style={{
+                  background: 'none', border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)', padding: '8px 14px',
+                  fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', color: 'var(--slate-600)'
+                }}
+              >Annuler</button>
+              <button
+                onClick={() => handleProcessWithdrawal(rejectingWd.id, 'rejected', rejectingWd.reason.trim() || undefined)}
+                style={{
+                  background: 'var(--red-600, #dc2626)', border: 'none',
+                  borderRadius: 'var(--radius-md)', padding: '8px 14px',
+                  fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', color: '#fff'
+                }}
+              >Confirmer le refus</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1186,6 +1358,72 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* ============ POPUP KPI : LISTE DOCUMENTS / PERTES ============ */}
+      {kpiModal && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setKpiModal(null); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}
+        >
+          <div style={{
+            background: 'var(--surface-card, #ffffff)', borderRadius: 'var(--radius-lg)',
+            width: 'min(680px, 100%)', maxHeight: '88vh', overflowY: 'auto',
+            boxShadow: '0 24px 64px rgba(0, 0, 0, 0.3)', padding: '22px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {kpiModal === 'found' ? <FileCheck2 size={18} color="var(--primary-700)" /> : <FileImage size={18} color="var(--primary-700)" />}
+                {kpiModal === 'found'
+                  ? `Documents protégés (${adminDocs?.found.length ?? 0})`
+                  : `Déclarations de perte (${adminDocs?.lost.length ?? 0})`}
+              </div>
+              <button
+                onClick={() => setKpiModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--slate-400)', padding: '6px', borderRadius: 8 }}
+                aria-label="Fermer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingData ? (
+              <div style={{ textAlign: 'center', padding: '28px', color: 'var(--slate-500)' }}>
+                <Loader2 size={22} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                Chargement…
+              </div>
+            ) : !adminDocs || (kpiModal === 'found' ? adminDocs.found.length === 0 : adminDocs.lost.length === 0) ? (
+              <div style={{ color: 'var(--slate-500)', fontSize: '0.82rem', padding: '16px 0' }}>
+                {kpiModal === 'found' ? 'Aucun document trouvé enregistré.' : 'Aucune déclaration de perte enregistrée.'}
+              </div>
+            ) : (
+              (kpiModal === 'found' ? adminDocs.found : adminDocs.lost).map(d => (
+                <div key={d.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0',
+                  borderBottom: '1px solid var(--slate-100, #f1f5f9)'
+                }}>
+                  <div className="admin-doc-thumb">
+                    {d.masked_image_url && !d.masked_image_url.startsWith('data:')
+                      ? <img src={d.masked_image_url} alt="" />
+                      : <FileImage size={18} />}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="admin-doc-name">{d.title}</div>
+                    <div className="admin-doc-meta">
+                      {d.kind === 'found' ? 'Trouvé' : 'Perdu'} · {d.city} ({d.region}) · {new Date(d.created_at).toLocaleDateString('fr-FR')}
+                      {d.doc_number_partial ? ` · N° ${d.doc_number_partial}` : ''}
+                    </div>
+                  </div>
+                  <span className={`admin-badge ${d.status}`}>{d.status.replace('_', ' ')}</span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 

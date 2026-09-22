@@ -12,7 +12,8 @@ import {
   Briefcase, 
   FileText,
   Globe,
-  SearchCheck
+  SearchCheck,
+  ZoomIn
 } from 'lucide-react';
 import type { FoundDocument, DocumentType } from '../types';
 
@@ -50,6 +51,8 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedType, setSelectedType] = useState<string>(initialTypeId);
   const [selectedRegion, setSelectedRegion] = useState<string>(initialRegion === 'all' ? 'Toutes' : initialRegion);
+  // Lightbox : image caviardée vue en grand (aucune donnée sensible — déjà anonymisée)
+  const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
 
   const filteredDocs = foundDocs.filter(doc => {
     // Type filter
@@ -197,8 +200,13 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
             const docType = docTypes.find(dt => dt.id === doc.document_type_id);
             return (
               <div key={doc.id} className="doc-card">
-                {/* Redacted Image Preview */}
-                <div className="doc-card-image-wrap">
+                {/* Redacted Image Preview — cliquable pour zoomer */}
+                <div
+                  className="doc-card-image-wrap"
+                  onClick={doc.masked_image_url ? () => setLightbox({ url: doc.masked_image_url!, title: doc.title_masked }) : undefined}
+                  role={doc.masked_image_url ? 'button' : undefined}
+                  title={doc.masked_image_url ? 'Agrandir l’image caviardée' : undefined}
+                >
                   {doc.masked_image_url ? (
                     <img 
                       src={doc.masked_image_url} 
@@ -209,6 +217,12 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--slate-400)' }}>
                       <EyeOff size={28} />
                       <span style={{ fontSize: '0.72rem', marginTop: '4px' }}>Image non publique</span>
+                    </div>
+                  )}
+                  {doc.masked_image_url && (
+                    <div className="doc-zoom-hint" aria-hidden>
+                      <ZoomIn size={12} />
+                      <span>Agrandir</span>
                     </div>
                   )}
                   <div className="redacted-stamp">
@@ -271,6 +285,34 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Lightbox image caviardée */}
+      {lightbox && (
+        <div
+          className="image-lightbox-overlay"
+          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-label="Image caviardée agrandie"
+        >
+          <div className="image-lightbox-inner" onClick={e => e.stopPropagation()}>
+            <img src={lightbox.url} alt={lightbox.title} />
+            <div className="image-lightbox-caption">
+              <ShieldCheck size={14} />
+              {lightbox.title} — image anonymisée, aucune donnée sensible
+              <button
+                onClick={() => setLightbox(null)}
+                style={{
+                  marginLeft: '8px', background: 'rgba(255,255,255,0.12)', color: '#fff',
+                  border: 'none', borderRadius: 8, padding: '4px 10px',
+                  fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
