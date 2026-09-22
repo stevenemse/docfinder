@@ -471,6 +471,12 @@ export function App() {
     await refreshAllDataRef.current();
   };
 
+  // Fiche de retrait du chercheur (partenaire, adresse, code visible)
+  const handleLoadPickupInfo = async (requestId: string) => {
+    const info = await dataService.getMyPickupInfo(requestId);
+    return info.found ? info : null;
+  };
+
   const handlePaymentSuccess = async (requestId: string, provider: PaymentProviderType, txRef: string) => {
     await dataService.processPaymentSuccess({
       requestId,
@@ -616,6 +622,8 @@ export function App() {
               }}
               onProceedToPayment={handleProceedToPayment}
               onDepositDocument={handleDepositDocument}
+              onLoadPickupInfo={handleLoadPickupInfo}
+              profileId={profile?.id}
             />
           </div>
         )}
@@ -684,6 +692,43 @@ export function App() {
               <a className="footer-link" href="tel:+237686033789">📞 +237 686 03 37 89</a>
               <div>📍 Yaoundé, Cameroun</div>
             </div>
+          </div>
+
+          {/* Col 4 : partenaires */}
+          <div>
+            <div className="footer-col-title">Partenaires</div>
+            <div className="footer-links">
+              <button
+                className="footer-link"
+                onClick={() => {
+                  setIsPartnerScan(true);
+                  window.location.hash = '#partenaire';
+                  window.scrollTo({ top: 0 });
+                }}
+              >
+                📦 Confirmer une récupération
+              </button>
+              <button
+                className="footer-link"
+                onClick={() => {
+                  setIsPartnerScan(true);
+                  window.location.hash = '#partenaire';
+                  window.scrollTo({ top: 0 });
+                  // L'onglet inscription est activé dans la page partenaire
+                  window.setTimeout(() => {
+                    const tabs = Array.from(document.querySelectorAll('button'));
+                    const reg = tabs.find(b => /Devenir partenaire/.test(b.textContent || ''));
+                    reg?.click();
+                  }, 100);
+                }}
+              >
+                🏪 Devenir partenaire
+              </button>
+            </div>
+            <p className="footer-text" style={{ fontSize: '0.72rem', marginTop: '8px' }}>
+              Points de dépôt officiels : confirmation de retrait anonyme ou
+              partenariat rémunéré (dividende par pièce récupérée).
+            </p>
           </div>
         </div>
 

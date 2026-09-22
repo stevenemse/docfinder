@@ -24,7 +24,9 @@ import {
   Pencil,
   FolderOpen,
   Save,
-  X
+  X,
+  Store,
+  Wallet
 } from 'lucide-react';
 import type {
   RecoveryRequest,
@@ -35,7 +37,8 @@ import type {
   AdminProfileRow,
   AdminDocumentRow,
   DocumentType,
-  DocStatus
+  DocStatus,
+  Partner
 } from '../types';
 import { dataService } from '../services/dataService';
 
@@ -50,7 +53,7 @@ interface AdminModerationProps {
   showToast: (msg: string) => void;
 }
 
-type AdminTab = 'overview' | 'documents' | 'users' | 'requests' | 'payments' | 'audit';
+type AdminTab = 'overview' | 'documents' | 'users' | 'requests' | 'payments' | 'partners' | 'audit';
 
 /** Libellés français des statuts de document. */
 const DOC_STATUS_LABELS: Record<DocStatus, string> = {
@@ -216,6 +219,8 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   showToast
 }) => {
   const [adminTab, setAdminTab] = useState<AdminTab>('overview');
+  const [adminPartners, setAdminPartners] = useState<Partner[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminProfileRow[] | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -248,6 +253,35 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Chargement des partenaires quand l'onglet est ouvert
+  const loadPartners = async () => {
+    setPartnersLoading(true);
+    try {
+      setAdminPartners(await dataService.getAdminPartners());
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Erreur de chargement des partenaires');
+    } finally {
+      setPartnersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (adminTab === 'partners' && adminPartners.length === 0 && !partnersLoading) {
+      loadPartners();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab]);
+
+  const handlePartnerStatus = async (partnerId: string, status: string) => {
+    try {
+      await dataService.updatePartnerStatus(partnerId, status);
+      showToast(status === 'active' ? 'Partenaire validé ✓' : `Partenaire : ${status}`);
+      await loadPartners();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Erreur de mise à jour');
+    }
+  };
 
   // ------- Modale de motif (suppression document & statut compte) -------
   const [reasonModal, setReasonModal] = useState<{
@@ -509,6 +543,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
         {tabBtn('users', `Citoyens (${stats?.users ?? '…'})`)}
         {tabBtn('requests', `Preuves à modérer (${pendingRequests.length})`)}
         {tabBtn('payments', `Transactions (${payments.length})`)}
+        {tabBtn('partners', `Partenaires (${adminPartners.length || '…'})`)}
         {tabBtn('audit', "Journal d'audit")}
       </div>
 
@@ -968,6 +1003,136 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               );
             })
           )}
+        </div>
+      )}
+
+      {/* ============ TAB: PARTENAIRES ============ */}
+      {adminTab === 'partners' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="admin-card">
+            <div className="admin-card-head">
+              <div className="admin-card-title">
+                <Store size={17} color="var(--primary-700)" />
+                Points de dépôt partenaires
+              </div>
+              <div className="admin-card-sub">
+                Candidatures à valider, wallet et dividendes (part du forfait par retrait)
+              </div>
+            </div>
+
+            {partnersLoading ? (
+              <div style={{ textAlign: 'center', padding: '24px' }}>
+                <Loader2 size={22} className="animate-spin" style={{ margin: '0 auto 8px' }} />
+                <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>Chargement…</div>
+              </div>
+            ) : adminPartners.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', fontSize: '0.82rem', color: 'var(--slate-500)' }}>
+                Aucun partenaire enregistré pour le moment.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {adminPartners.map(pt => {
+                  const statusColors: Record<string, string> = {
+                    pending: '#f59e0b', active: '#10b981', suspended: '#64748b', rejected: '#dc2626'
+                  };
+                  const statusLabels: Record<string, string> = {
+                    pending: 'À valider', active: 'Actif', suspended: 'Suspendu', rejected: 'Refusé'
+                  };
+                  return (
+                    <div key={pt.id} style={{
+                      border: `1px solid ${pt.status === 'pending' ? '#fde68a' : 'var(--border-color)'}`,
+                      background: pt.status === 'pending' ? '#fffbeb' : 'var(--surface-card)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '12px 14px'
+                    }}>
+                      <div className="dossier-header">
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Store size={14} color="var(--primary-700)" />
+                            {pt.name}
+                            <span style={{
+                              fontSize: '0.66rem', fontWeight: 800, padding: '2px 8px',
+                              borderRadius: '999px', color: '#fff', background: statusColors[pt.status || 'pending']
+                            }}>
+                              {statusLabels[pt.status || 'pending']}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.76rem', color: 'var(--slate-600)', marginTop: '3px' }}>
+                            📍 {pt.address || '—'}{pt.city ? ` — ${pt.city}` : ''}{pt.region ? ` (${pt.region})` : ''}
+                            {pt.phone && <> · 📞 {pt.phone}</>}
+                            {pt.contact_name && <> · Contact : {pt.contact_name}</>}
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', marginTop: '4px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <Wallet size={12} />
+                              Dividendes en attente : <strong>{(pt.pending_earnings ?? 0).toLocaleString('fr-FR')} F</strong>
+                            </span>
+                            <span>Payés : <strong>{(pt.paid_earnings ?? 0).toLocaleString('fr-FR')} F</strong></span>
+                            <span>Retraits confirmés : <strong>{pt.withdrawals_count ?? 0}</strong></span>
+                            <span>Commission : <strong>{pt.commission_rate ?? 0} F / retrait</strong></span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap' }}>
+                          {pt.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handlePartnerStatus(pt.id, 'active')}
+                                style={{
+                                  background: '#10b981', color: '#fff', border: 'none',
+                                  borderRadius: 'var(--radius-sm)', padding: '7px 12px',
+                                  fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
+                                  display: 'flex', alignItems: 'center', gap: '4px'
+                                }}
+                              >
+                                <CheckCircle2 size={13} /> Valider
+                              </button>
+                              <button
+                                onClick={() => handlePartnerStatus(pt.id, 'rejected')}
+                                style={{
+                                  background: 'var(--slate-200)', color: 'var(--slate-700)', border: 'none',
+                                  borderRadius: 'var(--radius-sm)', padding: '7px 12px',
+                                  fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer'
+                                }}
+                              >
+                                Refuser
+                              </button>
+                            </>
+                          )}
+                          {pt.status === 'active' && (
+                            <button
+                              onClick={() => handlePartnerStatus(pt.id, 'suspended')}
+                              style={{
+                                background: 'var(--slate-200)', color: 'var(--slate-700)', border: 'none',
+                                borderRadius: 'var(--radius-sm)', padding: '7px 12px',
+                                fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                            >
+                              <PauseCircle size={13} /> Suspendre
+                            </button>
+                          )}
+                          {(pt.status === 'suspended' || pt.status === 'rejected') && (
+                            <button
+                              onClick={() => handlePartnerStatus(pt.id, 'active')}
+                              style={{
+                                background: '#10b981', color: '#fff', border: 'none',
+                                borderRadius: 'var(--radius-sm)', padding: '7px 12px',
+                                fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '4px'
+                              }}
+                            >
+                              <PlayCircle size={13} /> Réactiver
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

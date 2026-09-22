@@ -4,14 +4,16 @@ import {
   Search, 
   PlusCircle, 
   Clock, 
-  Sparkles
+  Sparkles,
+  PackageCheck
 } from 'lucide-react';
 import type { 
   LostDocument, 
   FoundDocument, 
   Match, 
   RecoveryRequest, 
-  DocumentType 
+  DocumentType, 
+  PickupInfo 
 } from '../types';
 
 interface UserDashboardProps {
@@ -25,6 +27,9 @@ interface UserDashboardProps {
   onSelectMatch: (match: Match) => void;
   onProceedToPayment: (requestId: string) => void;
   onDepositDocument: (requestId: string) => void;
+  /** Charge la fiche de retrait (partenaire, adresse, code) d'une demande payée. */
+  onLoadPickupInfo?: (requestId: string) => Promise<PickupInfo | null>;
+  profileId?: string;
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({
@@ -37,9 +42,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onOpenFoundModal,
   onSelectMatch,
   onProceedToPayment,
-  onDepositDocument
+  onDepositDocument,
+  onLoadPickupInfo,
+  profileId
 }) => {
   const [activeTab, setActiveTab] = useState<'lost' | 'found' | 'requests'>('lost');
+  const [pickupInfos, setPickupInfos] = useState<Record<string, PickupInfo | null>>({});
 
   const getTypeName = (typeId: string) => {
     return docTypes.find(dt => dt.id === typeId)?.name || 'Document Officiel';
@@ -444,38 +452,140 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
                   {/* Actions according to status */}
                   {isPaid ? (
-                    <div style={{
-                      background: 'var(--primary-50)',
-                      border: '1px solid var(--primary-100)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '12px',
-                      fontSize: '0.82rem',
-                      color: 'var(--primary-900)'
-                    }}>
-                      <div style={{ fontWeight: 800 }}>Restitution par partenaire vérifié :</div>
-                      <div style={{ marginTop: '4px' }}>
-                        Fonds séquestrés et sécurisés ✓<br />
-                        Étape suivante : déposez le document chez un partenaire agréé
-                        (boutique MoMo, cybercafé) — un code de retrait sera transmis
-                        au propriétaire. Aucune remise en main propre requise.
-                      </div>
-                      <button
-                        onClick={() => onDepositDocument(req.id)}
-                        style={{
-                          background: 'var(--primary-700)',
-                          color: '#ffffff',
-                          border: 'none',
+                    (() => {
+                      const pickup = pickupInfos[req.id];
+                      const isDeposited = pickup?.found && pickup.status === 'deposited';
+                      const iAmFinder = profileId && req.finder_id === profileId;
+                      // CÔTÉ TROUVEUR : déposer le document chez un partenaire
+                      if (iAmFinder) {
+                        return (
+                          <div style={{
+                            background: 'var(--primary-50)',
+                            border: '1px solid var(--primary-100)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '12px',
+                            fontSize: '0.82rem',
+                            color: 'var(--primary-900)'
+                          }}>
+                            <div style={{ fontWeight: 800 }}>Fonds séquestrés et sécurisés ✓</div>
+                            <div style={{ marginTop: '4px' }}>
+                              Étape suivante : déposez le document chez un partenaire agréé
+                              (boutique MoMo, cybercafé) — un code de retrait sera transmis
+                              au propriétaire. Aucune remise en main propre requise.
+                            </div>
+                            <button
+                              onClick={() => onDepositDocument(req.id)}
+                              style={{
+                                background: 'var(--primary-700)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: 'var(--radius-md)',
+                                padding: '8px 16px',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                marginTop: '10px'
+                              }}
+                            >
+                              📍 Déposer chez un partenaire →
+                            </button>
+                          </div>
+                        );
+                      }
+                      // CÔTÉ CHERCHEUR : fiche de retrait + code
+                      return (
+                        <div style={{
+                          background: 'var(--primary-50)',
+                          border: '1px solid var(--primary-100)',
                           borderRadius: 'var(--radius-md)',
-                          padding: '8px 16px',
+                          padding: '12px',
                           fontSize: '0.82rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          marginTop: '10px'
-                        }}
-                      >
-                        📍 Déposer chez un partenaire →
-                      </button>
-                    </div>
+                          color: 'var(--primary-900)'
+                        }}>
+                          {isDeposited ? (
+                            <>
+                              <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <PackageCheck size={15} color="var(--primary-700)" />
+                                Votre document est disponible ici :
+                              </div>
+                              <div style={{ marginTop: '6px', lineHeight: 1.55 }}>
+                                📍 <strong>{pickup?.partner_name}</strong><br />
+                                {pickup?.partner_address}{pickup?.partner_city ? ` — ${pickup.partner_city}` : ''}<br />
+                                {pickup?.partner_phone && <>📞 {pickup.partner_phone}<br /></>}
+                                ⏰ À retirer avant le{' '}
+                                <strong>{pickup?.deadline ? new Date(pickup.deadline).toLocaleDateString('fr-FR') : '—'}</strong>
+                              </div>
+                              {pickup?.pickup_code && (
+                                <div style={{
+                                  marginTop: '10px',
+                                  background: 'var(--surface-card)',
+                                  border: '2px dashed var(--primary-300)',
+                                  borderRadius: 'var(--radius-md)',
+                                  padding: '10px',
+                                  textAlign: 'center',
+                                  cursor: 'pointer'
+                                }}
+                                  onClick={() => { try { navigator.clipboard?.writeText(pickup.pickup_code!); } catch { /* noop */ } }}
+                                  title="Cliquer pour copier le code"
+                                >
+                                  <div style={{ fontSize: '0.68rem', color: 'var(--slate-500)', fontWeight: 700, textTransform: 'uppercase' }}>
+                                    Votre code de retrait — à présenter au partenaire
+                                  </div>
+                                  <div style={{
+                                    fontFamily: 'ui-monospace, monospace',
+                                    fontSize: '1.4rem',
+                                    fontWeight: 800,
+                                    letterSpacing: '0.18em',
+                                    color: 'var(--primary-800)',
+                                    marginTop: '2px'
+                                  }}>
+                                    {pickup.pickup_code}
+                                  </div>
+                                </div>
+                              )}
+                              <div style={{ fontSize: '0.74rem', color: 'var(--slate-600)', marginTop: '8px' }}>
+                                Présentez ce code <strong>et une pièce prouvant votre identité</strong>
+                                {' '}(nom attendu : <strong>{pickup?.recipient_name}</strong>). Le partenaire
+                                confirmera la remise et le trouveur recevra son paiement.
+                              </div>
+                            </>
+                          ) : pickup?.found && pickup.status === 'withdrawn' ? (
+                            <div style={{ fontWeight: 700 }}>
+                              ✓ Document récupéré — dossier clôturé. Merci !
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ fontWeight: 800 }}>Paiement confirmé — fonds séquestrés ✓</div>
+                              <div style={{ marginTop: '4px' }}>
+                                Dès que le trouveur dépose le document chez un partenaire,
+                                l'adresse de retrait et votre code apparaîtront ici.
+                              </div>
+                            </>
+                          )}
+                          {onLoadPickupInfo && !pickupInfos[req.id] && (
+                            <button
+                              onClick={() => {
+                                onLoadPickupInfo(req.id).then(info => {
+                                  setPickupInfos(prev => ({ ...prev, [req.id]: info }));
+                                }).catch(() => setPickupInfos(prev => ({ ...prev, [req.id]: { found: false } })));
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--primary-700)',
+                                fontWeight: 700,
+                                fontSize: '0.76rem',
+                                cursor: 'pointer',
+                                marginTop: '8px',
+                                textDecoration: 'underline'
+                              }}
+                            >
+                              Vérifier s'il est disponible →
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()
                   ) : isApproved ? (
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button

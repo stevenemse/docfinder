@@ -152,7 +152,43 @@ export interface Partner {
   city?: string | null;
   address?: string | null;
   phone?: string | null;
-  is_active?: boolean;
+  status?: 'pending' | 'active' | 'suspended' | 'rejected';
+  commission_rate?: number;
+  contact_name?: string | null;
+  linked_profile_id?: string | null;
+  created_at?: string;
+  pending_earnings?: number;
+  paid_earnings?: number;
+  withdrawals_count?: number;
+}
+
+export interface PartnerWallet {
+  partner_id: string;
+  partner_name: string;
+  partner_status: string;
+  pending_amount: number;
+  paid_amount: number;
+  pending_count: number;
+  paid_count: number;
+}
+
+export interface PartnerEarning {
+  id: string;
+  amount: number;
+  status: 'pending' | 'paid_out' | 'cancelled';
+  earned_at: string;
+  paid_out_at?: string | null;
+  handover_id: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'pickup_reminder' | 'handover_expired' | 'escrow_refunded' | 'partner_approved';
+  title: string;
+  body?: string;
+  recovery_request_id?: string;
+  read: boolean;
+  created_at: string;
 }
 
 // Dépôt d'un document chez un partenaire (code de retrait associé)
@@ -188,6 +224,8 @@ export interface PickupInfo {
   partner_address?: string;
   partner_city?: string;
   partner_phone?: string;
+  partner_status?: string;
+  pickup_code?: string;
   deposited_at?: string;
   deadline?: string;
 }

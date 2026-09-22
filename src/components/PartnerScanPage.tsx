@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   ScanLine, ShieldCheck, AlertCircle, CheckCircle2, Loader2, User,
-  ArrowLeft, PackageCheck, Clock
+  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
+import { citiesOfRegion, regionNames } from '../lib/cameroonGeo';
 import type { LookupResult } from '../types';
 
 /**
@@ -21,6 +22,18 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ recipient: string; funds: boolean } | null>(null);
   const [history, setHistory] = useState<{ code: string; name: string; at: string }[]>([]);
+  const [tab, setTab] = useState<'scan' | 'register'>('scan');
+
+  // Inscription partenaire
+  const [regName, setRegName] = useState('');
+  const [regKind, setRegKind] = useState('momo_kiosk');
+  const [regRegion, setRegRegion] = useState('Centre');
+  const [regCity, setRegCity] = useState(citiesOfRegion('Centre')[0]);
+  const [regAddress, setRegAddress] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regContact, setRegContact] = useState('');
+  const [regSubmitting, setRegSubmitting] = useState(false);
+  const [regSuccess, setRegSuccess] = useState(false);
 
   // Code pré-rempli depuis le QR scanné : #partenaire?code=XXXXXXXX
   useEffect(() => {
@@ -72,6 +85,27 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
     }
   };
 
+  const handleRegister = async () => {
+    setRegSubmitting(true);
+    setErrorMsg(null);
+    try {
+      await dataService.registerPartner({
+        name: regName,
+        kind: regKind,
+        region: regRegion,
+        city: regCity,
+        address: regAddress,
+        phone: regPhone,
+        contactName: regContact
+      });
+      setRegSuccess(true);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la candidature.');
+    } finally {
+      setRegSubmitting(false);
+    }
+  };
+
   const nameMatches = lookup?.found && recipientName.trim().length >= 3 &&
     lookup.recipient_name && lookup.recipient_name.toLowerCase().trim() === recipientName.toLowerCase().trim();
 
@@ -80,7 +114,7 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
       {/* Header partenaire */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: '18px'
+        marginBottom: '14px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
@@ -112,6 +146,184 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         </button>
       </div>
 
+      {/* Onglets : Retrait / Devenir partenaire */}
+      <div style={{
+        display: 'flex', gap: '4px', marginBottom: '16px',
+        borderBottom: '1px solid var(--border-color)'
+      }}>
+        <button
+          onClick={() => setTab('scan')}
+          style={{
+            padding: '10px 14px', border: 'none', background: 'none',
+            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+            borderBottom: tab === 'scan' ? '3px solid var(--primary-700)' : '3px solid transparent',
+            color: tab === 'scan' ? 'var(--primary-700)' : 'var(--slate-500)',
+            display: 'flex', alignItems: 'center', gap: '6px'
+          }}
+        >
+          <ScanLine size={15} />
+          Confirmer un retrait
+        </button>
+        <button
+          onClick={() => setTab('register')}
+          style={{
+            padding: '10px 14px', border: 'none', background: 'none',
+            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+            borderBottom: tab === 'register' ? '3px solid var(--primary-700)' : '3px solid transparent',
+            color: tab === 'register' ? 'var(--primary-700)' : 'var(--slate-500)',
+            display: 'flex', alignItems: 'center', gap: '6px'
+          }}
+        >
+          <Store size={15} />
+          Devenir partenaire
+        </button>
+      </div>
+
+      {tab === 'register' && (
+        regSuccess ? (
+          <div style={{
+            background: 'var(--primary-50)',
+            border: '1px solid var(--primary-100)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '24px',
+            textAlign: 'center'
+          }}>
+            <BadgeCheck size={52} color="var(--primary-700)" style={{ margin: '0 auto 12px' }} />
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-900)' }}>
+              Candidature envoyée !
+            </h2>
+            <p style={{ fontSize: '0.84rem', color: 'var(--slate-700)', marginTop: '6px', lineHeight: 1.5 }}>
+              Votre point de dépôt sera vérifié par l'équipe DocFinder sous 48 h ouvrées.
+              Une fois validé, <strong>chaque retrait confirmé chez vous crédite votre wallet</strong>
+              {' '}(dividende par pièce). Vous pouvez déjà confirmer des retraits en mode anonyme.
+            </p>
+            <button
+              className="btn-cta-lost"
+              style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '16px' }}
+              onClick={() => { setRegSuccess(false); setTab('scan'); }}
+            >
+              Confirmer un retrait →
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px'
+            }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Store size={16} color="var(--primary-700)" />
+                Devenir partenaire officiel
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--slate-600)', lineHeight: 1.55 }}>
+                En tant que partenaire enregistré, vous recevez un <strong>dividende sur chaque pièce récupérée</strong> chez vous.
+                Votre établissement apparaît dans l'annuaire officiel et gagne la confiance des citoyens.
+                <br /><br />
+                <strong>Sans inscription</strong>, vous pouvez toujours confirmer des retraits (mode anonyme, sans dividende).
+              </div>
+            </div>
+
+            <div style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px',
+              display: 'flex', flexDirection: 'column', gap: '12px'
+            }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Nom de l'établissement *</label>
+                <input type="text" className="form-input" placeholder="ex: Kiosque MoMo Mvog-Mbi"
+                  value={regName} onChange={(e) => setRegName(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Type de point *</label>
+                <select className="form-select" value={regKind} onChange={(e) => setRegKind(e.target.value)}>
+                  <option value="momo_kiosk">Kiosque Mobile Money</option>
+                  <option value="cybercafe">Cybercafé</option>
+                  <option value="agency">Agence / Boutique</option>
+                  <option value="other">Autre point de dépôt</option>
+                </select>
+              </div>
+              <div className="form-grid-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={12} /> Région *
+                  </label>
+                  <select className="form-select" value={regRegion}
+                    onChange={(e) => { setRegRegion(e.target.value); setRegCity(citiesOfRegion(e.target.value)[0] ?? ''); }}>
+                    {regionNames().map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Ville *</label>
+                  <select className="form-select" value={regCity} onChange={(e) => setRegCity(e.target.value)}>
+                    {citiesOfRegion(regRegion).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Adresse / repère précis *</label>
+                <input type="text" className="form-input" placeholder="ex: Carrefour Mvog-Mbi, face pharmacie"
+                  value={regAddress} onChange={(e) => setRegAddress(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Téléphone (vérification) *</label>
+                <input type="tel" className="form-input" placeholder="6XX XX XX XX" inputMode="numeric"
+                  value={regPhone} onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, '').slice(0, 9))} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Nom du responsable</label>
+                <input type="text" className="form-input" placeholder="ex: Ngo Bell Marie"
+                  value={regContact} onChange={(e) => setRegContact(e.target.value)} />
+              </div>
+
+              {errorMsg && (
+                <div style={{
+                  background: 'var(--red-50, #fef2f2)',
+                  border: '1px solid var(--red-100, #fecaca)',
+                  color: 'var(--red-700, #b91c1c)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8rem',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="btn-cta-lost"
+                style={{
+                  backgroundColor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'var(--primary-700)' : 'var(--slate-300)',
+                  color: '#ffffff',
+                  cursor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'pointer' : 'not-allowed'
+                }}
+                disabled={regSubmitting || regName.trim().length < 3 || regPhone.length !== 9 || !regAddress.trim()}
+                onClick={handleRegister}
+              >
+                {regSubmitting ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <Loader2 size={15} className="animate-spin" />
+                    Envoi de la candidature…
+                  </span>
+                ) : (
+                  'Soumettre ma candidature →'
+                )}
+              </button>
+              <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', textAlign: 'center' }}>
+                Vérification par l'équipe DocFinder sous 48 h ouvrées.
+              </div>
+            </div>
+          </div>
+        )
+      )}
+
+      {tab === 'scan' && (
+      <>
       {/* Succès */}
       {success ? (
         <div style={{
@@ -324,6 +536,8 @@ export const PartnerScanPage: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );

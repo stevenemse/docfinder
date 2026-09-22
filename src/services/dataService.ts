@@ -3,6 +3,9 @@ import { MOCK_DOCUMENT_TYPES } from '../lib/supabase';
 import { sha256Hex } from '../lib/crypto';
 import type {
   Partner,
+  PartnerWallet,
+  PartnerEarning,
+  AppNotification,
   DocumentHandover,
   PickupInfo,
   LookupResult,
@@ -796,6 +799,82 @@ export const dataService = {
     const { data, error } = await supabase.rpc('get_my_handovers');
     if (error) throw new Error(error.message);
     return (Array.isArray(data) ? data[0] : data) as DocumentHandover[];
+  },
+
+  /** Candidature partenaire (depuis la page de retrait). */
+  async registerPartner(params: {
+    name: string;
+    kind: string;
+    region?: string;
+    city?: string;
+    address?: string;
+    phone: string;
+    contactName?: string;
+  }): Promise<string> {
+    const { data, error } = await supabase.rpc('register_partner', {
+      p_name: params.name,
+      p_kind: params.kind,
+      p_region: params.region ?? null,
+      p_city: params.city ?? null,
+      p_address: params.address ?? null,
+      p_phone: params.phone,
+      p_contact_name: params.contactName ?? null
+    });
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as string;
+  },
+
+  /** Wallet d'un partenaire (admin ou le partenaire lui-même). */
+  async getPartnerWallet(partnerId: string): Promise<PartnerWallet> {
+    const { data, error } = await supabase.rpc('get_partner_wallet', { p_partner_id: partnerId });
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as PartnerWallet;
+  },
+
+  async getPartnerEarnings(partnerId: string): Promise<PartnerEarning[]> {
+    const { data, error } = await supabase.rpc('get_partner_earnings', { p_partner_id: partnerId });
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as PartnerEarning[];
+  },
+
+  /** Liste admin de tous les partenaires (candidatures incluses). */
+  async getAdminPartners(): Promise<Partner[]> {
+    const { data, error } = await supabase.rpc('get_admin_partners');
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as Partner[];
+  },
+
+  async updatePartnerStatus(partnerId: string, status: string, commissionRate?: number): Promise<void> {
+    const { error } = await supabase.rpc('update_partner_status', {
+      p_partner_id: partnerId,
+      p_status: status,
+      p_commission_rate: commissionRate ?? null
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  async markEarningPaid(earningId: string): Promise<void> {
+    const { error } = await supabase.rpc('mark_earning_paid', { p_earning_id: earningId });
+    if (error) throw new Error(error.message);
+  },
+
+  async getMyNotifications(): Promise<AppNotification[]> {
+    const { data, error } = await supabase.rpc('get_my_notifications');
+    if (error) return [];
+    return (Array.isArray(data) ? data[0] : data) as AppNotification[];
+  },
+
+  async markNotificationsRead(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const { error } = await supabase.rpc('mark_notifications_read', { p_ids: ids });
+    if (error) console.warn('mark_notifications_read:', error.message);
+  },
+
+  /** Expiration manuelle (test/agent) — le cron la lance chaque jour. */
+  async runExpirationSweep(): Promise<number> {
+    const { data, error } = await supabase.rpc('expire_stale_handovers');
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as number;
   },
 
   async approveRecoveryRequest(requestId: string): Promise<void> {
