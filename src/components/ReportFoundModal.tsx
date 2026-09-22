@@ -441,6 +441,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
               >
                 Continuer vers l'identification →
               </button>
+              {/* NB : le caviardage est vérifié à l'étape 3, avant publication */}
             </div>
           )}
 
@@ -518,6 +519,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   Photo & caviardage (Obligatoire) →
                 </button>
               </div>
+              {/* Garde-fou : à l'étape 3, la publication exige ≥ 1 zone caviardée
+                  (bouton désactivé + validation dans handleSubmit) */}
             </div>
           )}
 

@@ -11,7 +11,8 @@ import {
   GraduationCap, 
   Briefcase, 
   FileText,
-  Globe
+  Globe,
+  SearchCheck
 } from 'lucide-react';
 import type { FoundDocument, DocumentType } from '../types';
 
@@ -214,6 +215,12 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
                     <ShieldCheck size={12} />
                     <span>CAVIARDÉ / PROTÉGÉ</span>
                   </div>
+                  {doc.has_pending_request && (
+                    <div className="doc-claimed-stamp">
+                      <SearchCheck size={12} />
+                      <span>OBJET D'UNE RECHERCHE</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Body */}

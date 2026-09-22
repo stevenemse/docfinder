@@ -270,6 +270,35 @@ export function App() {
     refreshAllDataRef.current = refreshAllData;
   });
 
+  // Rafraîchissement dynamique (sans recharger la page) :
+  //  - au retour sur l'onglet (visibilitychange) — les données prises
+  //    ailleurs (paiement validé sur un autre appareil, validation DPO…)
+  //    apparaissent immédiatement
+  //  - polling léger toutes les 30 s si l'app est visible et l'utilisateur
+  //    connecté (nouvelles correspondances, statuts de paiement)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let inFlight = false;
+    const refreshIfVisible = async () => {
+      if (document.visibilityState !== 'visible' || inFlight) return;
+      inFlight = true;
+      try {
+        await refreshAllDataRef.current();
+      } catch {
+        // réseau indisponible : le prochain cycle réessaiera
+      } finally {
+        inFlight = false;
+      }
+    };
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshIfVisible(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = window.setInterval(refreshIfVisible, 30_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(interval);
+    };
+  }, [isAuthenticated]);
+
   // Auth Handlers
   const handleOpenAuth = (mode: 'login' | 'register') => {
     setAuthModalMode(mode);

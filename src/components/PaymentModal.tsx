@@ -109,14 +109,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           {paymentStep === 'form' && (
             <form onSubmit={handleInitiatePayment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Fee summary card */}
-              <div style={{
+              <div className="payment-summary-card" style={{
                 background: 'linear-gradient(135deg, #064e3b, #0d5c3a)',
                 color: '#ffffff',
                 borderRadius: 'var(--radius-md)',
                 padding: '16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
                 boxShadow: 'var(--shadow-md)'
               }}>
                 <div>
@@ -163,7 +160,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <CheckoutSection step={2} title="Votre numéro mobile" subtitle="Pour la confirmation du débit" />
               <div className="form-group">
                 <label className="form-label">Numéro de téléphone mobile (+237) *</label>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div className="payment-phone-row" style={{ display: 'flex', alignItems: 'center' }}>
                   <span style={{
                     padding: '10px 12px',
                     background: 'var(--slate-100)',
@@ -172,7 +169,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
                     fontSize: '0.88rem',
                     fontWeight: 700,
-                    color: 'var(--slate-700)'
+                    color: 'var(--slate-700)',
+                    flexShrink: 0
                   }}>
                     +237
                   </span>

@@ -331,7 +331,8 @@ $$;
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.claim_match_by_doc(
   p_found_doc_id UUID,
-  p_proof_answer TEXT
+  p_proof_answer TEXT,
+  p_proof_image_path TEXT DEFAULT NULL
 )
 RETURNS TABLE (
   id UUID,
@@ -397,15 +398,16 @@ BEGIN
        SET verification_proof_submitted = v_proof_hash,
            verification_status = v_verif,
            status = v_status,
+           proof_image_path = COALESCE(p_proof_image_path, proof_image_path),
            updated_at = now()
      WHERE id = v_req_id;
   ELSE
     INSERT INTO public.recovery_requests
       (match_id, requester_id, finder_id, status,
-       verification_proof_submitted, verification_status, updated_at)
+       verification_proof_submitted, verification_status, proof_image_path, updated_at)
     VALUES
       (v_match_id, v_profile_id, v_finder_id, v_status,
-       v_proof_hash, v_verif, now())
+       v_proof_hash, v_verif, p_proof_image_path, now())
     RETURNING recovery_requests.id INTO v_req_id;
   END IF;
 
@@ -619,8 +621,8 @@ END;
 $$;
 
 -- Exécution réservée aux utilisateurs authentifiés (jamais aux visiteurs anon)
-REVOKE EXECUTE ON FUNCTION public.claim_match_by_doc(UUID, TEXT) FROM anon, public;
-GRANT EXECUTE ON FUNCTION public.claim_match_by_doc(UUID, TEXT) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.claim_match_by_doc(UUID, TEXT, TEXT) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.claim_match_by_doc(UUID, TEXT, TEXT) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.find_matches_for_lost(UUID) FROM anon, public;
 GRANT EXECUTE ON FUNCTION public.find_matches_for_lost(UUID) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.find_lost_candidates(UUID) FROM anon, public;

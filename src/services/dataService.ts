@@ -524,19 +524,34 @@ export const dataService = {
    * Mode live : RPC SECURITY DEFINER `claim_match_by_doc` — crée la
    * correspondance si nécessaire, hash la preuve et la compare automatiquement
    * à la réponse secrète du chercheur (validation instantanée si correcte).
+   * `proofFile` : photo justificative optionnelle (bucket vault privé).
    */
   async createRecoveryRequest(params: {
     foundDocId: string;
     proofAnswer: string;
+    proofFile?: File | null;
     requesterId?: string;
   }): Promise<RecoveryRequest> {
-    const { foundDocId, proofAnswer } = params;
+    const { foundDocId, proofAnswer, proofFile } = params;
 
     if (isSupabaseConfigured()) {
       try {
+        // Upload de la photo de preuve (optionnelle, best effort) dans le
+        // coffre privé du demandeur avant l'appel RPC.
+        let proofImagePath: string | null = null;
+        if (proofFile && params.requesterId) {
+          try {
+            const up = await this.uploadPrivateImage(proofFile, params.requesterId, 'proofs');
+            proofImagePath = up?.path ?? null;
+          } catch (err) {
+            console.warn('Upload photo de preuve échoué (continu sans):', err);
+          }
+        }
+
         const { data, error } = await supabase.rpc('claim_match_by_doc', {
           p_found_doc_id: foundDocId,
-          p_proof_answer: proofAnswer
+          p_proof_answer: proofAnswer,
+          p_proof_image_path: proofImagePath
         });
 
         if (!error && data) {

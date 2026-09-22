@@ -39,6 +39,14 @@ export interface Profile {
   updated_at: string;
 }
 
+// Champ de preuve secrète configurable par type de document (admin)
+export interface SecretProofField {
+  key: string;
+  label: string;
+  type: 'text' | 'date';
+  required: boolean;
+}
+
 export interface DocumentType {
   id: string;
   name: string;
@@ -47,6 +55,7 @@ export interface DocumentType {
   is_active: boolean;
   created_at?: string;
   icon_name?: string; // Client-side helper mapping
+  secret_proof_fields?: SecretProofField[] | null;
 }
 
 // Document trouvé — créé par n'importe quel citoyen qui a trouvé une pièce
@@ -66,6 +75,8 @@ export interface FoundDocument {
   original_image_path: string;
   additional_notes_private?: string | null;
   status: DocStatus;
+  // Badge public : le document fait l'objet d'une demande de restitution active
+  has_pending_request?: boolean;
   created_at: string;
   updated_at: string;
   // Relations enrichies
@@ -119,6 +130,7 @@ export interface RecoveryRequest {
   status: ClaimStatus;
   verification_proof_submitted?: string | null;
   verification_status: 'pending' | 'approved' | 'rejected';
+  proof_image_path?: string | null;
   unlocked_at?: string | null;
   created_at: string;
   updated_at: string;

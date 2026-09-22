@@ -8,7 +8,8 @@ import {
   CheckCircle2, 
   AlertCircle,
   HelpCircle,
-  Lock
+  Lock,
+  ImageIcon
 } from 'lucide-react';
 import type { FoundDocument, Match, RecoveryRequest } from '../types';
 
@@ -17,7 +18,7 @@ interface MatchDetailModalProps {
   onClose: () => void;
   foundDoc: FoundDocument | null;
   match?: Match | null;
-  onRequestRecovery: (docId: string, proofAnswer: string) => void;
+  onRequestRecovery: (docId: string, proofAnswer: string, proofFile?: File | null) => void;
   onProceedToPayment: (requestId: string) => void;
   existingRequest?: RecoveryRequest | null;
 }
@@ -32,14 +33,45 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   existingRequest
 }) => {
   const [proofAnswer, setProofAnswer] = useState('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState(false);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   if (!isOpen || !foundDoc) return null;
 
+  // Champs de preuve configurés par l'admin pour ce type de document
+  // (fallback : ancien champ unique si pas de configuration)
+  const proofFields = foundDoc.document_type?.secret_proof_fields ?? [];
+
+  const handleFieldChange = (key: string, value: string) => {
+    setFieldValues(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleProofFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] || null;
+    setProofFile(f);
+    if (f) {
+      const reader = new FileReader();
+      reader.onload = () => setProofPreview(String(reader.result));
+      reader.readAsDataURL(f);
+    } else {
+      setProofPreview(null);
+    }
+  };
+
   const handleSubmitProof = (e: React.FormEvent) => {
     e.preventDefault();
-    onRequestRecovery(foundDoc.id, proofAnswer);
+    // Concatène les champs structurés en une réponse unique (comparée côté
+    // serveur au hash de la question secrète de la déclaration de perte)
+    let answer = proofAnswer;
+    if (proofFields.length > 0) {
+      answer = proofFields
+        .map(f => `${f.label}: ${fieldValues[f.key] || ''}`)
+        .join(' | ');
+    }
+    onRequestRecovery(foundDoc.id, answer, proofFile);
     setSubmittedMessage(true);
   };
 
@@ -206,18 +238,67 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                 </div>
               </div>
 
+              {proofFields.length > 0 ? (
+                <>
+                  {proofFields.map(f => (
+                    <div className="form-group" key={f.key}>
+                      <label className="form-label">
+                        {f.label}{f.required ? ' *' : ''}
+                      </label>
+                      <input
+                        type={f.type === 'date' ? 'date' : 'text'}
+                        className="form-input"
+                        value={fieldValues[f.key] || ''}
+                        onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                        required={f.required}
+                      />
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">
+                    Votre preuve de propriété (élément confidentiel non présent sur l'aperçu) * :
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="ex: Né le 12/03/1995 à Bafoussam..."
+                    value={proofAnswer}
+                    onChange={(e) => setProofAnswer(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Photo justificative — optionnelle mais accélère la validation */}
               <div className="form-group">
-                <label className="form-label">
-                  Votre preuve de propriété (élément confidentiel non présent sur l'aperçu) * :
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <ImageIcon size={13} />
+                  Photo justificative (optionnelle — accélère la validation)
                 </label>
                 <input
-                  type="text"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
                   className="form-input"
-                  placeholder="ex: Né le 12/03/1995 à Bafoussam..."
-                  value={proofAnswer}
-                  onChange={(e) => setProofAnswer(e.target.value)}
-                  required
+                  onChange={handleProofFile}
+                  style={{ padding: '8px' }}
                 />
+                {proofPreview && (
+                  <div style={{
+                    marginTop: '8px',
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-color)',
+                    maxHeight: '140px'
+                  }}>
+                    <img src={proofPreview} alt="Aperçu de la preuve" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '4px' }}>
+                  Ex. photo d'une pièce similaire, photo de vous avec le document… Visible uniquement par les modérateurs.
+                </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
@@ -234,18 +315,27 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                 </label>
               </div>
 
-              <button
-                type="submit"
-                disabled={!hasAgreedToTerms || !proofAnswer.trim()}
-                className="btn-cta-lost"
-                style={{
-                  backgroundColor: !hasAgreedToTerms || !proofAnswer.trim() ? 'var(--slate-300)' : 'var(--primary-700)',
-                  color: '#ffffff',
-                  cursor: !hasAgreedToTerms || !proofAnswer.trim() ? 'not-allowed' : 'pointer'
-                }}
-              >
-                Soumettre ma demande de restitution →
-              </button>
+              {(() => {
+                const requiredFieldsFilled = proofFields
+                  .filter(f => f.required)
+                  .every(f => (fieldValues[f.key] || '').trim() !== '');
+                const legacyFilled = proofFields.length === 0 && proofAnswer.trim() !== '';
+                const canSubmit = hasAgreedToTerms && (requiredFieldsFilled || legacyFilled);
+                return (
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className="btn-cta-lost"
+                    style={{
+                      backgroundColor: canSubmit ? 'var(--primary-700)' : 'var(--slate-300)',
+                      color: '#ffffff',
+                      cursor: canSubmit ? 'pointer' : 'not-allowed'
+                    }}
+                  >
+                    Soumettre ma demande de restitution →
+                  </button>
+                );
+              })()}
             </form>
           )}
         </div>

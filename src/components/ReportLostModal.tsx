@@ -50,6 +50,10 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
   );
   const [secretAnswer, setSecretAnswer] = useState<string>('');
 
+  // Champs de preuve structurés (config admin par type de document).
+  // Sont stockés dans secret_proof_answer (hashé) sous forme « Label: valeur | … »
+  const [proofFieldValues, setProofFieldValues] = useState<Record<string, string>>({});
+
   // Photo de référence privée (crédibilité) — optionnelle
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
@@ -104,6 +108,16 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         }
       }
 
+      // Preuve secrète : champs structurés (config admin) ou question/réponse libre
+      const configuredFields = docTypes.find(dt => dt.id === docTypeId)?.secret_proof_fields ?? [];
+      const hasConfiguredFields = configuredFields.length > 0;
+      const secretQuestionFinal = hasConfiguredFields
+        ? configuredFields.map(f => f.label).join(' | ')
+        : secretQuestion;
+      const secretAnswerFinal = hasConfiguredFields
+        ? configuredFields.map(f => `${f.label}: ${proofFieldValues[f.key] || ''}`).join(' | ')
+        : secretAnswer;
+
       const newLost: Omit<LostDocument, 'id' | 'created_at' | 'updated_at'> = {
         seeker_id: seekerProfileId,
         document_type_id: docTypeId,
@@ -115,8 +129,8 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         lost_city: city === CITY_OTHER ? cityOther.trim() : city,
         approx_loss_zone: approxZone || undefined,
         lost_date_approx: lostDate || new Date().toISOString().split('T')[0],
-        secret_proof_question: secretQuestion,
-        secret_proof_answer_hash: await sha256Hex(secretAnswer),
+        secret_proof_question: secretQuestionFinal,
+        secret_proof_answer_hash: await sha256Hex(secretAnswerFinal),
         reference_image_path: referenceImagePath,
         status: 'published'
       };
@@ -414,7 +428,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 />
               </div>
 
-              {/* ÉTAPE 3 — Preuve secrète */}
+              {/* ÉTAPE 3 — Preuve secrète (champs configurés par type de document) */}
               <CheckoutSection step={3} title="Preuve secrète de propriété" subtitle="Non publique — sert à vérifier les réclamations" />
 
               <div style={{
@@ -428,44 +442,65 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               }}>
                 <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--slate-800)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <HelpCircle size={16} color="var(--primary-700)" />
-                  Question de vérification confidentielle
+                  Informations confidentielles de vérification
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" style={{ fontSize: '0.78rem' }}>
-                    Question :
-                  </label>
-                  <select
-                    className="form-select"
-                    value={secretQuestion}
-                    onChange={(e) => setSecretQuestion(e.target.value)}
-                    style={{ fontSize: '0.82rem' }}
-                  >
-                    <option value="Quel est le lieu exact de naissance inscrit sur la pièce ?">
-                      Quel est le lieu exact de naissance inscrit sur la pièce ?
-                    </option>
-                    <option value="Quelle est l'autorité signataire ou commissariat émetteur ?">
-                      Quelle est l'autorité signataire ou commissariat émetteur ?
-                    </option>
-                    <option value="Quel signe distinctif se trouve sur la pochette/étui ?">
-                      Quel signe distinctif se trouve sur la pochette/étui ?
-                    </option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" style={{ fontSize: '0.78rem' }}>
-                    Réponse secrète attendue (confidentielle) * :
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="ex: Bafoussam ou Yaoundé 2"
-                    value={secretAnswer}
-                    onChange={(e) => setSecretAnswer(e.target.value)}
-                    required
-                  />
-                </div>
+                {(() => {
+                  const fields = docTypes.find(dt => dt.id === docTypeId)?.secret_proof_fields ?? [];
+                  if (fields.length === 0) {
+                    // Repli : ancien format question/réponse unique
+                    return (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.78rem' }}>Question :</label>
+                          <select
+                            className="form-select"
+                            value={secretQuestion}
+                            onChange={(e) => setSecretQuestion(e.target.value)}
+                            style={{ fontSize: '0.82rem' }}
+                          >
+                            <option value="Quel est le lieu exact de naissance inscrit sur la pièce ?">
+                              Quel est le lieu exact de naissance inscrit sur la pièce ?
+                            </option>
+                            <option value="Quelle est l'autorité signataire ou commissariat émetteur ?">
+                              Quelle est l'autorité signataire ou commissariat émetteur ?
+                            </option>
+                            <option value="Quel signe distinctif se trouve sur la pochette/étui ?">
+                              Quel signe distinctif se trouve sur la pochette/étui ?
+                            </option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.78rem' }}>
+                            Réponse secrète attendue (confidentielle) * :
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="ex: Bafoussam ou Yaoundé 2"
+                            value={secretAnswer}
+                            onChange={(e) => setSecretAnswer(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </>
+                    );
+                  }
+                  return fields.map(f => (
+                    <div className="form-group" key={f.key} style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.78rem' }}>
+                        {f.label}{f.required ? ' *' : ''}
+                      </label>
+                      <input
+                        type={f.type === 'date' ? 'date' : 'text'}
+                        className="form-input"
+                        value={proofFieldValues[f.key] || ''}
+                        onChange={(e) => setProofFieldValues(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        required={f.required}
+                      />
+                    </div>
+                  ));
+                })()}
               </div>
 
               <button

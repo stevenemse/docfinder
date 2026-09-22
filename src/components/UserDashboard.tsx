@@ -381,9 +381,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                     gap: '12px'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', fontWeight: 600 }}>
+                  <div className="dossier-header">
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div
+                        className="dossier-ref"
+                        title="Cliquer pour copier la référence"
+                        onClick={() => {
+                          try {
+                            navigator.clipboard?.writeText(req.id);
+                          } catch { /* clipboard indisponible */ }
+                        }}
+                      >
                         Dossier : {req.id}
                       </div>
                       <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
