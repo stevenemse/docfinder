@@ -757,15 +757,26 @@ export const dataService = {
     ];
   },
 
-  /** Dépôt du document chez un partenaire → retourne le code de retrait en clair. */
+  /**
+   * Initie le dépôt → retourne le CODE DE DÉPÔT que le trouveur présente au
+   * partenaire. Le dépôt ne devient effectif qu'après confirmation du partenaire.
+   */
   async depositDocument(recoveryRequestId: string, partnerId: string): Promise<{ handoverId: string; pickupCode: string; recipientName: string }> {
     const { data, error } = await supabase.rpc('deposit_document', {
       p_recovery_request_id: recoveryRequestId,
       p_partner_id: partnerId
     });
     if (error) throw new Error(error.message);
-    const row = (Array.isArray(data) ? data[0] : data) as { handover_id: string; pickup_code: string; recipient_name: string };
-    return { handoverId: row.handover_id, pickupCode: row.pickup_code, recipientName: row.recipient_name };
+    const row = (Array.isArray(data) ? data[0] : data) as { handover_id: string; deposit_code: string; recipient_name: string };
+    return { handoverId: row.handover_id, pickupCode: row.deposit_code, recipientName: row.recipient_name };
+  },
+
+  /** Le PARTENAIRE confirme détenir la pièce (code de dépôt) → génère le code de retrait. */
+  async confirmDeposit(depositCode: string): Promise<{ pickupCode: string; recipientName: string }> {
+    const { data, error } = await supabase.rpc('confirm_deposit', { p_deposit_code: depositCode });
+    if (error) throw new Error(error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { pickup_code: string; recipient_name: string };
+    return { pickupCode: row.pickup_code, recipientName: row.recipient_name };
   },
 
   /** Consultation d'un code par le partenaire (scan QR ou saisie). */

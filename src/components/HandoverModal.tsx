@@ -30,7 +30,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
   const [selectedPartner, setSelectedPartner] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [depositResult, setDepositResult] = useState<{ pickupCode: string; recipientName: string } | null>(null);
+  const [depositResult, setDepositResult] = useState<{ depositCode: string; recipientName: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -45,10 +45,11 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
     }).catch(() => setPartners([]));
   }, [isOpen]);
 
-  // Génération du QR : URL publique de la page partenaire avec le code pré-rempli
+  // Génération du QR : URL de la page partenaire, onglet confirmation de dépôt,
+  // code de dépôt pré-rempli (présenté par le trouveur au comptoir)
   useEffect(() => {
     if (!depositResult) { setQrDataUrl(null); return; }
-    const url = `${window.location.origin}${window.location.pathname}#partenaire?code=${depositResult.pickupCode}`;
+    const url = `${window.location.origin}${window.location.pathname}#partenaire?dep=${depositResult.depositCode}`;
     QRCode.toDataURL(url, {
       width: 320,
       margin: 1,
@@ -64,7 +65,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
     setErrorMsg(null);
     try {
       const res = await dataService.depositDocument(recoveryRequestId, selectedPartner);
-      setDepositResult({ pickupCode: res.pickupCode, recipientName: res.recipientName });
+      setDepositResult({ depositCode: res.pickupCode, recipientName: res.recipientName });
       onDeposited?.(res.pickupCode);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur lors du dépôt.');
@@ -76,7 +77,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
   const copyCode = () => {
     if (!depositResult) return;
     try {
-      navigator.clipboard?.writeText(depositResult.pickupCode);
+      navigator.clipboard?.writeText(depositResult.depositCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch { /* clipboard indisponible */ }
@@ -130,9 +131,9 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
               }}>
                 <PackageCheck size={16} style={{ flexShrink: 0, color: 'var(--primary-700)', marginTop: '2px' }} />
                 <span>
-                  Déposez la pièce physique chez le partenaire choisi. Un <strong>code de retrait unique</strong> sera
-                  généré : seul le propriétaire vérifié (nom + code) pourra récupérer le document. Les fonds du
-                  chercheur restent séquestrés jusqu'au retrait.
+                  Choisissez le partenaire qui gardera la pièce. Un <strong>code de dépôt</strong> sera généré :
+                  présentez-le avec le document au comptoir — <strong>c'est le partenaire qui confirme le dépôt</strong>
+                  en le saisissant. Sans sa confirmation, le dépôt n'existe pas.
                 </span>
               </div>
 
@@ -233,12 +234,13 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
               </div>
 
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--slate-900)' }}>
-                Document déposé !
+                Dépôt initialisé !
               </h3>
 
               <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', lineHeight: 1.5 }}>
-                Transmettez ce code et le QR au propriétaire (par téléphone, SMS ou en personne).
-                Il devra présenter le code <strong>et</strong> confirmer son identité au partenaire.
+                Présentez ce <strong>code de dépôt</strong> avec le document au comptoir du partenaire.
+                Il le saisira pour <strong>confirmer qu'il détient la pièce</strong> — le propriétaire
+                recevra alors son code de retrait.
               </p>
 
               <button
@@ -267,10 +269,13 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
                   letterSpacing: '0.15em',
                   color: 'var(--primary-800)'
                 }}>
-                  {depositResult.pickupCode}
+                  {depositResult.depositCode}
                 </span>
                 {copied ? <CheckCircle2 size={18} color="var(--primary-700)" /> : <Copy size={18} color="var(--slate-500)" />}
               </button>
+              <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', marginTop: '-6px' }}>
+                Code de dépôt — pour le partenaire uniquement
+              </div>
 
               {qrDataUrl && (
                 <div style={{ margin: '0 auto' }}>
@@ -286,7 +291,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
                   />
                   <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                     <QrCode size={12} />
-                    Scan possible chez le partenaire
+                    Le partenaire scanne ce QR pour confirmer le dépôt
                   </div>
                 </div>
               )}
@@ -302,8 +307,10 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
               }}>
                 <strong>Destinataire attendu :</strong> {depositResult.recipientName}
                 <br />
-                <strong>Garde :</strong> 30 jours maximum — passé ce délai, le partenaire retourne le document
-                (vous serez notifié).
+                <strong>Si le partenaire ne confirme pas sous 72 h</strong>, le dépôt est annulé
+                automatiquement et vous pouvez le déposer ailleurs.
+                <br />
+                <strong>Après confirmation :</strong> garde de 30 jours chez le partenaire.
               </div>
 
               <button

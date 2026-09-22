@@ -557,8 +557,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                             <>
                               <div style={{ fontWeight: 800 }}>Paiement confirmé — fonds séquestrés ✓</div>
                               <div style={{ marginTop: '4px' }}>
-                                Dès que le trouveur dépose le document chez un partenaire,
-                                l'adresse de retrait et votre code apparaîtront ici.
+                                En attente : le trouveur prépare le dépôt chez un partenaire.
+                                Dès que le partenaire <strong>confirmera détenir le document</strong>,
+                                l'adresse de retrait et votre code de retrait apparaîtront ici
+                                (vous recevrez une notification).
                               </div>
                             </>
                           )}
