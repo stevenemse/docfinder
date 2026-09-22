@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_DOCUMENT_TYPES } from '../lib/supabase';
+import { sha256Hex } from '../lib/crypto';
 import type {
   DocumentType,
   FoundDocument,
@@ -606,6 +607,128 @@ export const dataService = {
     requests.unshift(newReq);
     setLocal(STORAGE_KEYS.RECOVERY_REQUESTS, requests);
     return newReq;
+  },
+
+  /**
+   * Revendication « C'est mon document » SANS déclaration de perte préalable :
+   * crée la déclaration à la volée (RPC serveur), lance le matching puis
+   * soumet la revendication si une correspondance couvre le document visé.
+   * `referenceFile` : photo de la pièce (optionnelle) → coffre privé.
+   */
+  async claimWithLostDeclaration(params: {
+    foundDocId: string;
+    foundDocTypeId: string;
+    fullName: string;
+    docNumber: string;
+    region: string;
+    city: string;
+    approxZone?: string;
+    lostDate?: string;
+    secretQuestion?: string;
+    secretAnswer?: string;
+    referenceFile?: File | null;
+    requesterId?: string;
+  }): Promise<{ lostDocId: string; created: boolean; matchCount: number; claim: RecoveryRequest | null }> {
+    const { foundDocId, foundDocTypeId, fullName, docNumber, region, city } = params;
+
+    if (isSupabaseConfigured()) {
+      try {
+        // Upload de la photo de référence (optionnelle, best effort)
+        let referenceImagePath: string | null = null;
+        if (params.referenceFile && params.requesterId) {
+          try {
+            const up = await this.uploadPrivateImage(params.referenceFile, params.requesterId, 'reference');
+            referenceImagePath = up?.path ?? null;
+          } catch (err) {
+            console.warn('Upload photo de référence échoué (continu sans):', err);
+          }
+        }
+
+        const { data, error } = await supabase.rpc('claim_with_lost_declaration', {
+          p_found_doc_id: foundDocId,
+          p_full_name: fullName,
+          p_doc_number: docNumber,
+          p_lost_region: region,
+          p_lost_city: city,
+          p_approx_zone: params.approxZone ?? null,
+          p_lost_date: params.lostDate || null,
+          p_secret_question: params.secretQuestion ?? null,
+          p_secret_answer: params.secretAnswer ?? null,
+          p_reference_image_path: referenceImagePath
+        });
+
+        if (error) throw new Error(error.message);
+        const row = (Array.isArray(data) ? data[0] : data) as {
+          lost_doc_id: string;
+          created: boolean;
+          match_count: number;
+          claim: RecoveryRequest | null;
+        };
+        return {
+          lostDocId: row.lost_doc_id,
+          created: row.created,
+          matchCount: row.match_count ?? 0,
+          claim: row.claim ?? null
+        };
+      } catch (err) {
+        console.error('Erreur RPC claim_with_lost_declaration:', err);
+        throw err instanceof Error ? err : new Error('Erreur de revendication');
+      }
+    }
+
+    // ── Fallback démo : création locale complète ──
+    const numberHash = await sha256Hex(docNumber);
+    const losts = getLocal<LostDocument[]>(STORAGE_KEYS.LOST_DOCS, []);
+    const existing = losts.find(l =>
+      l.seeker_id === params.requesterId &&
+      l.document_type_id === foundDocTypeId &&
+      l.doc_number_hash === numberHash
+    );
+    let lostDoc: LostDocument;
+    let created = false;
+    if (existing) {
+      lostDoc = existing;
+    } else {
+      lostDoc = {
+        id: `lost-${Date.now()}`,
+        seeker_id: params.requesterId || 'prof-seeker1',
+        document_type_id: foundDocTypeId,
+        full_name_search: fullName.trim(),
+        doc_number_hash: numberHash,
+        doc_number_partial: '****' + docNumber.replace(/\s+/g, '').slice(-4),
+        lost_region: region,
+        lost_city: city,
+        approx_loss_zone: params.approxZone || undefined,
+        lost_date_approx: params.lostDate || new Date().toISOString().split('T')[0],
+        secret_proof_question: params.secretQuestion || 'Preuve de propriété',
+        secret_proof_answer_hash: params.secretAnswer ? await sha256Hex(params.secretAnswer) : undefined,
+        status: 'published',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      losts.unshift(lostDoc);
+      setLocal(STORAGE_KEYS.LOST_DOCS, losts);
+      created = true;
+    }
+
+    // Matching local puis revendication via le chemin existant
+    const foundDocs = await this.getFoundDocuments();
+    const foundDoc = foundDocs.find(d => d.id === foundDocId);
+    if (foundDoc) await this.scanMatchesForFoundDoc(foundDoc);
+
+    let claim: RecoveryRequest | null = null;
+    try {
+      claim = await this.createRecoveryRequest({
+        foundDocId,
+        proofAnswer: params.secretAnswer || docNumber,
+        requesterId: params.requesterId
+      });
+    } catch {
+      claim = null;
+    }
+
+    const matches = getLocal<Match[]>(STORAGE_KEYS.MATCHES, []);
+    return { lostDocId: lostDoc.id, created, matchCount: matches.length, claim };
   },
 
   async approveRecoveryRequest(requestId: string): Promise<void> {

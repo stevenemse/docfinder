@@ -6,6 +6,7 @@ import { SearchCatalogue } from './components/SearchCatalogue';
 import { ReportFoundModal } from './components/ReportFoundModal';
 import { ReportLostModal } from './components/ReportLostModal';
 import { MatchDetailModal } from './components/MatchDetailModal';
+import { ClaimModal } from './components/ClaimModal';
 import { PaymentModal } from './components/PaymentModal';
 import { UserDashboard } from './components/UserDashboard';
 import { AdminModeration } from './components/AdminModeration';
@@ -69,6 +70,7 @@ export function App() {
   const [isFoundModalOpen, setIsFoundModalOpen] = useState(false);
   const [isLostModalOpen, setIsLostModalOpen] = useState(false);
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   // Entity selection for modals
@@ -360,8 +362,45 @@ export function App() {
     }
     setSelectedFoundDoc(doc);
     const existingMatch = matches.find(m => m.found_document_id === doc.id);
-    setSelectedMatch(existingMatch || null);
-    setIsMatchModalOpen(true);
+    if (existingMatch) {
+      // Une correspondance existe déjà : déclaration connue → formulaire de
+      // preuve classique ( MatchDetailModal)
+      setSelectedMatch(existingMatch);
+      setIsMatchModalOpen(true);
+    } else {
+      // Aucune déclaration de perte connue → déclaration à la volée +
+      // revendication en un seul formulaire (ClaimModal)
+      setIsClaimModalOpen(true);
+    }
+  };
+
+  const handleClaimWithDeclaration = async (params: {
+    fullName: string;
+    docNumber: string;
+    region: string;
+    city: string;
+    approxZone: string;
+    lostDate: string;
+    secretAnswer: string;
+    referenceFile: File | null;
+  }) => {
+    if (!selectedFoundDoc) return;
+    const res = await dataService.claimWithLostDeclaration({
+      ...params,
+      foundDocId: selectedFoundDoc.id,
+      foundDocTypeId: selectedFoundDoc.document_type_id,
+      requesterId: profile?.id
+    });
+    await refreshAllDataRef.current();
+    setIsClaimModalOpen(false);
+    if (res.claim) {
+      showToast(res.claim.verification_status === 'approved'
+        ? 'Revendication validée ! Procédez au paiement pour débloquer la restitution.'
+        : 'Revendication soumise — en attente de validation modérateur.');
+      setSelectedMatch(matches.find(m => m.found_document_id === selectedFoundDoc.id) || null);
+    } else {
+      showToast('Déclaration de perte enregistrée — surveillance active, alerte dès qu\'une trouvaille correspond.');
+    }
   };
 
   // Search from Hero
@@ -676,6 +715,13 @@ export function App() {
         onLostCreated={handleLostCreated}
         seekerProfileId={profile?.id || 'prof-seeker1'}
         onViewMatches={() => setCurrentTab('dashboard')}
+      />
+
+      <ClaimModal
+        isOpen={isClaimModalOpen}
+        onClose={() => setIsClaimModalOpen(false)}
+        foundDoc={selectedFoundDoc}
+        onSubmit={handleClaimWithDeclaration}
       />
 
       <MatchDetailModal 
