@@ -143,6 +143,66 @@ export interface RecoveryRequest {
   };
 }
 
+// Partenaire de dépôt (boutique MoMo, cybercafé, agence)
+export interface Partner {
+  id: string;
+  name: string;
+  kind: 'momo_kiosk' | 'cybercafe' | 'agency' | 'other';
+  region?: string | null;
+  city?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  is_active?: boolean;
+}
+
+// Dépôt d'un document chez un partenaire (code de retrait associé)
+export interface DocumentHandover {
+  id: string;
+  recovery_request_id: string;
+  partner_name?: string;
+  partner_city?: string | null;
+  status: 'deposited' | 'withdrawn' | 'returned' | 'expired';
+  recipient_name: string;
+  deposited_at: string;
+  withdrawn_at?: string | null;
+  deadline?: string | null;
+}
+
+// Séquestre : fonds bloqués au paiement, libérés au retrait vérifié
+export interface Payout {
+  id: string;
+  recovery_request_id: string;
+  finder_id: string;
+  amount: number;
+  currency: string;
+  status: 'held' | 'released' | 'cancelled';
+  held_at: string;
+  released_at?: string | null;
+}
+
+export interface PickupInfo {
+  found: boolean;
+  status?: string;
+  recipient_name?: string;
+  partner_name?: string;
+  partner_address?: string;
+  partner_city?: string;
+  partner_phone?: string;
+  deposited_at?: string;
+  deadline?: string;
+}
+
+// Réponse de lookup_pickup (page partenaire)
+export interface LookupResult {
+  found: boolean;
+  recipient_name?: string;
+  deposited_at?: string;
+  deadline?: string;
+  partner_name?: string;
+  document?: string;
+  doc_partial?: string;
+}
+
 export interface Payment {
   id: string;
   recovery_request_id: string;

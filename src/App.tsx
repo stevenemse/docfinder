@@ -7,6 +7,8 @@ import { ReportFoundModal } from './components/ReportFoundModal';
 import { ReportLostModal } from './components/ReportLostModal';
 import { MatchDetailModal } from './components/MatchDetailModal';
 import { ClaimModal } from './components/ClaimModal';
+import { HandoverModal } from './components/HandoverModal';
+import { PartnerScanPage } from './components/PartnerScanPage';
 import { PaymentModal } from './components/PaymentModal';
 import { UserDashboard } from './components/UserDashboard';
 import { AdminModeration } from './components/AdminModeration';
@@ -71,6 +73,9 @@ export function App() {
   const [isLostModalOpen, setIsLostModalOpen] = useState(false);
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+  const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
+  const [handoverRequestId, setHandoverRequestId] = useState<string | null>(null);
+  const [isPartnerScan, setIsPartnerScan] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   // Entity selection for modals
@@ -139,6 +144,12 @@ export function App() {
   // Load Initial Session & Data
   useEffect(() => {
     async function init() {
+      // Route partenaire : #partenaire ou #partenaire?code=XXXXXXXX
+      // (page publique — scan QR par le point de dépôt, hors navigation principale)
+      if (/^#partenaire/.test(window.location.hash)) {
+        setIsPartnerScan(true);
+      }
+
       // Session
       const session = await authService.getInitialSession();
       setIsAuthenticated(session.isAuthenticated);
@@ -450,6 +461,16 @@ export function App() {
     setIsPaymentModalOpen(true);
   };
 
+  // Dépôt du document chez un partenaire (côté trouveur, après paiement)
+  const handleDepositDocument = (requestId: string) => {
+    setHandoverRequestId(requestId);
+    setIsHandoverModalOpen(true);
+  };
+
+  const handleDeposited = async () => {
+    await refreshAllDataRef.current();
+  };
+
   const handlePaymentSuccess = async (requestId: string, provider: PaymentProviderType, txRef: string) => {
     await dataService.processPaymentSuccess({
       requestId,
@@ -471,6 +492,19 @@ export function App() {
   const handleRejectRequest = async () => {
     showToast('Demande jugée non probante et archivée.');
   };
+
+  // Page dédiée partenaire (scan QR / remise vérifiée) — rendue sans la
+  // navigation principale pour rester simple et dédiée au comptoir.
+  if (isPartnerScan) {
+    return (
+      <div className="app-container">
+        <PartnerScanPage onBack={() => {
+          setIsPartnerScan(false);
+          window.location.hash = '';
+        }} />
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -581,6 +615,7 @@ export function App() {
                 setIsMatchModalOpen(true);
               }}
               onProceedToPayment={handleProceedToPayment}
+              onDepositDocument={handleDepositDocument}
             />
           </div>
         )}
@@ -722,6 +757,13 @@ export function App() {
         onClose={() => setIsClaimModalOpen(false)}
         foundDoc={selectedFoundDoc}
         onSubmit={handleClaimWithDeclaration}
+      />
+
+      <HandoverModal
+        isOpen={isHandoverModalOpen}
+        onClose={() => setIsHandoverModalOpen(false)}
+        recoveryRequestId={handoverRequestId}
+        onDeposited={handleDeposited}
       />
 
       <MatchDetailModal 

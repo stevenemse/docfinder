@@ -2,6 +2,10 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_DOCUMENT_TYPES } from '../lib/supabase';
 import { sha256Hex } from '../lib/crypto';
 import type {
+  Partner,
+  DocumentHandover,
+  PickupInfo,
+  LookupResult,
   DocumentType,
   FoundDocument,
   LostDocument,
@@ -729,6 +733,69 @@ export const dataService = {
 
     const matches = getLocal<Match[]>(STORAGE_KEYS.MATCHES, []);
     return { lostDocId: lostDoc.id, created, matchCount: matches.length, claim };
+  },
+
+  // ── Infrastructure partenaires : dépôt, code de retrait, séquestre ──────
+
+  async getActivePartners(): Promise<Partner[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.rpc('get_active_partners');
+        if (!error && data) return (Array.isArray(data) ? data[0] : data) as Partner[];
+      } catch (err) {
+        console.warn('Erreur get_active_partners:', err);
+      }
+    }
+    // Partenaires de démonstration (mode démo)
+    return [
+      { id: 'pt-1', name: 'Kiosque MoMo Bastos', kind: 'momo_kiosk', region: 'Centre', city: 'Yaoundé', address: 'Carrefour Bastos' },
+      { id: 'pt-2', name: 'Cyber Café Mvog-Ada', kind: 'cybercafe', region: 'Centre', city: 'Yaoundé', address: 'Rond-point Mvog-Ada' },
+      { id: 'pt-3', name: 'Agence MoMo Akwa', kind: 'momo_kiosk', region: 'Littoral', city: 'Douala', address: 'Boulevard de la Liberté' }
+    ];
+  },
+
+  /** Dépôt du document chez un partenaire → retourne le code de retrait en clair. */
+  async depositDocument(recoveryRequestId: string, partnerId: string): Promise<{ handoverId: string; pickupCode: string; recipientName: string }> {
+    const { data, error } = await supabase.rpc('deposit_document', {
+      p_recovery_request_id: recoveryRequestId,
+      p_partner_id: partnerId
+    });
+    if (error) throw new Error(error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { handover_id: string; pickup_code: string; recipient_name: string };
+    return { handoverId: row.handover_id, pickupCode: row.pickup_code, recipientName: row.recipient_name };
+  },
+
+  /** Consultation d'un code par le partenaire (scan QR ou saisie). */
+  async lookupPickup(code: string): Promise<LookupResult> {
+    const { data, error } = await supabase.rpc('lookup_pickup', { p_code: code });
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as LookupResult;
+  },
+
+  /** Validation de la remise par le partenaire → libère le séquestre. */
+  async verifyPickup(code: string, recipientName: string, via: 'qr_scan' | 'manual_code'): Promise<{ funds_released: boolean; recipient_name: string }> {
+    const { data, error } = await supabase.rpc('verify_pickup', {
+      p_code: code,
+      p_recipient_name: recipientName,
+      p_via: via
+    });
+    if (error) throw new Error(error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as { funds_released: boolean; recipient_name: string };
+    return { funds_released: row.funds_released, recipient_name: row.recipient_name };
+  },
+
+  /** Infos de retrait pour le chercheur (partenaire, adresse, délai). */
+  async getMyPickupInfo(recoveryRequestId: string): Promise<PickupInfo> {
+    const { data, error } = await supabase.rpc('get_my_pickup_info', { p_recovery_request_id: recoveryRequestId });
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as PickupInfo;
+  },
+
+  /** Dépôts du trouveur. */
+  async getMyHandovers(): Promise<DocumentHandover[]> {
+    const { data, error } = await supabase.rpc('get_my_handovers');
+    if (error) throw new Error(error.message);
+    return (Array.isArray(data) ? data[0] : data) as DocumentHandover[];
   },
 
   async approveRecoveryRequest(requestId: string): Promise<void> {

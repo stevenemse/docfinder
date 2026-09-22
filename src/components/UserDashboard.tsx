@@ -24,6 +24,7 @@ interface UserDashboardProps {
   onOpenFoundModal: () => void;
   onSelectMatch: (match: Match) => void;
   onProceedToPayment: (requestId: string) => void;
+  onDepositDocument: (requestId: string) => void;
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({
@@ -35,7 +36,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onOpenLostModal,
   onOpenFoundModal,
   onSelectMatch,
-  onProceedToPayment
+  onProceedToPayment,
+  onDepositDocument
 }) => {
   const [activeTab, setActiveTab] = useState<'lost' | 'found' | 'requests'>('lost');
 
@@ -450,11 +452,29 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       fontSize: '0.82rem',
                       color: 'var(--primary-900)'
                     }}>
-                      <div style={{ fontWeight: 800 }}>Coordonnées de Restitution :</div>
+                      <div style={{ fontWeight: 800 }}>Restitution par partenaire vérifié :</div>
                       <div style={{ marginTop: '4px' }}>
-                        Trouveur : <strong>{req.unlocked_finder_contact?.display_name || "Eto'o Paul"}</strong> ({req.unlocked_finder_contact?.phone || '+237 677 11 22 33'})<br />
-                        Point de remise sécurisé : <strong>{req.unlocked_finder_contact?.pickup_point || 'Commissariat du 10ème Arrondissement - Bastos, Yaoundé'}</strong>
+                        Fonds séquestrés et sécurisés ✓<br />
+                        Étape suivante : déposez le document chez un partenaire agréé
+                        (boutique MoMo, cybercafé) — un code de retrait sera transmis
+                        au propriétaire. Aucune remise en main propre requise.
                       </div>
+                      <button
+                        onClick={() => onDepositDocument(req.id)}
+                        style={{
+                          background: 'var(--primary-700)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '8px 16px',
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          marginTop: '10px'
+                        }}
+                      >
+                        📍 Déposer chez un partenaire →
+                      </button>
                     </div>
                   ) : isApproved ? (
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
