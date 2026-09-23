@@ -150,6 +150,19 @@ export function App() {
         setIsPartnerScan(true);
       }
 
+      // Retour OAuth Google en erreur (state expiré/bloqué, compte refusé…) :
+      // message lisible + URL nettoyée au lieu de la page d'erreur brute
+      // ?error=invalid_request&error_code=bad_oauth_state
+      const oauthParams = new URLSearchParams(window.location.search);
+      const oauthError = oauthParams.get('error');
+      if (oauthError) {
+        const oauthDesc = oauthParams.get('error_description') || '';
+        showToast(/state/i.test(oauthDesc)
+          ? 'Session Google expirée — cliquez à nouveau sur « Continuer avec Google », la reconnexion est immédiate.'
+          : `Connexion Google impossible (${oauthError}). Réessayez ou utilisez numéro + mot de passe.`);
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      }
+
       // Session
       const session = await authService.getInitialSession();
       setIsAuthenticated(session.isAuthenticated);

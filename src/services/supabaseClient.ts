@@ -29,8 +29,11 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      // Détecte la session dans l'URL (#access_token=…) : indispensable au
-      // retour du flux OAuth Google (retour implicite avec jeton dans le hash).
+      // Flux PKCE : l'état OAuth est stocké côté client (localStorage) au lieu
+      // d'un cookie tiers — élimine les erreurs « bad_oauth_state » dues aux
+      // cookies bloqués ou expirés entre le départ et le retour de Google.
+      flowType: 'pkce',
+      // Détecte la session dans l'URL (?code=… PKCE ou #access_token=… implicite)
       detectSessionInUrl: true
     }
   }
