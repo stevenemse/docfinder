@@ -212,6 +212,284 @@ const Kpi: React.FC<{
   </div>
 );
 
+/* ════════════════════════════════════════════════════════════════════
+ * ProofReviewModal — examen complet d'une preuve de propriété.
+ * Affiche côte à côte : le document TROUVÉ (image caviardée + métadonnées,
+ * ce que le trouveur a déclaré) et la PREUVE du chercheur (réponse secrète
+ * validée côté serveur + photo de dossier si fournie, URL signée du coffre).
+ * Le modérateur décide avec les DEUX objets sous les yeux.
+ * ════════════════════════════════════════════════════════════════════ */
+const ProofReviewModal: React.FC<{
+  request: RecoveryRequest;
+  onClose: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+}> = ({ request, onClose, onApprove, onReject }) => {
+  const found = request.match?.found_doc;
+  const lost = request.match?.lost_doc;
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [proofState, setProofState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [refUrl, setRefUrl] = useState<string | null>(null);
+  const [refState, setRefState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+
+  const loadProof = () => {
+    if (!request.proof_image_path) return;
+    setProofState('loading');
+    dataService.getReferenceImageUrl(request.proof_image_path).then((signed) => {
+      setProofUrl(signed);
+      setProofState(signed ? 'ready' : 'error');
+    });
+  };
+
+  const loadRef = () => {
+    if (!lost?.reference_image_path) return;
+    setRefState('loading');
+    dataService.getReferenceImageUrl(lost.reference_image_path).then((signed) => {
+      setRefUrl(signed);
+      setRefState(signed ? 'ready' : 'error');
+    });
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const PanelTitle: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 800, fontSize: '0.84rem', color: 'var(--slate-900)', marginBottom: '10px' }}>
+      {icon}
+      {children}
+    </div>
+  );
+
+  const MetaRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '0.76rem', padding: '4px 0', borderBottom: '1px dashed var(--border-color)' }}>
+      <span style={{ color: 'var(--slate-500)', flexShrink: 0 }}>{label}</span>
+      <span style={{ color: 'var(--slate-800)', fontWeight: 700, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere' }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 110,
+        background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px'
+      }}
+    >
+      <div style={{
+        background: 'var(--surface-card, #fff)', borderRadius: '18px',
+        width: 'min(880px, 100%)', maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 24px 64px rgba(0, 0, 0, 0.35)', padding: '20px'
+      }}>
+        {/* En-tête */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldAlert size={19} color="var(--primary-700)" />
+            Examen de la preuve de propriété
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', color: 'var(--slate-500)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: 700 }}
+          >
+            <X size={16} /> Fermer (Échap)
+          </button>
+        </div>
+
+        {/* Score de matching global */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+          background: 'var(--slate-50)', border: '1px solid var(--border-color)',
+          borderRadius: '12px', padding: '10px 14px', marginBottom: '14px',
+          fontSize: '0.78rem', color: 'var(--slate-700)'
+        }}>
+          <Activity size={15} color="var(--primary-700)" />
+          <strong>Correspondance : {request.match?.match_qualitative ?? '—'}</strong>
+          {typeof request.match?.score_internal === 'number' && (
+            <span style={{
+              background: 'var(--primary-100)', color: 'var(--primary-800)',
+              borderRadius: 999, padding: '2px 9px', fontWeight: 800, fontSize: '0.7rem'
+            }}>
+              score {Math.round(request.match.score_internal)}%
+            </span>
+          )}
+          <span style={{ color: 'var(--slate-500)', fontSize: '0.72rem' }}>
+            Le score seul ne suffit pas : la preuve ci-dessous fait foi.
+          </span>
+        </div>
+
+        {/* Deux colonnes : document trouvé ↔ preuve */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+          {/* ── Colonne 1 : document TROUVÉ ── */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '14px', padding: '14px', background: 'var(--surface-card)' }}>
+            <PanelTitle icon={<FileCheck2 size={16} color="var(--primary-700)" />}>Document trouvé (par le trouveur)</PanelTitle>
+            {found?.masked_image_url ? (
+              <div style={{
+                borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)',
+                marginBottom: '10px', background: 'var(--slate-50)', position: 'relative'
+              }}>
+                <img src={found.masked_image_url} alt="Document trouvé caviardé" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }} />
+                <span style={{
+                  position: 'absolute', top: '8px', left: '8px',
+                  background: 'rgba(13, 84, 55, 0.85)', color: '#fff',
+                  fontSize: '0.6rem', fontWeight: 800, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.04em'
+                }}>
+                  CAVIARDÉ
+                </span>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--slate-400)', fontSize: '0.78rem', background: 'var(--slate-50)', borderRadius: '10px', marginBottom: '10px' }}>
+                <ImageOff size={22} style={{ margin: '0 auto 6px' }} />
+                Aucune image caviardée
+              </div>
+            )}
+            <MetaRow label="Désignation" value={found?.title_masked ?? '—'} />
+            <MetaRow label="Numéro (masqué)" value={found?.doc_number_partial ?? '—'} />
+            <MetaRow label="Trouvé à" value={found?.approx_location && found.approx_location !== found.city ? `${found.city} — ${found.approx_location}` : found?.city ?? '—'} />
+            <MetaRow label="Date de trouvaille" value={found?.found_date ? new Date(found.found_date).toLocaleDateString('fr-FR') : '—'} />
+            {found?.additional_notes_private && (
+              <div style={{
+                marginTop: '8px', fontSize: '0.74rem', color: 'var(--slate-600)',
+                background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-100, #fde68a)',
+                borderRadius: '8px', padding: '7px 10px'
+              }}>
+                <strong>Note privée du trouveur :</strong> {found.additional_notes_private}
+              </div>
+            )}
+          </div>
+
+          {/* ── Colonne 2 : preuve du chercheur ── */}
+          <div style={{ border: '1px solid var(--border-color)', borderRadius: '14px', padding: '14px', background: 'var(--surface-card)' }}>
+            <PanelTitle icon={<ShieldAlert size={16} color="var(--primary-700)" />}>Preuve du chercheur</PanelTitle>
+
+            <div style={{
+              background: 'var(--primary-50, #eef7f2)', border: '1px solid var(--primary-100, #d1fae5)',
+              borderRadius: '10px', padding: '10px 12px', marginBottom: '10px'
+            }}>
+              <div style={{ fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--primary-700)', marginBottom: '4px' }}>
+                RÉPONSE À LA QUESTION SECRÈTE (VÉRIFIÉE PAR HASH SERVEUR)
+              </div>
+              <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--slate-900)', overflowWrap: 'anywhere' }}>
+                « {request.verification_proof_submitted || '—'} »
+              </div>
+            </div>
+
+            {/* Photo de référence du dossier du chercheur */}
+            {lost?.reference_image_path && (
+              <div style={{ marginBottom: '10px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--slate-700)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <FileImage size={13} /> Photo de référence (déclaration de perte)
+                </div>
+                {refState === 'ready' && refUrl ? (
+                  <img src={refUrl} alt="Photo de référence" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '10px', border: '1px solid var(--border-color)' }} />
+                ) : refState === 'loading' ? (
+                  <div style={{ textAlign: 'center', padding: '14px', color: 'var(--slate-500)', fontSize: '0.76rem' }}>
+                    <Loader2 size={16} className="animate-spin" style={{ margin: '0 auto 4px' }} /> Chargement…
+                  </div>
+                ) : (
+                  <button
+                    onClick={loadRef}
+                    style={{
+                      width: '100%', background: 'var(--slate-100, #f1f5f9)', border: '1px dashed var(--border-color)',
+                      borderRadius: '10px', padding: '12px', cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontSize: '0.76rem', fontWeight: 700, color: 'var(--slate-600)'
+                    }}
+                  >
+                    <Eye size={14} /> Afficher (URL signée · coffre privé)
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Photo de preuve jointe à la revendication */}
+            <div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--slate-700)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <FileImage size={13} /> Photo jointe à la revendication
+                {request.proof_image_path && (
+                  <span style={{ background: 'var(--primary-100)', color: 'var(--primary-800)', fontSize: '0.6rem', fontWeight: 800, padding: '1px 7px', borderRadius: 999 }}>
+                    FOURNIE
+                  </span>
+                )}
+              </div>
+              {request.proof_image_path && (
+                proofState === 'ready' && proofUrl ? (
+                  <img src={proofUrl} alt="Photo de preuve" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '10px', border: '1px solid var(--border-color)' }} />
+                ) : proofState === 'loading' ? (
+                  <div style={{ textAlign: 'center', padding: '14px', color: 'var(--slate-500)', fontSize: '0.76rem' }}>
+                    <Loader2 size={16} className="animate-spin" style={{ margin: '0 auto 4px' }} /> Génération de l'URL signée…
+                  </div>
+                ) : (
+                  <button
+                    onClick={loadProof}
+                    style={{
+                      width: '100%', background: 'var(--slate-100, #f1f5f9)', border: '1px dashed var(--border-color)',
+                      borderRadius: '10px', padding: '12px', cursor: 'pointer',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      fontSize: '0.76rem', fontWeight: 700, color: 'var(--slate-600)'
+                    }}
+                  >
+                    <Eye size={14} /> Afficher (URL signée · coffre privé)
+                  </button>
+                )
+              )}
+              {!request.proof_image_path && (
+                <div style={{
+                  textAlign: 'center', padding: '12px', fontSize: '0.74rem', color: 'var(--slate-400)',
+                  background: 'var(--slate-50)', borderRadius: '10px', border: '1px dashed var(--border-color)'
+                }}>
+                  <ImageOff size={18} style={{ margin: '0 auto 4px' }} />
+                  Aucune photo jointe — décision sur la base de la réponse secrète + score
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Rappel déclaration de perte */}
+        {lost && (
+          <div style={{
+            marginTop: '12px', fontSize: '0.74rem', color: 'var(--slate-600)',
+            background: 'var(--slate-50)', border: '1px solid var(--border-color)',
+            borderRadius: '10px', padding: '8px 12px'
+          }}>
+            <strong>Déclaration de perte liée :</strong> {lost.full_name_search} · {lost.lost_city}
+            {lost.lost_date_approx ? ` · perdu vers le ${new Date(lost.lost_date_approx).toLocaleDateString('fr-FR')}` : ''}
+          </div>
+        )}
+
+        {/* Décision */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+          <button
+            onClick={onReject}
+            style={{
+              background: 'var(--red-50)', color: 'var(--red-700)', border: '1px solid var(--red-100)',
+              borderRadius: 'var(--radius-md)', padding: '9px 16px', fontSize: '0.8rem', fontWeight: 700,
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+            }}
+          >
+            <XCircle size={15} /> Rejeter la demande
+          </button>
+          <button
+            onClick={onApprove}
+            style={{
+              background: 'var(--primary-700)', color: '#fff', border: 'none',
+              borderRadius: 'var(--radius-md)', padding: '9px 18px', fontSize: '0.8rem', fontWeight: 700,
+              cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px',
+              boxShadow: '0 4px 12px rgba(13, 84, 55, 0.25)'
+            }}
+          >
+            <CheckCircle2 size={15} /> Valider la correspondance
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const fmtDay = (iso: string) => {
   const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
@@ -241,6 +519,8 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
 
   // Popups KPI (documents protégés / déclarations de perte)
   const [kpiModal, setKpiModal] = useState<'found' | 'lost' | null>(null);
+  // Preuve en cours d'examen : affiche la comparaison document trouvé ↔ preuve
+  const [proofModal, setProofModal] = useState<RecoveryRequest | null>(null);
 
   // Retraits wallet (onglet paiements)
   const [withdrawals, setWithdrawals] = useState<WalletWithdrawal[] | null>(null);
@@ -933,11 +1213,32 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   gap: '10px'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '0.74rem', color: 'var(--slate-500)', fontWeight: 600 }}>
-                    Demande Réf : {req.id}
+                    Demande Réf : {req.id.slice(0, 8)}…
                   </span>
-                  <span className="admin-badge pending_verification">Preuve à vérifier</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={() => setProofModal(req)}
+                      style={{
+                        background: 'var(--slate-100, #f1f5f9)',
+                        color: 'var(--slate-700)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '5px 11px',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                      }}
+                    >
+                      <Eye size={13} />
+                      Examiner la correspondance
+                    </button>
+                    <span className="admin-badge pending_verification">Preuve à vérifier</span>
+                  </div>
                 </div>
 
                 <div style={{ fontSize: '0.85rem', color: 'var(--slate-800)' }}>
@@ -957,6 +1258,40 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                     <strong>Déclaration liée :</strong> {req.match.lost_doc.full_name_search}
                     {' — '}{req.match.lost_doc.lost_city}
                     {req.match.lost_doc.lost_date_approx ? ` (perdu vers le ${req.match.lost_doc.lost_date_approx})` : ''}
+                  </div>
+                )}
+
+                {req.match?.found_doc && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '10px',
+                    background: 'var(--primary-50, #eef7f2)',
+                    border: '1px solid var(--primary-100, #d1fae5)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '8px 10px'
+                  }}>
+                    {req.match.found_doc.masked_image_url && (
+                      <img
+                        src={req.match.found_doc.masked_image_url}
+                        alt="Document trouvé (caviardé)"
+                        style={{
+                          width: '54px', height: '40px', objectFit: 'cover',
+                          borderRadius: '6px', border: '1px solid var(--border-color)', flexShrink: 0
+                        }}
+                      />
+                    )}
+                    <div style={{ minWidth: 0, fontSize: '0.74rem', color: 'var(--slate-700)' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--primary-800, #14532d)', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <FileCheck2 size={12} />
+                        Document trouvé en correspondance
+                      </div>
+                      <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {req.match.found_doc.title_masked} · N° {req.match.found_doc.doc_number_partial} · {req.match.found_doc.city}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--slate-500)' }}>
+                        Score de matching : {req.match.match_qualitative}
+                        {typeof req.match.score_internal === 'number' ? ` (${Math.round(req.match.score_internal)}%)` : ''}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1374,6 +1709,16 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
       )}
         </div>{/* /admin-content */}
       </div>{/* /admin-layout */}
+
+      {/* ============ MODALE EXAMEN PREUVE : document trouvé ↔ preuve ============ */}
+      {proofModal && proofModal.match?.found_doc && (
+        <ProofReviewModal
+          request={proofModal}
+          onClose={() => setProofModal(null)}
+          onApprove={() => { onApproveRequest(proofModal.id); setProofModal(null); }}
+          onReject={() => { onRejectRequest(proofModal.id); setProofModal(null); }}
+        />
+      )}
 
       {/* ============ POPUP KPI : LISTE DOCUMENTS / PERTES ============ */}
       {kpiModal && (
