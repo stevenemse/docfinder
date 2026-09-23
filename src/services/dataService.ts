@@ -25,6 +25,21 @@ import type {
   AuditLog
 } from '../types';
 
+/**
+ * Normalise le retour d'une RPC Supabase qui renvoie une LISTE (JSONB ou
+ * SETOF). supabase-js livre déjà le tableau décodé ; on tolère un éventuel
+ * emballage [tableau]. JAMAIS `data[0]` direct : sur un retour liste, ça
+ * renverrait le premier élément (objet) et provoquerait « .map is not a
+ * function » côté UI (crash page blanche).
+ */
+function rpcList<T>(data: unknown): T[] {
+  let list: unknown = data;
+  if (Array.isArray(list) && list.length > 0 && Array.isArray(list[0])) {
+    list = list[0];
+  }
+  return Array.isArray(list) ? (list as T[]) : [];
+}
+
 const STORAGE_KEYS = {
   FOUND_DOCS: 'docfinder_found_docs',
   LOST_DOCS: 'docfinder_lost_docs',
@@ -746,7 +761,7 @@ export const dataService = {
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase.rpc('get_active_partners');
-        if (!error && data) return (Array.isArray(data) ? data[0] : data) as Partner[];
+        if (!error && data) return rpcList<Partner>(data);
       } catch (err) {
         console.warn('Erreur get_active_partners:', err);
       }
@@ -811,7 +826,7 @@ export const dataService = {
   async getMyHandovers(): Promise<DocumentHandover[]> {
     const { data, error } = await supabase.rpc('get_my_handovers');
     if (error) throw new Error(error.message);
-    return (Array.isArray(data) ? data[0] : data) as DocumentHandover[];
+    return rpcList<DocumentHandover>(data);
   },
 
   /** Candidature partenaire (depuis la page de retrait). */
@@ -847,14 +862,14 @@ export const dataService = {
   async getPartnerEarnings(partnerId: string): Promise<PartnerEarning[]> {
     const { data, error } = await supabase.rpc('get_partner_earnings', { p_partner_id: partnerId });
     if (error) throw new Error(error.message);
-    return (Array.isArray(data) ? data[0] : data) as PartnerEarning[];
+    return rpcList<PartnerEarning>(data);
   },
 
   /** Liste admin de tous les partenaires (candidatures incluses). */
   async getAdminPartners(): Promise<Partner[]> {
     const { data, error } = await supabase.rpc('get_admin_partners');
     if (error) throw new Error(error.message);
-    return (Array.isArray(data) ? data[0] : data) as Partner[];
+    return rpcList<Partner>(data);
   },
 
   async updatePartnerStatus(partnerId: string, status: string, commissionRate?: number): Promise<void> {
@@ -1287,11 +1302,7 @@ export const dataService = {
   async getAdminWithdrawals(): Promise<WalletWithdrawal[]> {
     const { data, error } = await supabase.rpc('get_admin_withdrawals');
     if (error) throw new Error(error.message);
-    let list: unknown = data;
-    if (Array.isArray(list) && list.length > 0 && Array.isArray(list[0])) {
-      list = list[0];
-    }
-    return Array.isArray(list) ? (list as WalletWithdrawal[]) : [];
+    return rpcList<WalletWithdrawal>(data);
   },
 
   /** Traitement admin d'un retrait : paid | rejected (+ motif). */
