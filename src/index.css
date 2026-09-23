@@ -3620,3 +3620,54 @@ html {
     display: none;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   PAGE PARTENAIRE — menu en grille, zéro scrollbar
+   ════════════════════════════════════════════════════════════════ */
+.partner-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.partner-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1.5px solid var(--border-color);
+  background: var(--surface-card);
+  color: var(--slate-600);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 11px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.partner-tab:hover {
+  border-color: var(--primary-200, #bbf7d0);
+  color: var(--primary-800, #14532d);
+}
+
+.partner-tab.active {
+  background: var(--primary-700);
+  border-color: var(--primary-700);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(13, 84, 55, 0.22);
+}
+
+.partner-tab.active svg {
+  color: #fff;
+}
+
+@media (max-width: 380px) {
+  .partner-tab {
+    font-size: 0.74rem;
+    padding: 10px 6px;
+    gap: 5px;
+  }
+}

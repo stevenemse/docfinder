@@ -1288,6 +1288,18 @@ export const dataService = {
     return (Array.isArray(data) ? data[0] : data) as PartnerWalletFull | null;
   },
 
+  /**
+   * Statut partenaire du compte connecté : null si aucun point de dépôt lié,
+   * sinon le partenaire (status 'pending' = temporaire, 'active' = validé).
+   */
+  async getMyPartnerStatus(): Promise<{ id: string; name: string; status: string } | null> {
+    if (!isSupabaseConfigured()) return null;
+    const { data, error } = await supabase.rpc('get_my_partner_wallet');
+    if (error) return null;
+    const w = (Array.isArray(data) ? data[0] : data) as PartnerWalletFull | null;
+    return w ? { id: w.partner_id, name: w.partner_name, status: w.partner_status } : null;
+  },
+
   /** Demande de retrait (minimum 5 000 FCFA, solde disponible requis). */
   async requestWalletWithdrawal(amount: number, phone: string, method: 'mtn_momo' | 'orange_money'): Promise<void> {
     const { error } = await supabase.rpc('request_wallet_withdrawal', {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ScanLine, ShieldCheck, AlertCircle, CheckCircle2, Loader2, User,
-  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck, Wallet
+  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck, Wallet, LogIn
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import { citiesOfRegion, regionNames } from '../lib/cameroonGeo';
@@ -10,10 +10,16 @@ import type { LookupResult, PartnerWalletFull } from '../types';
 /**
  * Page Partenaire — dépôt/retrait vérifié.
  * Accessible via #partenaire (direct) ou #partenaire?code=XXXXXXXX (QR scanné).
- * Le partenaire : saisit ou scanne le code → vérifie le nom du destinataire →
- * confirme la remise → les fonds séquestrés sont libérés automatiquement.
+ * RÉSERVÉE AUX PARTENAIRES ENREGISTRÉS : un compte DocFinder est requis.
+ *  - Nouveau venu → il crée son compte puis soumet la candidature :
+ *    il devient « partenaire temporaire » et peut DÉJÀ confirmer dépôts/retraits.
+ *  - L'admin valide ensuite son établissement (statut actif + dividendes).
+ * Plus aucun mode anonyme : chaque confirmation engage un point de dépôt
+ * identifié, traçable et responsable.
  */
-export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: boolean }> = ({ onBack, isAuthenticated = false }) => {
+export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: boolean; onOpenAuth?: () => void }> = ({ onBack, isAuthenticated = false, onOpenAuth }) => {
+  const [partnerStatus, setPartnerStatus] = useState<'loading' | 'none' | 'linked'>('loading');
+  const [partnerName, setPartnerName] = useState('');
   const [code, setCode] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [lookup, setLookup] = useState<LookupResult | null>(null);
@@ -51,12 +57,23 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
   const [wdError, setWdError] = useState<string | null>(null);
 
   const loadWallet = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setPartnerStatus('none');
+      return;
+    }
     setWalletLoading(true);
     try {
       setWallet(await dataService.getMyPartnerWallet());
+      const st = await dataService.getMyPartnerStatus();
+      if (st) {
+        setPartnerStatus('linked');
+        setPartnerName(st.name);
+      } else {
+        setPartnerStatus('none');
+      }
     } catch {
       setWallet(null);
+      setPartnerStatus('none');
     } finally {
       setWalletLoading(false);
     }
@@ -192,22 +209,24 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
       {/* Header partenaire */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: '14px'
+        marginBottom: '14px', gap: '10px', flexWrap: 'wrap'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
           <div style={{
-            width: '40px', height: '40px', borderRadius: '12px',
+            width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
             background: 'var(--primary-700)', color: '#ffffff',
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <ScanLine size={22} />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--slate-900)' }}>
               Espace Partenaire
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
-              Remise de documents DocFinder
+            <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {partnerStatus === 'linked'
+                ? `${partnerName}${wallet?.partner_status === 'active' ? ' · Validé' : ' · Temporaire'}`
+                : 'Remise de documents DocFinder'}
             </div>
           </div>
         </div>
@@ -216,7 +235,7 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
           style={{
             background: 'none', border: 'none', color: 'var(--primary-700)',
             fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: '4px'
+            display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0
           }}
         >
           <ArrowLeft size={15} />
@@ -224,69 +243,118 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
         </button>
       </div>
 
-      {/* Onglets : Retrait / Dépôt / Devenir partenaire */}
-      <div style={{
-        display: 'flex', gap: '4px', marginBottom: '16px',
-        borderBottom: '1px solid var(--border-color)',
-        overflowX: 'auto'
-      }}>
+      {/* Menu partenaire : grille 2 colonnes, ZÉRO scrollbar */}
+      <div className="partner-tabs">
         <button
+          className={`partner-tab${tab === 'scan' ? ' active' : ''}`}
           onClick={() => setTab('scan')}
-          style={{
-            padding: '10px 14px', border: 'none', background: 'none',
-            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-            borderBottom: tab === 'scan' ? '3px solid var(--primary-700)' : '3px solid transparent',
-            color: tab === 'scan' ? 'var(--primary-700)' : 'var(--slate-500)',
-            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
-          }}
         >
-          <ScanLine size={15} />
+          <ScanLine size={16} />
           Retrait
         </button>
         <button
+          className={`partner-tab${tab === 'confirm-deposit' ? ' active' : ''}`}
           onClick={() => setTab('confirm-deposit')}
-          style={{
-            padding: '10px 14px', border: 'none', background: 'none',
-            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-            borderBottom: tab === 'confirm-deposit' ? '3px solid var(--primary-700)' : '3px solid transparent',
-            color: tab === 'confirm-deposit' ? 'var(--primary-700)' : 'var(--slate-500)',
-            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
-          }}
         >
-          <PackageCheck size={15} />
-          Confirmer un dépôt
+          <PackageCheck size={16} />
+          Dépôt
         </button>
         <button
+          className={`partner-tab${tab === 'register' ? ' active' : ''}`}
           onClick={() => setTab('register')}
-          style={{
-            padding: '10px 14px', border: 'none', background: 'none',
-            fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-            borderBottom: tab === 'register' ? '3px solid var(--primary-700)' : '3px solid transparent',
-            color: tab === 'register' ? 'var(--primary-700)' : 'var(--slate-500)',
-            display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
-          }}
         >
-          <Store size={15} />
+          <Store size={16} />
           Devenir partenaire
         </button>
         {isAuthenticated && (
           <button
+            className={`partner-tab${tab === 'wallet' ? ' active' : ''}`}
             onClick={() => setTab('wallet')}
-            style={{
-              padding: '10px 14px', border: 'none', background: 'none',
-              fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
-              borderBottom: tab === 'wallet' ? '3px solid var(--primary-700)' : '3px solid transparent',
-              color: tab === 'wallet' ? 'var(--primary-700)' : 'var(--slate-500)',
-              display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0
-            }}
           >
-            <Wallet size={15} />
+            <Wallet size={16} />
             Mon wallet
           </button>
         )}
       </div>
 
-      {tab === 'confirm-deposit' && (
+      {/* ── GATE : confirmation réservée aux partenaires enregistrés ── */}
+      {!isAuthenticated && (tab === 'scan' || tab === 'confirm-deposit') && (
+        <div style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '28px 20px',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '52px', height: '52px', borderRadius: '16px', margin: '0 auto 12px',
+            background: 'var(--primary-50, #eef7f2)', color: 'var(--primary-700)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <ShieldCheck size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--slate-900)', margin: '0 0 6px' }}>
+            Espace partenaires vérifiés
+          </h2>
+          <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', lineHeight: 1.6, margin: '0 0 16px' }}>
+            Confirmer un dépôt ou une remise engage votre établissement :
+            <strong> connectez-vous avec votre compte DocFinder</strong>, puis présentez
+            votre candidature (onglet « Devenir partenaire »). Dès sa soumission, votre
+            point de dépôt devient <strong>temporaire</strong> et peut déjà confirmer —
+            l'administration le valide ensuite (wallet + dividendes).
+          </p>
+          <button
+            className="btn-cta-lost"
+            style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
+            onClick={() => setTab('register')}
+          >
+            <Store size={15} style={{ marginRight: '6px' }} />
+            Devenir partenaire
+          </button>
+          {onOpenAuth && (
+            <button
+              className="btn-cta-lost"
+              style={{
+                backgroundColor: 'transparent', color: 'var(--primary-700)',
+                border: '1.5px solid var(--primary-200, #bbf7d0)', marginLeft: '8px'
+              }}
+              onClick={onOpenAuth}
+            >
+              <LogIn size={15} style={{ marginRight: '6px' }} />
+              Se connecter
+            </button>
+          )}
+        </div>
+      )}
+
+      {isAuthenticated && partnerStatus === 'none' && (tab === 'scan' || tab === 'confirm-deposit') && (
+        <div style={{
+          background: 'var(--gold-50, #fffbeb)',
+          border: '1px solid var(--gold-200, #fde68a)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '24px 18px',
+          textAlign: 'center'
+        }}>
+          <Clock size={30} color="var(--gold-600, #b7791f)" style={{ margin: '0 auto 10px' }} />
+          <div style={{ fontWeight: 800, color: 'var(--slate-900)', marginBottom: '6px', fontSize: '0.95rem' }}>
+            Votre compte n'est pas encore rattaché à un point de dépôt
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--slate-600)', lineHeight: 1.55, margin: '0 0 14px' }}>
+            Soumettez votre candidature : elle lie automatiquement ce compte à votre
+            établissement. Vous confirmez immédiatement (statut temporaire), puis
+            l'admin active votre wallet après vérification.
+          </p>
+          <button
+            className="btn-cta-lost"
+            style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
+            onClick={() => setTab('register')}
+          >
+            Soumettre ma candidature →
+          </button>
+        </div>
+      )}
+
+      {isAuthenticated && partnerStatus === 'linked' && tab === 'confirm-deposit' && (
         depSuccess ? (
           <div style={{
             background: 'var(--primary-50)',
@@ -414,9 +482,10 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
               Candidature envoyée !
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--slate-700)', marginTop: '6px', lineHeight: 1.5 }}>
-              Votre point de dépôt sera vérifié par l'équipe DocFinder sous 48 h ouvrées.
-              Une fois validé, <strong>chaque retrait confirmé chez vous crédite votre wallet</strong>
-              {' '}(dividende par pièce). Vous pouvez déjà confirmer des retraits en mode anonyme.
+              Votre point de dépôt est déjà <strong>actif en statut temporaire</strong> :
+              confirmez dès maintenant les dépôts et retraits. L'équipe DocFinder vérifie
+              votre établissement sous 48 h ouvrées — une fois validé, <strong>chaque
+              retrait confirmé chez vous crédite votre wallet</strong> (dividende par pièce).
             </p>
             <button
               className="btn-cta-lost"
@@ -439,10 +508,14 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
                 Devenir partenaire officiel
               </div>
               <div style={{ fontSize: '0.8rem', color: 'var(--slate-600)', lineHeight: 1.55 }}>
-                En tant que partenaire enregistré, vous recevez un <strong>dividende sur chaque pièce récupérée</strong> chez vous.
-                Votre établissement apparaît dans l'annuaire officiel et gagne la confiance des citoyens.
+                La confirmation de dépôt et de remise est <strong>réservée aux points de
+                dépôt enregistrés</strong> — chaque action est traçable et engage votre
+                établissement.
                 <br /><br />
-                <strong>Sans inscription</strong>, vous pouvez toujours confirmer des retraits (mode anonyme, sans dividende).
+                En soumettant votre candidature, votre point devient <strong>temporaire
+                immédiatement</strong> (dépôts et retraits actifs), puis l'administration
+                le valide : vous recevez alors un <strong>dividende sur chaque pièce
+                récupérée</strong> et votre établissement apparaît dans l'annuaire officiel.
               </div>
             </div>
 
@@ -720,7 +793,7 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
         )
       )}
 
-      {tab === 'scan' && (
+      {isAuthenticated && partnerStatus === 'linked' && tab === 'scan' && (
       <>
       {/* Succès */}
       {success ? (

@@ -525,10 +525,20 @@ export function App() {
   if (isPartnerScan) {
     return (
       <div className="app-container">
-        <PartnerScanPage isAuthenticated={isAuthenticated} onBack={() => {
-          setIsPartnerScan(false);
-          window.location.hash = '';
-        }} />
+        <PartnerScanPage
+          isAuthenticated={isAuthenticated}
+          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          onBack={() => {
+            setIsPartnerScan(false);
+            window.location.hash = '';
+          }}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthSuccess={handleAuthSuccess}
+          initialMode={authModalMode}
+        />
       </div>
     );
   }
@@ -747,8 +757,9 @@ export function App() {
               </button>
             </div>
             <p className="footer-text" style={{ fontSize: '0.72rem', marginTop: '8px' }}>
-              Points de dépôt officiels : confirmation de retrait anonyme ou
-              partenariat rémunéré (dividende par pièce récupérée).
+              Points de dépôt vérifiés : enregistrement obligatoire — confirmation
+              possible dès la candidature (statut temporaire), wallet et dividendes
+              après validation par l'administration.
             </p>
           </div>
         </div>
