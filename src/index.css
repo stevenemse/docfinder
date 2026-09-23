@@ -3463,3 +3463,160 @@ html {
 @media (hover: none) {
   .doc-zoom-hint { opacity: 0.85; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   DASHBOARD ADMIN — disposition sidebar (style PinenMFB)
+   ════════════════════════════════════════════════════════════════ */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+}
+
+/* ── Sidebar ── */
+.admin-sidebar {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 74px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+}
+
+@media (max-width: 899px) {
+  .admin-sidebar {
+    position: static;
+    max-height: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px;
+  }
+  .admin-side-group {
+    display: contents;
+  }
+  .admin-side-label {
+    display: none;
+  }
+  .admin-side-promo {
+    display: none;
+  }
+  .admin-side-item {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 8px 10px !important;
+  }
+}
+
+.admin-side-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.admin-side-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--slate-400);
+  padding: 6px 10px 4px;
+}
+
+.admin-side-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--slate-600);
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+}
+
+.admin-side-item:hover {
+  background: var(--primary-50, #eef7f2);
+  color: var(--primary-800, #14532d);
+}
+
+.admin-side-item.active {
+  background: var(--primary-700);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(13, 84, 55, 0.28);
+}
+
+.admin-side-item.active svg {
+  color: #fff;
+}
+
+.admin-side-count {
+  margin-left: auto;
+  font-size: 0.66rem;
+  font-weight: 800;
+  background: var(--primary-100, #dcf5e7);
+  color: var(--primary-800, #14532d);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.admin-side-item.active .admin-side-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* Carte promo bas de sidebar (comme Upgrade Pro) */
+.admin-side-promo {
+  margin-top: auto;
+  background: linear-gradient(150deg, #123f2b, #0d5437 60%, #1a6b45);
+  color: #fff;
+  border-radius: 16px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Header rapport ── */
+.admin-report-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.admin-report-user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 7px 14px 7px 11px;
+}
+
+@media (max-width: 899px) {
+  .admin-report-user {
+    display: none;
+  }
+}

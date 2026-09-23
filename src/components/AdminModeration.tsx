@@ -20,6 +20,7 @@ import {
   ShieldBan,
   Smartphone,
   Activity,
+  LayoutDashboard,
   Trash2,
   Pencil,
   FolderOpen,
@@ -526,21 +527,14 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     </div>
   );
 
-  const tabBtn = (tab: AdminTab, label: string) => (
+  const sideItem = (tab: AdminTab, label: string, icon: React.ReactNode, count?: number) => (
     <button
+      className={`admin-side-item${adminTab === tab ? ' active' : ''}`}
       onClick={() => setAdminTab(tab)}
-      style={{
-        padding: '8px 12px',
-        border: 'none',
-        background: 'none',
-        fontSize: '0.82rem',
-        fontWeight: 700,
-        cursor: 'pointer',
-        borderBottom: adminTab === tab ? '3px solid var(--primary-700)' : '3px solid transparent',
-        color: adminTab === tab ? 'var(--primary-700)' : 'var(--slate-500)'
-      }}
     >
-      {label}
+      {icon}
+      <span>{label}</span>
+      {count !== undefined && count > 0 && <span className="admin-side-count">{count}</span>}
     </button>
   );
 
@@ -550,40 +544,58 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
 
   return (
     <div style={{ padding: '0 16px', marginTop: '20px' }}>
-      {/* Title */}
-      <div className="section-header" style={{ margin: '0 0 16px 0' }}>
-        <div className="section-title">
-          <ShieldAlert size={22} color="var(--primary-700)" />
-          <span>Dashboard d'Administration</span>
-        </div>
-        <span style={{
-          background: 'var(--red-100)',
-          color: 'var(--red-700)',
-          fontSize: '0.72rem',
-          fontWeight: 700,
-          padding: '3px 8px',
-          borderRadius: 'var(--radius-full)'
-        }}>
-          Accès Restreint DPO
-        </span>
-      </div>
+      <div className="admin-layout">
+        {/* ============ SIDEBAR (style PinenMFB) ============ */}
+        <aside className="admin-sidebar">
+          <div className="admin-side-group">
+            <div className="admin-side-label">Pilotage</div>
+            {sideItem('overview', 'Vue d\'ensemble', <LayoutDashboard size={17} />)}
+          </div>
+          <div className="admin-side-group">
+            <div className="admin-side-label">Modération</div>
+            {sideItem('documents', 'Documents', <FileCheck2 size={17} />, adminDocs ? (adminDocs.found.length + adminDocs.lost.length) : undefined)}
+            {sideItem('users', 'Citoyens', <Users size={17} />, stats?.users)}
+            {sideItem('requests', 'Preuves', <FileImage size={17} />, pendingRequests.length)}
+          </div>
+          <div className="admin-side-group">
+            <div className="admin-side-label">Finances</div>
+            {sideItem('payments', 'Transactions', <CreditCard size={17} />, payments.length)}
+            {sideItem('partners', 'Partenaires', <Store size={17} />, adminPartners.length || undefined)}
+          </div>
+          <div className="admin-side-group">
+            <div className="admin-side-label">Outils</div>
+            {sideItem('audit', "Journal d'audit", <Lock size={17} />)}
+          </div>
 
-      {/* Tabs */}
-      <div className="dashboard-tabs" style={{
-        display: 'flex',
-        borderBottom: '1px solid var(--border-color)',
-        marginBottom: '16px',
-        gap: '4px',
-        overflowX: 'auto'
-      }}>
-        {tabBtn('overview', 'Vue d\'ensemble')}
-        {tabBtn('documents', `Documents (${adminDocs ? (adminDocs.found.length + adminDocs.lost.length) : '…'})`)}
-        {tabBtn('users', `Citoyens (${stats?.users ?? '…'})`)}
-        {tabBtn('requests', `Preuves à modérer (${pendingRequests.length})`)}
-        {tabBtn('payments', `Transactions (${payments.length})`)}
-        {tabBtn('partners', `Partenaires (${adminPartners.length || '…'})`)}
-        {tabBtn('audit', "Journal d'audit")}
-      </div>
+          <div className="admin-side-promo">
+            <ShieldAlert size={18} color="#fff" />
+            <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Accès Restreint DPO</div>
+            <div style={{ fontSize: '0.7rem', opacity: 0.85, lineHeight: 1.45 }}>
+              Toutes les actions sont journalisées et horodatées (loi n° 2024/017).
+            </div>
+          </div>
+        </aside>
+
+        {/* ============ ZONE PRINCIPALE ============ */}
+        <div className="admin-content">
+          {/* Header rapport : titre + date + rôle opérateur */}
+          <div className="admin-report-head">
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                Dashboard d'Administration
+              </h2>
+              <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginTop: '2px' }}>
+                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · Temps réel — base Supabase
+              </div>
+            </div>
+            <div className="admin-report-user">
+              <ShieldAlert size={15} color="var(--primary-700)" />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.8rem', color: 'var(--slate-800)' }}>Modérateur DPO</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--slate-500)' }}>Administration Officer</div>
+              </div>
+            </div>
+          </div>
 
       {/* ============ TAB: OVERVIEW ============ */}
       {adminTab === 'overview' && (
@@ -1360,6 +1372,8 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           )}
         </div>
       )}
+        </div>{/* /admin-content */}
+      </div>{/* /admin-layout */}
 
       {/* ============ POPUP KPI : LISTE DOCUMENTS / PERTES ============ */}
       {kpiModal && (
