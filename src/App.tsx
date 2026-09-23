@@ -161,6 +161,14 @@ export function App() {
           ? 'Session Google expirée — cliquez à nouveau sur « Continuer avec Google », la reconnexion est immédiate.'
           : `Connexion Google impossible (${oauthError}). Réessayez ou utilisez numéro + mot de passe.`);
         window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      } else if (oauthParams.has('code')) {
+        // ?code= consommé par Supabase au chargement — s'il reste dans l'URL
+        // (échange déjà fait ou échoué), un simple rechargement de la page
+        // rejouerait l'échange avec un state mort. On purge l'URL après le
+        // démarrage pour rendre tout rechargement ultérieur inoffensif.
+        setTimeout(() => {
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        }, 2500);
       }
 
       // Session
