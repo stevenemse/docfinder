@@ -32,3 +32,4 @@ Thumbs.db
 # Freebuff local preview artifacts
 .freebuff/*.log
 .freebuff/*.log.err
+supabase/.temp/
