@@ -102,6 +102,7 @@ const ReferencePhotoCard: React.FC<{ path: string }> = ({ path }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
         gap: '8px',
         marginBottom: state === 'ready' ? '10px' : 0
       }}>
@@ -273,18 +274,14 @@ const ProofReviewModal: React.FC<{
   return (
     <div
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="proof-modal-overlay"
       style={{
         position: 'fixed', inset: 0, zIndex: 110,
         background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '16px'
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
       }}
     >
-      <div style={{
-        background: 'var(--surface-card, #fff)', borderRadius: '18px',
-        width: 'min(880px, 100%)', maxHeight: '90vh', overflowY: 'auto',
-        boxShadow: '0 24px 64px rgba(0, 0, 0, 0.35)', padding: '20px'
-      }}>
+      <div className="proof-modal-box">
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '10px', flexWrap: 'wrap' }}>
           <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -295,7 +292,7 @@ const ProofReviewModal: React.FC<{
             onClick={onClose}
             style={{ background: 'none', border: 'none', color: 'var(--slate-500)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', fontWeight: 700 }}
           >
-            <X size={16} /> Fermer (Échap)
+            <X size={16} /> Fermer<span className="proof-modal-esc">&nbsp;(Échap)</span>
           </button>
         </div>
 
@@ -322,7 +319,7 @@ const ProofReviewModal: React.FC<{
         </div>
 
         {/* Deux colonnes : document trouvé ↔ preuve */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+        <div className="proof-modal-grid">
           {/* ── Colonne 1 : document TROUVÉ ── */}
           <div style={{ border: '1px solid var(--border-color)', borderRadius: '14px', padding: '14px', background: 'var(--surface-card)' }}>
             <PanelTitle icon={<FileCheck2 size={16} color="var(--primary-700)" />}>Document trouvé (par le trouveur)</PanelTitle>
@@ -462,7 +459,7 @@ const ProofReviewModal: React.FC<{
         )}
 
         {/* Décision */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+        <div className="proof-modal-actions">
           <button
             onClick={onReject}
             style={{
@@ -1241,7 +1238,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   </div>
                 </div>
 
-                <div style={{ fontSize: '0.85rem', color: 'var(--slate-800)' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--slate-800)', overflowWrap: 'anywhere' }}>
                   Élément de preuve soumis par le chercheur :<br />
                   <strong style={{ color: 'var(--primary-900)' }}>« {req.verification_proof_submitted} »</strong>
                 </div>
@@ -1263,7 +1260,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
 
                 {req.match?.found_doc && (
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: '10px',
+                    display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
                     background: 'var(--primary-50, #eef7f2)',
                     border: '1px solid var(--primary-100, #d1fae5)',
                     borderRadius: 'var(--radius-md)',
@@ -1299,8 +1296,9 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   <ReferencePhotoCard path={req.match.lost_doc.reference_image_path} />
                 )}
 
-                <div style={{
+                <div className="proof-actions" style={{
                   display: 'flex',
+                  flexWrap: 'wrap',
                   gap: '8px',
                   justifyContent: 'flex-end',
                   marginTop: '4px'
