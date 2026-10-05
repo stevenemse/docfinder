@@ -1,16 +1,22 @@
 // ==============================================================================
 // autoRedact — Caviardage automatique des zones sensibles d'une photo
 // ==============================================================================
-// Stratégie 100 % on-device (aucun envoi réseau de l'image) :
+// Stratégie 100 % on-device (aucun envoi réseau de l'image — la photo ne
+// quitte JAMAIS l'appareil avant d'être caviardée) :
 //   1. Visages — MediaPipe Face Detector (IA embarquée, wasm, lazy-loaded)
-//   2. Bandes de texte sensibles — heuristique : détecte les lignes de texte
-//      denses (nom, numéro, MRZ passeport) par projection horizontale du
-//      contraste, puis élargit chaque bande pour couvrir label + valeur.
+//   2. Texte — OCR Tesseract (le MÊME moteur que Presidio Image Redactor,
+//      compilé en WebAssembly via tesseract.js) : chaque ligne de texte
+//      lue reçoit une boîte de caviardage précise, comme le ferait Presidio.
+//      Sur une pièce d'identité, tout texte est sensible (nom, numéro, date,
+//      adresse, MRZ) → on masque toutes les lignes détectées.
+//   3. Repli — heuristique de bandes (projection de contraste) si l'OCR ne
+//      lit rien (photo sombre, floue, angulée).
 //
 // Sortie : zones en coordonnées de l'image originale (px), prêtes pour le
 // canvas de caviardage. L'utilisateur garde la main (ajout/suppression).
 // ==============================================================================
 
+import type { Worker as TessWorker } from 'tesseract.js';
 import type { FaceDetector } from '@mediapipe/tasks-vision';
 
 const MODEL_URL =
@@ -43,6 +49,38 @@ export function loadFaceDetector(): Promise<FaceDetector | null> {
     })();
   }
   return detectorPromise;
+}
+
+// ── OCR Tesseract (presidio-like, wasm on-device) ────────────────────────────
+
+let ocrWorkerPromise: Promise<TessWorker | null> | null = null;
+
+/**
+ * Charge paresseusement le worker OCR (fra+eng : documents camerounais
+ * bilingues). Le worker, le noyau wasm et les modèles de langue sont
+ * téléchargés une seule fois puis mis en cache par le navigateur.
+ */
+function loadOcrWorker(): Promise<TessWorker | null> {
+  if (!ocrWorkerPromise) {
+    ocrWorkerPromise = (async () => {
+      try {
+        // Le paquet est CommonJS : selon le bundler, les exports nommés sont
+        // au premier niveau (ESM interop) ou sous `.default` (Vite/esbuild).
+        type TessModule = typeof import('tesseract.js');
+        const imported = (await import('tesseract.js')) as unknown as {
+          createWorker?: TessModule['createWorker'];
+          default?: TessModule & Record<string, unknown>;
+        };
+        const createWorker = imported.createWorker ?? imported.default?.createWorker;
+        if (!createWorker) throw new Error('createWorker introuvable dans tesseract.js');
+        return await createWorker(['fra', 'eng']);
+      } catch (err) {
+        console.warn('OCR Tesseract indisponible, bandes de repli:', err);
+        return null;
+      }
+    })();
+  }
+  return ocrWorkerPromise;
 }
 
 export interface RedactionZone {
@@ -81,9 +119,72 @@ function mergeZones(zones: RedactionZone[], margin = 6): RedactionZone[] {
 }
 
 /**
- * Heuristique « bandes de texte » : binarise l'image, projette l'alternance
- * sombre/clair par ligne et retient les bandes à forte densité de texte
- * (nom, numéro de carte, MRZ passeport…). Retourne les zones élargies.
+ * OCR (Tesseract wasm, identique au moteur de Presidio Image Redactor) :
+ * reconnaît le texte de l'image et retourne une boîte de caviardage par
+ * LIGNE lue (bbox Tesseract), avec marges. `chars` = nombre de caractères
+ * réellement reconnus (sert de critère de repli vers l'heuristique bandes).
+ */
+export async function detectOcrTextZones(
+  img: HTMLImageElement | HTMLCanvasElement
+): Promise<{ zones: RedactionZone[]; chars: number }> {
+  const src = img as HTMLImageElement;
+  const iw = src.naturalWidth || (img as HTMLCanvasElement).width;
+  const ih = src.naturalHeight || (img as HTMLCanvasElement).height;
+  if (!iw || !ih) return { zones: [], chars: 0 };
+
+  // Downscale pour la vitesse : l'OCR reste précis à ~1200 px de large,
+  // et les boîtes sont re-mises à l'échelle de l'original ensuite.
+  const MAX = 1200;
+  const scale = Math.min(1, MAX / Math.max(iw, ih));
+  let input: HTMLImageElement | HTMLCanvasElement = img;
+  if (scale < 1) {
+    const c = document.createElement('canvas');
+    c.width = Math.round(iw * scale);
+    c.height = Math.round(ih * scale);
+    const ctx = c.getContext('2d');
+    if (!ctx) return { zones: [], chars: 0 };
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    input = c;
+  }
+
+  const worker = await loadOcrWorker();
+  if (!worker) return { zones: [], chars: 0 };
+
+  // v7 : les blocs (bbox par ligne/mot) ne sont PAS générés par défaut —
+  // il faut demander explicitement blocks: true.
+  const { data } = await worker.recognize(input, {}, { blocks: true, text: true });
+
+  // Chaque ligne lue → une zone (bbox Tesseract + mots exploitables).
+  const boxes: RedactionZone[] = [];
+  let chars = 0;
+  const lines = (data.blocks ?? []).flatMap(b => b.paragraphs ?? []).flatMap(p => p.lines ?? []);
+  for (const line of lines) {
+    const words = (line.words ?? []).filter(
+      w => (w.text || '').trim().length > 0 && (w.confidence ?? 0) >= 35
+    );
+    if (words.length === 0) continue;
+    const text = words.map(w => w.text).join('');
+    chars += text.replace(/\s/g, '').length;
+    const bw = (line.bbox.x1 - line.bbox.x0) / scale;
+    const bh = (line.bbox.y1 - line.bbox.y0) / scale;
+    const bx = line.bbox.x0 / scale;
+    const by = line.bbox.y0 / scale;
+    if (bw <= 0 || bh <= 0) continue;
+    if (bw * bh > iw * ih * 0.5) continue; // boîte absurde (page entière)
+    // Padding proportionnel : couvre hauts/descendants et la chasse du texte
+    const padX = Math.max(3, bh * 0.2);
+    const padY = Math.max(3, bh * 0.3);
+    boxes.push({ x: bx - padX, y: by - padY, w: bw + padX * 2, h: bh + padY * 2 });
+  }
+
+  // Fusion légère des lignes qui se touchent (label + valeur très proches).
+  return { zones: mergeZones(boxes, 8), chars };
+}
+
+/**
+ * Heuristique « bandes de texte » (repli) : binarise l'image, projette
+ * l'alternance sombre/clair par ligne et retient les bandes à forte densité
+ * de texte. Retourne les zones élargies.
  */
 export function detectTextBands(
   img: HTMLImageElement | HTMLCanvasElement
@@ -176,10 +277,21 @@ export function detectTextBands(
   return mergeZones(filtered, Math.round(4 / scale) + 2);
 }
 
-/** Analyse complète : visages (IA) + bandes de texte (heuristique). */
+export interface AutoDetectResult {
+  zones: RedactionZone[];
+  faces: number;
+  /** Nombre de zones de texte finales (OCR ou bandes de repli). */
+  textBands: number;
+  /** true si les zones viennent de l'OCR Tesseract (plutôt que des bandes). */
+  ocrUsed: boolean;
+  /** Caractères reconnus par l'OCR (0 si indisponible). */
+  ocrChars: number;
+}
+
+/** Analyse complète : visages (IA) + texte (OCR Tesseract, repli bandes). */
 export async function autoDetectZones(
   img: HTMLImageElement
-): Promise<{ zones: RedactionZone[]; faces: number; textBands: number }> {
+): Promise<AutoDetectResult> {
   const faceZones: RedactionZone[] = [];
   let faces = 0;
 
@@ -207,13 +319,31 @@ export async function autoDetectZones(
     console.warn('Détection visages échouée:', err);
   }
 
-  // 2) Bandes de texte sensibles (heuristique, toujours exécutée)
-  const bands = detectTextBands(img);
+  // 2) Texte — OCR en priorité (boîtes précises type Presidio), bandes en repli
+  let textZones: RedactionZone[] = [];
+  let ocrChars = 0;
+  try {
+    const ocr = await detectOcrTextZones(img);
+    ocrChars = ocr.chars;
+    if (ocr.chars >= 3) textZones = ocr.zones;
+  } catch (err) {
+    console.warn('OCR échoué, repli bandes:', err);
+  }
+  const ocrUsed = textZones.length > 0 || ocrChars >= 3;
+  if (textZones.length === 0) {
+    textZones = detectTextBands(img);
+  }
 
   // Fusion PAR CATÉGORIE (jamais visage+texte ensemble, sinon une seule
   // méga-zone recouvrirait toute la carte) puis concaténation.
   const mergedFaces = mergeZones(faceZones, 4);
-  const mergedBands = mergeZones(bands, 8);
+  const mergedText = mergeZones(textZones, 8);
 
-  return { zones: [...mergedFaces, ...mergedBands], faces, textBands: bands.length };
+  return {
+    zones: [...mergedFaces, ...mergedText],
+    faces,
+    textBands: mergedText.length,
+    ocrUsed,
+    ocrChars
+  };
 }

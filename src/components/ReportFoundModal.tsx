@@ -76,7 +76,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
 
   // ── Caviardage automatique ──────────────────────────────────────────────
   const [autoScan, setAutoScan] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
-  const [autoScanInfo, setAutoScanInfo] = useState<{ faces: number; textBands: number } | null>(null);
+  const [autoScanInfo, setAutoScanInfo] = useState<{ faces: number; textBands: number; ocrUsed: boolean } | null>(null);
 
   // Analyse automatique dès que l'image est chargée à l'étape 3
   useEffect(() => {
@@ -88,7 +88,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     setAutoScanInfo(null);
     (async () => {
       try {
-        const { zones, faces, textBands } = await autoDetectZones(img);
+        const { zones, faces, textBands, ocrUsed } = await autoDetectZones(img);
         if (cancelled) return;
         // Convertit en zones de masque : les zones IA débordent volontairement
         // de l'image → clamp aux dimensions réelles (échelle 1:1, coords image).
@@ -105,7 +105,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
           const kept = prev.filter(isAutoSized);
           return [...kept, ...clamped];
         });
-        setAutoScanInfo({ faces, textBands });
+        setAutoScanInfo({ faces, textBands, ocrUsed });
         setAutoScan('done');
       } catch {
         if (!cancelled) setAutoScan('failed');
@@ -578,7 +578,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                       color: 'var(--primary-800, #065f46)', fontWeight: 600
                     }}>
                       <Loader2 size={14} className="animate-spin" />
-                      Analyse automatique : détection des visages et des zones de texte…
+                      Analyse automatique : visages + lecture OCR du texte (100 % sur votre appareil)…
                     </div>
                   )}
                   {autoScan === 'done' && autoScanInfo && (
@@ -591,8 +591,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
                         <Sparkles size={14} color="var(--primary-700)" />
                         {autoScanInfo.faces > 0
-                          ? `${autoScanInfo.faces} visage${autoScanInfo.faces > 1 ? 's' : ''} + ${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte masqués automatiquement — vérifiez et ajustez au toucher.`
-                          : `${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte masquée${autoScanInfo.textBands > 1 ? 's' : ''} automatiquement — vérifiez et ajustez au toucher.`}
+                          ? `${autoScanInfo.faces} visage${autoScanInfo.faces > 1 ? 's' : ''} + ${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte${autoScanInfo.ocrUsed ? ' (OCR)' : ''} masqués automatiquement — vérifiez et ajustez au toucher.`
+                          : `${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte${autoScanInfo.ocrUsed ? ' (OCR)' : ''} masquée${autoScanInfo.textBands > 1 ? 's' : ''} automatiquement — vérifiez et ajustez au toucher.`}
                       </span>
                       <button
                         type="button"
