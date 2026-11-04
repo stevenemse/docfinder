@@ -3709,3 +3709,13 @@ html {
    (sinon un texte nowrap force la piste à dépasser la largeur mobile). */
 .admin-layout > .admin-sidebar,
 .admin-layout > .admin-content { min-width: 0; }
+
+/* ══════════════════ CHAMPS À ICÔNE INTÉGRÉE ══════════════════
+   L'icône est en position absolue à gauche du champ : le padding-left doit
+   TOUJOURS lui réserver la place. Les media-queries mobiles réécrivent
+   `padding` en raccourci sur .form-input (même spécificité, plus loin dans le
+   fichier), ce qui collait le texte/le placeholder sous l'icône. Cette règle
+   est volontairement en fin de feuille pour gagner la cascade. */
+.input-icon-wrap > .form-input {
+  padding-left: 40px;
+}
