@@ -49,6 +49,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'lost' | 'found' | 'requests'>('lost');
   const [pickupInfos, setPickupInfos] = useState<Record<string, PickupInfo | null>>({});
 
+  // Le catalogue `foundDocs` contient TOUS les documents publiés (lecture
+  // publique). « Mes Signalements » ne doit montrer que ceux que CE citoyen
+  // a déposés, sinon la liste affiche ceux de tout le pays.
+  const myFoundDocs = profileId
+    ? foundDocs.filter(doc => doc.finder_id === profileId)
+    : [];
+
   const getTypeName = (typeId: string) => {
     return docTypes.find(dt => dt.id === typeId)?.name || 'Document Officiel';
   };
@@ -64,13 +71,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
       </div>
 
       {/* Navigation tabs */}
-      <div className="dashboard-tabs" style={{
+      <div className="dashboard-tabs" role="tablist" aria-label="Sections de mes dossiers" style={{
         display: 'flex',
         borderBottom: '1px solid var(--border-color)',
         marginBottom: '20px',
         gap: '4px'
       }}>
         <button
+          role="tab"
+          aria-selected={activeTab === 'lost'}
           onClick={() => setActiveTab('lost')}
           style={{
             padding: '10px 14px',
@@ -99,6 +108,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'found'}
           onClick={() => setActiveTab('found')}
           style={{
             padding: '10px 14px',
@@ -122,11 +133,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             borderRadius: 'var(--radius-full)',
             fontSize: '0.72rem'
           }}>
-            {foundDocs.length}
+            {myFoundDocs.length}
           </span>
         </button>
 
         <button
+          role="tab"
+          aria-selected={activeTab === 'requests'}
           onClick={() => setActiveTab('requests')}
           style={{
             padding: '10px 14px',
@@ -157,7 +170,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
       {/* Tab Content: Lost Documents */}
       {activeTab === 'lost' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div role="tabpanel" aria-label="Mes recherches" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={onOpenLostModal}
@@ -291,7 +304,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
       {/* Tab Content: Found Documents (Trouveur) */}
       {activeTab === 'found' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div role="tabpanel" aria-label="Mes signalements" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={onOpenFoundModal}
@@ -314,7 +327,25 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             </button>
           </div>
 
-          {foundDocs.map(doc => (
+          {myFoundDocs.length === 0 && (
+            <div style={{
+              textAlign: 'center',
+              padding: '36px 16px',
+              background: 'var(--surface-card)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-color)'
+            }}>
+              <PackageCheck size={36} color="var(--slate-400)" style={{ margin: '0 auto 8px' }} />
+              <div style={{ fontWeight: 700, color: 'var(--slate-700)' }}>
+                Vous n'avez encore rien signalé
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginTop: '4px' }}>
+                Si vous avez trouvé une pièce d'identité, signalez-la : le propriétaire sera alerté automatiquement.
+              </p>
+            </div>
+          )}
+
+          {myFoundDocs.map(doc => (
             <div
               key={doc.id}
               style={{
@@ -335,7 +366,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   {doc.title_masked}
                 </h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
-                  Trouvé à {doc.city} ({doc.approx_location}) le {new Date(doc.found_date).toLocaleDateString('fr-FR')}
+                  Trouvé à {doc.city}
+                  {doc.approx_location && doc.approx_location !== doc.city ? ` (${doc.approx_location})` : ''}
+                  {' '}le {new Date(doc.found_date).toLocaleDateString('fr-FR')}
                 </div>
               </div>
 
@@ -356,7 +389,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
       {/* Tab Content: Recovery Requests */}
       {activeTab === 'requests' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div role="tabpanel" aria-label="Mes restitutions" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {recoveryRequests.length === 0 ? (
             <div style={{
               textAlign: 'center',

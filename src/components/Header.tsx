@@ -217,6 +217,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 className="btn-login"
                 onClick={() => onOpenAuth('login')}
+                aria-label="Connexion"
                 style={{
                   background: 'none',
                   border: 'none',
@@ -265,6 +266,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="profile-pill"
                 onClick={onOpenProfile}
                 title="Voir / modifier mon profil"
+                aria-label={`Mon profil — ${profile?.display_name ?? 'utilisateur'}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -304,6 +306,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onLogout}
                 title="Se déconnecter"
+                aria-label="Se déconnecter"
                 style={{
                   background: 'none',
                   border: 'none',

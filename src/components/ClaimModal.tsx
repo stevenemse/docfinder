@@ -3,6 +3,7 @@ import { X, ShieldCheck, FileImage, Loader2, AlertCircle, MapPin, Calendar, Hash
 import type { FoundDocument } from '../types';
 import { CheckoutSection } from './CheckoutSection';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
+import { useModalA11y } from '../lib/useModalA11y';
 
 interface ClaimModalProps {
   isOpen: boolean;
@@ -36,6 +37,8 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
   const [secretAnswer, setSecretAnswer] = useState('');
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
+
+  const modalRef = useModalA11y(isOpen, onClose);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -77,7 +80,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="claim-modal-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -93,13 +96,13 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               <ShieldCheck size={18} />
             </div>
             <div>
-              <h2 className="modal-title">C'est mon document</h2>
+              <h2 id="claim-modal-title" className="modal-title">C'est mon document</h2>
               <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '1px' }}>
                 {foundDoc?.title_masked || 'Déclaration de perte + revendication en un seul formulaire'}
               </div>
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer la fenêtre de revendication">
             <X size={20} />
           </button>
         </div>

@@ -807,6 +807,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   const sideItem = (tab: AdminTab, label: string, icon: React.ReactNode, count?: number) => (
     <button
       className={`admin-side-item${adminTab === tab ? ' active' : ''}`}
+      aria-current={adminTab === tab ? 'page' : undefined}
       onClick={() => setAdminTab(tab)}
     >
       {icon}

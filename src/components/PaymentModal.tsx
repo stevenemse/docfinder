@@ -14,6 +14,7 @@ import type { PaymentProviderType } from '../types';
 import { CheckoutSection } from './CheckoutSection';
 import { dataService } from '../services/dataService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
+import { useModalA11y } from '../lib/useModalA11y';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -32,6 +33,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [paymentStep, setPaymentStep] = useState<'form' | 'redirecting' | 'ussd_pending' | 'success' | 'error'>('form');
   const [transactionRef, setTransactionRef] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -81,7 +84,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -97,9 +100,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             }}>
               <Smartphone size={18} />
             </div>
-            <h2 className="modal-title">Paiement Sécurisé Mobile Money</h2>
+            <h2 id="payment-modal-title" className="modal-title">Paiement Sécurisé Mobile Money</h2>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer la fenêtre de paiement">
             <X size={20} />
           </button>
         </div>

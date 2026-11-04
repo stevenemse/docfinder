@@ -83,6 +83,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <button
                 onClick={onOpenFoundModal}
                 title="Signaler un document trouvé"
+                aria-label="Signaler un document trouvé"
                 style={{
                   background: 'var(--primary-700)',
                   color: '#ffffff',
@@ -103,6 +104,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               <button
                 onClick={onOpenLostModal}
                 title="Déclarer une perte"
+                aria-label="Déclarer une perte"
                 style={{
                   background: 'var(--gold-600)',
                   color: '#ffffff',

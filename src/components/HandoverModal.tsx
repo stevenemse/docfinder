@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import type { Partner } from '../types';
 import { CheckoutSection } from './CheckoutSection';
 import { dataService } from '../services/dataService';
+import { useModalA11y } from '../lib/useModalA11y';
 
 interface HandoverModalProps {
   isOpen: boolean;
@@ -33,6 +34,8 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
   const [depositResult, setDepositResult] = useState<{ depositCode: string; recipientName: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -85,7 +88,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="handover-modal-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -101,7 +104,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
               <Store size={18} />
             </div>
             <div>
-              <h2 className="modal-title">Dépôt chez un partenaire</h2>
+              <h2 id="handover-modal-title" className="modal-title">Dépôt chez un partenaire</h2>
               {documentTitle && (
                 <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '1px' }}>
                   {documentTitle}
@@ -109,7 +112,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
               )}
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer la fenêtre de dépôt partenaire">
             <X size={20} />
           </button>
         </div>

@@ -12,6 +12,7 @@ import {
   ImageIcon
 } from 'lucide-react';
 import type { FoundDocument, Match, RecoveryRequest } from '../types';
+import { useModalA11y } from '../lib/useModalA11y';
 
 interface MatchDetailModalProps {
   isOpen: boolean;
@@ -38,6 +39,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   const [hasAgreedToTerms, setHasAgreedToTerms] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState(false);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+
+  const modalRef = useModalA11y(isOpen && Boolean(foundDoc), onClose);
 
   if (!isOpen || !foundDoc) return null;
 
@@ -88,19 +91,19 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="match-modal-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldCheck size={18} color="var(--primary-700)" />
-              <h2 className="modal-title">Détail de Correspondance Sécurisée</h2>
+              <h2 id="match-modal-title" className="modal-title">Détail de Correspondance Sécurisée</h2>
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '2px' }}>
               Réf : {foundDoc.id}
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer le détail de la correspondance">
             <X size={20} />
           </button>
         </div>

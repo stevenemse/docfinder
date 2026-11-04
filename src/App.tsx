@@ -91,7 +91,7 @@ export function App() {
 
   // Référence mutable vers refreshAllData (utilisable depuis les effets sans
   // dépendance de cycle)
-  const refreshAllDataRef = useRef<() => Promise<void>>(async () => {});
+  const refreshAllDataRef = useRef<(profileId?: string) => Promise<void>>(async () => {});
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -282,11 +282,13 @@ export function App() {
     init();
   }, []);
 
-  const refreshAllData = async () => {
+  const refreshAllData = async (profileId?: string) => {
     const found = await dataService.getFoundDocuments();
     setFoundDocs(found);
 
-    const lost = await dataService.getLostDocuments(profile?.id);
+    // profileId explicite : juste après la connexion, `profile` n'est pas
+    // encore à jour dans la fermeture courante.
+    const lost = await dataService.getLostDocuments(profileId ?? profile?.id);
     setLostDocs(lost);
 
     const m = await dataService.getMatches();
@@ -343,6 +345,10 @@ export function App() {
     setIsAuthenticated(true);
     setProfile(newProfile);
     showToast(`Bienvenue, ${newProfile.display_name} !`);
+
+    // Recharge les dossiers filtrés sur le compte qui vient de se connecter
+    // (sinon les listes restent celles chargées en mode visiteur).
+    void refreshAllDataRef.current(newProfile.id);
 
     // Execute pending action if user clicked a button before logging in
     if (pendingAction === 'open_lost') {

@@ -16,6 +16,7 @@ import {
   ZoomIn
 } from 'lucide-react';
 import type { FoundDocument, DocumentType } from '../types';
+import { useModalA11y } from '../lib/useModalA11y';
 
 interface SearchCatalogueProps {
   foundDocs: FoundDocument[];
@@ -53,6 +54,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
   const [selectedRegion, setSelectedRegion] = useState<string>(initialRegion === 'all' ? 'Toutes' : initialRegion);
   // Lightbox : image caviardée vue en grand (aucune donnée sensible — déjà anonymisée)
   const [lightbox, setLightbox] = useState<{ url: string; title: string } | null>(null);
+  const lightboxRef = useModalA11y(Boolean(lightbox), () => setLightbox(null));
 
   const filteredDocs = foundDocs.filter(doc => {
     // Type filter
@@ -110,8 +112,9 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
         <div className="search-input-wrapper">
           <Search size={18} />
           <input
-            type="text"
+            type="search"
             className="search-input"
+            aria-label="Rechercher un document par ville, nom ou fragment de numéro"
             placeholder="Rechercher par ville (ex: Bastos, Akwa, Yaoundé), fragment..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -120,9 +123,10 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
       </div>
 
       {/* Document Type Pills — avec compteurs live */}
-      <div className="filter-pills-scroll">
+      <div className="filter-pills-scroll" role="group" aria-label="Filtrer par type de document">
         <button
           className={`filter-pill ${selectedType === 'all' ? 'active' : ''}`}
+          aria-pressed={selectedType === 'all'}
           onClick={() => setSelectedType('all')}
         >
           Tous les documents
@@ -135,6 +139,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
             <button
               key={dt.id}
               className={`filter-pill ${selectedType === dt.id ? 'active' : ''}`}
+              aria-pressed={selectedType === dt.id}
               onClick={() => setSelectedType(dt.id)}
             >
               {getDocTypeIcon(dt.slug)}
@@ -146,13 +151,14 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
       </div>
 
       {/* Region Chips — liste moderne cliquable */}
-      <div className="region-chips-row">
+      <div className="region-chips-row" role="group" aria-label="Filtrer par région">
         <span className="region-chips-label">
           <MapPin size={14} color="var(--primary-700)" />
           Régions
         </span>
         <button
           className={`region-chip ${selectedRegion === 'Toutes' ? 'active' : ''}`}
+          aria-pressed={selectedRegion === 'Toutes'}
           onClick={() => setSelectedRegion('Toutes')}
         >
           <Globe size={13} />
@@ -166,6 +172,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
             <button
               key={reg}
               className={`region-chip ${selectedRegion === reg ? 'active' : ''}`}
+              aria-pressed={selectedRegion === reg}
               onClick={() => setSelectedRegion(reg)}
             >
               <span className="region-chip-name">{reg.split(' (')[0]}</span>
@@ -204,7 +211,15 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
                 <div
                   className="doc-card-image-wrap"
                   onClick={doc.masked_image_url ? () => setLightbox({ url: doc.masked_image_url!, title: doc.title_masked }) : undefined}
+                  onKeyDown={doc.masked_image_url ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setLightbox({ url: doc.masked_image_url!, title: doc.title_masked });
+                    }
+                  } : undefined}
                   role={doc.masked_image_url ? 'button' : undefined}
+                  tabIndex={doc.masked_image_url ? 0 : undefined}
+                  aria-label={doc.masked_image_url ? `Agrandir l’image caviardée — ${doc.title_masked}` : undefined}
                   title={doc.masked_image_url ? 'Agrandir l’image caviardée' : undefined}
                 >
                   {doc.masked_image_url ? (
@@ -255,7 +270,11 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
 
                     <div className="doc-card-meta-row">
                       <MapPin size={14} color="var(--slate-400)" />
-                      <span>{doc.city} — {doc.approx_location} ({doc.region})</span>
+                      <span>
+                        {doc.city}
+                        {doc.approx_location && doc.approx_location !== doc.city ? ` — ${doc.approx_location}` : ''}
+                        {' '}({doc.region})
+                      </span>
                     </div>
 
                     <div className="doc-card-meta-row">
@@ -296,7 +315,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
           role="dialog"
           aria-label="Image caviardée agrandie"
         >
-          <div className="image-lightbox-inner" onClick={e => e.stopPropagation()}>
+          <div className="image-lightbox-inner" ref={lightboxRef} tabIndex={-1} onClick={e => e.stopPropagation()}>
             <img src={lightbox.url} alt={lightbox.title} />
             <div className="image-lightbox-caption">
               <ShieldCheck size={14} />

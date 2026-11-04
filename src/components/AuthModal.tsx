@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, ShieldCheck, AlertCircle, Phone, Mail, ChevronDown, ChevronUp, UserRound, KeyRound } from 'lucide-react';
 import { CheckoutSection } from './CheckoutSection';
 import { authService } from '../services/authService';
+import { useModalA11y } from '../lib/useModalA11y';
 import type { Profile } from '../types';
 
 const GoogleIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
@@ -46,6 +47,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const modalRef = useModalA11y(isOpen, onClose);
+
+  // Sur un appareil partagé, ne jamais rouvrir la modale avec le mot de passe
+  // précédent encore présent dans le champ.
+  useEffect(() => {
+    if (!isOpen) {
+      setPassword('');
+      setErrorMsg(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -159,7 +171,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
+        ref={modalRef}
         className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '440px' }}
       >
@@ -170,7 +187,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <ShieldCheck size={18} />
             </div>
             <div>
-              <h2 className="modal-title" style={{ fontSize: '1.05rem' }}>
+              <h2 id="auth-modal-title" className="modal-title" style={{ fontSize: '1.05rem' }}>
                 {mode === 'login' ? 'Connexion Sécurisée' : 'Créer un Compte Citoyen'}
               </h2>
               <span style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
@@ -178,7 +195,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </span>
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer la fenêtre de connexion">
             <X size={20} />
           </button>
         </div>
@@ -280,34 +297,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </span>
           </div>
 
-          {/* Error — apparition discrète (transform/opacity uniquement, 180 ms) */}<AnimatePresence initial={false}>
+          {/* Error — message unique annoncé aux lecteurs d'écran */}<AnimatePresence initial={false}>
             {errorMsg && (
               <motion.div
-                id="password-error"
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
-                style={{
-                  background: 'var(--red-50)',
-                  border: '1px solid var(--red-100)',
-                  color: 'var(--red-700)',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.8rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginTop: '12px'
-                }}
-              >
-                <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                <span>{errorMsg}</span>
-              </motion.div>
-            )}
-            {mode === 'login' && errorMsg && (
-              <motion.div
-                id="phone-error"
+                id="auth-error"
+                role="alert"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
@@ -385,7 +379,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         ].filter(Boolean).join(' '));
                       }}
                       required
-                      aria-describedby="phone-error"
+                      aria-describedby="auth-error"
                     />
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '4px' }}>
@@ -410,7 +404,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       minLength={8}
                       autoComplete="new-password"
-                      aria-describedby="password-error"
+                      aria-describedby="auth-error"
                     />
                   </div>
                 </div>
@@ -514,7 +508,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={phoneOrEmail}
                       onChange={(e) => setPhoneOrEmail(e.target.value)}
                       required
-                      aria-describedby="phone-error"
+                      autoComplete="username"
+                      aria-describedby="auth-error"
                     />
                   </div>
                 </div>
@@ -530,6 +525,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      autoComplete="current-password"
                     />
                   </div>
                 </div>

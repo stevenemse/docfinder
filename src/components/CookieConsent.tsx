@@ -35,7 +35,7 @@ export const CookieConsent: React.FC<CookieConsentProps> = ({ onOpenCookiesPolic
       </div>
       <div className="cookie-actions">
         <button className="cookie-btn cookie-btn-refuse" onClick={() => record('refused')}>
-          Continuer sans
+          Refuser
         </button>
         <button className="cookie-btn cookie-btn-accept" onClick={() => record('accepted')}>
           Accepter

@@ -16,6 +16,7 @@ import { dataService } from '../services/dataService';
 import { CheckoutSection } from './CheckoutSection';
 import { autoDetectZones } from '../lib/autoRedact';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
+import { useModalA11y } from '../lib/useModalA11y';
 
 interface ReportFoundModalProps {
   isOpen: boolean;
@@ -306,11 +307,13 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     setPhotoError(null);
   };
 
+  const modalRef = useModalA11y(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="report-found-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -326,9 +329,9 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
             }}>
               <ShieldCheck size={18} />
             </div>
-            <h2 className="modal-title">Signaler un document trouvé</h2>
+            <h2 id="report-found-title" className="modal-title">Signaler un document trouvé</h2>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer le formulaire de signalement">
             <X size={20} />
           </button>
         </div>

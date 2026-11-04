@@ -96,8 +96,9 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
               <div className="input-icon-wrap">
                 <Search size={17} />
                 <input
-                  type="text"
+                  type="search"
                   className="form-input"
+                  aria-label="Rechercher un document par nom, prénom ou ville"
                   placeholder="Nom, prénom ou ville (ex : Bastos)..."
                   value={heroSearchText}
                   onChange={(e) => setHeroSearchText(e.target.value)}
@@ -106,6 +107,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
               <div className="hero-search-selects">
                 <select
                   className="form-select"
+                  aria-label="Type de document"
                   value={heroDocType}
                   onChange={(e) => setHeroDocType(e.target.value)}
                   style={{ color: 'var(--slate-800)', fontWeight: 600 }}
@@ -117,6 +119,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                 </select>
                 <select
                   className="form-select"
+                  aria-label="Région"
                   value={heroRegion}
                   onChange={(e) => setHeroRegion(e.target.value)}
                   style={{ color: 'var(--slate-800)', fontWeight: 600 }}

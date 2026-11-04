@@ -17,6 +17,7 @@ import {
 import type { DocumentType, LostDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
+import { useModalA11y } from '../lib/useModalA11y';
 import { dataService } from '../services/dataService';
 import { CheckoutSection } from './CheckoutSection';
 
@@ -70,6 +71,8 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docTypes]);
+
+  const modalRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -152,7 +155,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="report-lost-title" tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -168,9 +171,9 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
             }}>
               <Search size={18} />
             </div>
-            <h2 className="modal-title">Déclarer un document perdu</h2>
+            <h2 id="report-lost-title" className="modal-title">Déclarer un document perdu</h2>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Fermer le formulaire de déclaration de perte">
             <X size={20} />
           </button>
         </div>
