@@ -183,6 +183,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     pattern="[0-9 ]{9,12}"
                     required
+                    autocomplete="off"
                   />
                 </div>
               </div>
@@ -202,6 +203,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 type="submit"
                 className="btn-cta-lost"
                 style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
+                disabled={paymentStep !== 'form'}
               >
                 Payer 2 000 FCFA en toute sécurité →
               </button>
