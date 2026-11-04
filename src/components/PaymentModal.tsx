@@ -183,7 +183,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     pattern="[0-9 ]{9,12}"
                     required
-                    autocomplete="off"
+                    autoComplete="off"
                   />
                 </div>
               </div>

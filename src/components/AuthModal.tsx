@@ -409,7 +409,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
-                      autocomplete="new-password"
+                      autoComplete="new-password"
                       aria-describedby="password-error"
                     />
                   </div>
@@ -453,7 +453,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       placeholder="votre.email@exemple.com... (facultatif)"
                       value={optionalEmail}
                       onChange={(e) => setOptionalEmail(e.target.value)}
-                      autocomplete="email"
+                      autoComplete="email"
                     />
                       </motion.div>
                     )}
