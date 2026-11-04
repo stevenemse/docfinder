@@ -547,7 +547,7 @@ export function App() {
     <div className="app-container">
       {/* Toast notification */}
       {toastMessage && (
-        <div className="toast-container">
+        <div className="toast-container" aria-live="polite" aria-atomic="true">
           <div className="toast">
             <span>✨</span>
             <span>{toastMessage}</span>

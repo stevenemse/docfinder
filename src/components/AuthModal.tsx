@@ -280,10 +280,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </span>
           </div>
 
-          {/* Error — apparition discrète (transform/opacity uniquement, 180 ms) */}
-          <AnimatePresence initial={false}>
+          {/* Error — apparition discrète (transform/opacity uniquement, 180 ms) */}<AnimatePresence initial={false}>
             {errorMsg && (
               <motion.div
+                id="password-error"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
@@ -305,7 +305,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{errorMsg}</span>
               </motion.div>
             )}
-          </AnimatePresence>
+            {mode === 'login' && errorMsg && (
+              <motion.div
+                id="phone-error"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                style={{
+                  background: 'var(--red-50)',
+                  border: '1px solid var(--red-100)',
+                  color: 'var(--red-700)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: '12px'
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{errorMsg}</span>
+              </motion.div>
+            )}</AnimatePresence>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
 
@@ -346,7 +369,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="tel"
                       className="form-input"
                       style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}
-                      placeholder="6XX XX XX XX"
+                      placeholder="6XX XX XX XX..."
                       inputMode="numeric"
                       autoComplete="tel-national"
                       maxLength={12}
@@ -362,6 +385,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         ].filter(Boolean).join(' '));
                       }}
                       required
+                      aria-describedby="phone-error"
                     />
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '4px' }}>
@@ -385,6 +409,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
+                      autocomplete="new-password"
+                      aria-describedby="password-error"
                     />
                   </div>
                 </div>
@@ -421,14 +447,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
-                      >
-                        <input
-                          type="email"
-                          className="form-input"
-                          placeholder="votre.email@exemple.com (facultatif)"
-                          value={optionalEmail}
-                          onChange={(e) => setOptionalEmail(e.target.value)}
-                        />
+                      ><input
+                      type="email"
+                      className="form-input"
+                      placeholder="votre.email@exemple.com... (facultatif)"
+                      value={optionalEmail}
+                      onChange={(e) => setOptionalEmail(e.target.value)}
+                      autocomplete="email"
+                    />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -484,10 +510,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <input
                       type="text"
                       className="form-input"
-                      placeholder="+237 6xx xx xx xx ou email@exemple.com"
+                      placeholder="+237 6xx xx xx xx... ou email@exemple.com"
                       value={phoneOrEmail}
                       onChange={(e) => setPhoneOrEmail(e.target.value)}
                       required
+                      aria-describedby="phone-error"
                     />
                   </div>
                 </div>

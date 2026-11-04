@@ -2,13 +2,16 @@
 
 ## Reproduce the artifacts (fresh checkout)
 
-1. Dependencies are committed-adjacent via `package-lock.json` → install with npm:
+1. Install dependencies with npm (lockfile committed):
    ```bash
    npm install
    ```
-2. No uncommitted env files are needed for demo mode: `.env.local` does not exist on purpose.
-   The app runs in demo mode (localStorage + seed data). To connect a real Supabase project,
-   copy `.env.example` to `.env.local` and fill `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.
+2. `.env.local` exists in the MAIN checkout (`C:\Users\JOUVENCE COMPUTER\Desktop\App\docfinder\.env.local`)
+   and contains the LIVE Supabase credentials (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+   plus `VITE_` aliases). COPY it from the main checkout into the workspace root — never commit it,
+   never symlink it. Without it the app silently falls back to demo mode (localStorage seed data).
+3. Database: schema lives in `supabase/schema.sql`; one-off idempotent migrations in `supabase/migration-*.sql`
+   (each is meant to be pasted once into the Supabase SQL Editor when noted).
 
 ## Run the server
 
@@ -16,8 +19,9 @@
 npm run dev
 ```
 
-- Default port **5173** (Vite default), free at startup → kept.
-- Started detached via PowerShell with stdout/stderr redirected separately:
+- Default port **5173** (Vite default), kept when free; otherwise adapt flags.
+- Started detached via PowerShell (this workspace = main checkout):
   - stdout: `.freebuff/preview-8e85273c-7be0-4b98-9114-1ed6a6b01240.log`
   - stderr: `.freebuff/preview-8e85273c-7be0-4b98-9114-1ed6a6b01240.log.err`
-- Working dir: `C:\Users\JOUVENCE COMPUTER\Desktop\App\docfinder` (this workspace = main checkout).
+- Working dir: `C:\Users\JOUVENCE COMPUTER\Desktop\App\docfinder`.
+- Production: push to `main` → Vercel auto-deploys https://docfinder-cm.vercel.app.

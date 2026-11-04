@@ -1,12 +1,40 @@
 /* DocFinder Cameroon Custom Component Utilities */
 
-.animate-pulse-slow {
-  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* ===== Accessibility: Focus States =====*/
+:focus-visible {
+  outline: 2px solid var(--primary-600);
+  outline-offset: 2px;
 }
 
-@keyframes pulse {
+/* ===== Accessibility: Reduced Motion =====*/
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-slow,
+  .tab-pane-transition {
+    animation: none !important;
+    transition: none !important;
+  }
+  * {
+    transition: none !important;
+  }
+}
+
+/* ===== Accessibility: Body Base =====*/
+body {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.08);
+  touch-action: manipulation;
+}
+
+/* ===== Accessivity: Reduced Motion Keyframes =====*/
+@keyframes pulse-slow {
   0%, 100% { opacity: 1; }
   50% { opacity: .7; }
+}
+
+/* Keep pulse only if reduced motion not preferred */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }
 
 .tab-pane-transition {
