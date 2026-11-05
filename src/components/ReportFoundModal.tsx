@@ -75,9 +75,20 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
+  // Part de la photo réellement masquée : sert d'indicateur de sécurité au
+  // citoyen (une couverture très faible = probable oubli du visage/du numéro).
+  const maskCoverage = React.useMemo(() => {
+    if (!imgDims || masks.length === 0) return 0;
+    let area = 0;
+    for (const m of masks) {
+      area += Math.max(0, Math.min(m.w, imgDims.w)) * Math.max(0, Math.min(m.h, imgDims.h));
+    }
+    return Math.min(1, area / (imgDims.w * imgDims.h));
+  }, [masks, imgDims]);
+
   // ── Caviardage automatique ──────────────────────────────────────────────
   const [autoScan, setAutoScan] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
-  const [autoScanInfo, setAutoScanInfo] = useState<{ faces: number; textBands: number; ocrUsed: boolean } | null>(null);
+  const [autoScanInfo, setAutoScanInfo] = useState<{ faces: number; textBands: number; ocrUsed: boolean; highRisk: number; coverage: number } | null>(null);
 
   // Analyse automatique dès que l'image est chargée à l'étape 3
   useEffect(() => {
@@ -89,7 +100,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     setAutoScanInfo(null);
     (async () => {
       try {
-        const { zones, faces, textBands, ocrUsed } = await autoDetectZones(img);
+        const { zones, faces, textBands, ocrUsed, highRisk, coverage } = await autoDetectZones(img);
         if (cancelled) return;
         // Convertit en zones de masque : les zones IA débordent volontairement
         // de l'image → clamp aux dimensions réelles (échelle 1:1, coords image).
@@ -106,7 +117,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
           const kept = prev.filter(isAutoSized);
           return [...kept, ...clamped];
         });
-        setAutoScanInfo({ faces, textBands, ocrUsed });
+        setAutoScanInfo({ faces, textBands, ocrUsed, highRisk, coverage });
         setAutoScan('done');
       } catch {
         if (!cancelled) setAutoScan('failed');
@@ -279,7 +290,9 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
         masked_image_url: redactedImageUrl,
         original_image_path: originalPath,
         additional_notes_private: privateNotes || undefined,
-        status: 'published'
+        // Rien n'est publié sans contrôle humain : un modérateur vérifie le
+        // caviardage puis publie (ou rejette) depuis la console admin.
+        status: 'pending_verification'
       };
 
       // Save in storage service
@@ -593,9 +606,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                     }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
                         <Sparkles size={14} color="var(--primary-700)" />
-                        {autoScanInfo.faces > 0
-                          ? `${autoScanInfo.faces} visage${autoScanInfo.faces > 1 ? 's' : ''} + ${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte${autoScanInfo.ocrUsed ? ' (OCR)' : ''} masqués automatiquement — vérifiez et ajustez au toucher.`
-                          : `${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte${autoScanInfo.ocrUsed ? ' (OCR)' : ''} masquée${autoScanInfo.textBands > 1 ? 's' : ''} automatiquement — vérifiez et ajustez au toucher.`}
+                        {`${autoScanInfo.faces} visage${autoScanInfo.faces > 1 ? 's' : ''} · ${autoScanInfo.textBands} zone${autoScanInfo.textBands > 1 ? 's' : ''} de texte${autoScanInfo.ocrUsed ? ' (OCR)' : ''}${autoScanInfo.highRisk > 0 ? ` dont ${autoScanInfo.highRisk} ligne${autoScanInfo.highRisk > 1 ? 's' : ''} à risque (numéro, date, MRZ)` : ''} masqués automatiquement — vérifiez au toucher.`}
                       </span>
                       <button
                         type="button"
@@ -624,7 +635,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
 
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--slate-700)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Sparkles size={14} color="var(--primary-700)" />
-                    Touchez l'image pour caviarder ({masks.length} zone{masks.length > 1 ? 's' : ''})
+                    Touchez l'image pour caviarder ({masks.length} zone{masks.length > 1 ? 's' : ''} · {Math.round(maskCoverage * 100)} % de la photo)
                   </div>
 
                   <div className="canvas-preview-wrapper" style={{ touchAction: 'none' }}>
@@ -687,6 +698,17 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                       ⚠ Au moins une zone est requise (visage, numéro ou signature)
                     </div>
                   )}
+                  {masks.length > 0 && maskCoverage < 0.03 && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+                      borderRadius: 'var(--radius-md)', padding: '8px 10px', marginTop: '8px',
+                      fontSize: '0.74rem', color: '#92400e', fontWeight: 600
+                    }}>
+                      <AlertTriangle size={13} />
+                      Peu de surface masquée ({Math.round(maskCoverage * 100)} %) : vérifiez que le visage ET le numéro sont couverts.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -706,7 +728,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   onClick={handleSubmit}
                   disabled={submitting || !photoFile || masks.length === 0}
                 >
-                  {submitting ? 'Publication…' : 'Publier le signalement sécurisé ✔'}
+                  {submitting ? 'Envoi…' : 'Envoyer pour validation ✔'}
                 </button>
               </div>
             </div>
@@ -735,6 +757,16 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
               <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
                 Merci pour votre civisme ! Votre photo caviardée et votre signalement ont été enregistrés sous la référence :
               </p>
+
+              <div style={{
+                marginTop: '12px', padding: '10px 12px', textAlign: 'left',
+                background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+                borderRadius: 'var(--radius-md)', fontSize: '0.78rem', color: '#92400e', lineHeight: 1.5
+              }}>
+                <strong>En attente de validation.</strong> Un modérateur contrôle l'image caviardée avant
+                publication dans le catalogue public. Suivez son statut dans « Mes Signalements » (onglet
+                Mes Dossiers) : il y reste invisible au public tant qu'il n'est pas validé.
+              </div>
 
               <div style={{
                 margin: '16px auto',

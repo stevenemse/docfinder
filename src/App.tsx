@@ -11,8 +11,9 @@ import { HandoverModal } from './components/HandoverModal';
 import { PartnerScanPage } from './components/PartnerScanPage';
 import { PaymentModal } from './components/PaymentModal';
 import { UserDashboard } from './components/UserDashboard';
-import { AdminModeration } from './components/AdminModeration';
+import { AdminModeration, type AdminTab } from './components/AdminModeration';
 import { AuthModal } from './components/AuthModal';
+import { AppLoader } from './components/AppLoader';
 import { LegalPages, type LegalDoc } from './components/LegalPages';
 import { setSeo, DEFAULT_TITLE, DEFAULT_DESCRIPTION } from './lib/seo';
 import { ProfilePage } from './components/ProfilePage';
@@ -37,7 +38,8 @@ import type {
   RecoveryRequest, 
   Payment,
   PaymentProviderType,
-  DocumentType 
+  DocumentType,
+  AppNotification
 } from './types';
 import './App.css';
 
@@ -76,6 +78,14 @@ export function App() {
   const [isHandoverModalOpen, setIsHandoverModalOpen] = useState(false);
   const [handoverRequestId, setHandoverRequestId] = useState<string | null>(null);
   const [isPartnerScan, setIsPartnerScan] = useState(false);
+  /** Initialisation en cours (session + données) : écran de chargement. */
+  const [bootLoading, setBootLoading] = useState(true);
+  /** Onglet d'arrivée de la page partenaire (wallet depuis une notification d'argent). */
+  const [partnerInitialTab, setPartnerInitialTab] = useState<'scan' | 'wallet'>('scan');
+  /** Dossier de restitution visé par une notification (défilement + fiche). */
+  const [dashFocus, setDashFocus] = useState<{ requestId: string | null; at: number } | null>(null);
+  /** Onglet à ouvrir d'autorité dans la console admin (candidature partenaire). */
+  const [adminTabRequest, setAdminTabRequest] = useState<{ tab: AdminTab; at: number } | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   // Entity selection for modals
@@ -279,7 +289,9 @@ export function App() {
       }
       if (pwaAction) window.history.replaceState({}, '', window.location.pathname);
     }
-    init();
+    // L'écran de chargement ne doit jamais rester bloqué : on le referme même
+    // si un appel réseau échoue (le finally couvre le throw).
+    void init().finally(() => setBootLoading(false));
   }, []);
 
   const refreshAllData = async (profileId?: string) => {
@@ -339,6 +351,50 @@ export function App() {
   const handleOpenAuth = (mode: 'login' | 'register') => {
     setAuthModalMode(mode);
     setIsAuthModalOpen(true);
+  };
+
+  /**
+   * Ouvre la page partenaire (dépôt/retrait). `tab` permet d'atterrir
+   * directement sur le wallet quand la notification parle d'argent.
+   */
+  const openPartnerPage = (tab: 'scan' | 'wallet' = 'scan') => {
+    setPartnerInitialTab(tab);
+    setIsPartnerScan(true);
+    window.location.hash = '#partenaire';
+    window.scrollTo({ top: 0 });
+  };
+
+  /**
+   * Une notification n'est pas un texte décoratif : elle doit déposer
+   * l'utilisateur sur l'écran où il a quelque chose à faire.
+   *  - candidature partenaire → console admin, onglet Partenaires ;
+   *  - argent partenaire (validation, suspension, retrait payé/refusé) → wallet ;
+   *  - dépôt, retrait, séquestre → « Restitutions », dossier concerné ouvert.
+   */
+  const handleNotificationNavigate = (notification: AppNotification) => {
+    setLegalDoc(null);
+
+    switch (notification.type) {
+      case 'partner_approved':
+      case 'partner_suspended':
+      case 'withdrawal_processed':
+      case 'withdrawal_requested':
+        openPartnerPage('wallet');
+        return;
+      case 'partner_registered':
+        if (profile?.role === 'admin' || profile?.role === 'moderator') {
+          setCurrentTab('admin');
+          setAdminTabRequest({ tab: 'partners', at: Date.now() });
+          window.scrollTo({ top: 0 });
+          return;
+        }
+        break;
+    }
+
+    // Dépôt / retrait / séquestre / relance : tout se joue dans les restitutions.
+    setCurrentTab('dashboard');
+    setDashFocus({ requestId: notification.recovery_request_id ?? null, at: Date.now() });
+    window.scrollTo({ top: 0 });
   };
 
   const handleAuthSuccess = (newProfile: Profile) => {
@@ -458,7 +514,7 @@ export function App() {
   const handleFoundCreated = async (newDoc: FoundDocument) => {
     await dataService.createFoundDocument(newDoc);
     await refreshAllData();
-    showToast('Signalement enregistré dans la base ! Moteur de matching déclenché.');
+    showToast('Signalement envoyé — en attente de validation par un modérateur.');
   };
 
   const handleLostCreated = async (newLost: LostDocument) => {
@@ -526,6 +582,15 @@ export function App() {
     showToast('Demande jugée non probante et archivée.');
   };
 
+  // Premier rendu : session + dossiers en cours de chargement.
+  if (bootLoading) {
+    return (
+      <div className="app-container">
+        <AppLoader />
+      </div>
+    );
+  }
+
   // Page dédiée partenaire (scan QR / remise vérifiée) — rendue sans la
   // navigation principale pour rester simple et dédiée au comptoir.
   if (isPartnerScan) {
@@ -533,7 +598,9 @@ export function App() {
       <div className="app-container">
         <PartnerScanPage
           isAuthenticated={isAuthenticated}
-          onOpenAuth={() => { setAuthModalMode('login'); setIsAuthModalOpen(true); }}
+          authModalOpen={isAuthModalOpen}
+          initialTab={partnerInitialTab}
+          onOpenAuth={(mode) => handleOpenAuth(mode ?? 'login')}
           onBack={() => {
             setIsPartnerScan(false);
             window.location.hash = '';
@@ -579,6 +646,7 @@ export function App() {
           setCurrentTab('profile');
         }}
         onOpenLegal={handleOpenLegal}
+        onNotificationNavigate={handleNotificationNavigate}
       />
 
       {/* Main Views */}
@@ -660,6 +728,9 @@ export function App() {
               onProceedToPayment={handleProceedToPayment}
               onDepositDocument={handleDepositDocument}
               onLoadPickupInfo={handleLoadPickupInfo}
+              onOpenPartnerPage={(tab) => openPartnerPage(tab ?? 'scan')}
+              focusRequestId={dashFocus?.requestId ?? null}
+              focusAt={dashFocus?.at}
               profileId={profile?.id}
             />
           </div>
@@ -676,6 +747,7 @@ export function App() {
               onApproveRequest={handleApproveRequest}
               onRejectRequest={handleRejectRequest}
               showToast={showToast}
+              openTab={adminTabRequest}
             />
           </div>
         )}
@@ -687,6 +759,7 @@ export function App() {
               profile={profile}
               onProfileUpdated={handleProfileUpdated}
               showToast={showToast}
+              onOpenPartnerPage={(tab) => openPartnerPage(tab ?? 'scan')}
             />
           </div>
         )}

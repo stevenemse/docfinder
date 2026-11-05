@@ -542,25 +542,6 @@ html {
   to { transform: translate3d(24px, 18px, 0) scale(1.06); }
 }
 
-.hero-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border-radius: var(--radius-full);
-  background: #ffffff;
-  border: 1px solid var(--primary-100);
-  box-shadow: var(--shadow-sm);
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--primary-800);
-  margin-bottom: 18px;
-}
-
-.hero-chip svg {
-  color: var(--primary-600);
-}
-
 .hero-title {
   font-size: clamp(2rem, 5.2vw, 3.3rem);
   font-weight: 800;
@@ -591,6 +572,18 @@ html {
   color: var(--slate-800);
 }
 
+/* Mobile : le titre et le chapô sont centrés (le hero est sur une seule
+   colonne, l'alignement à gauche laissait un grand vide à droite vis-à-vis
+   du bouton de recherche pleine largeur). */
+@media (max-width: 767px) {
+  .hero-title,
+  .hero-subtitle {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 /* Carte de recherche intégrée au hero */
 .hero-search {
   background: #ffffff;
@@ -604,11 +597,17 @@ html {
   margin-bottom: 18px;
 }
 
+/* Les deux selects sont empilés sur mobile : sans gap ils se collent
+   (le grid n'existait qu'à partir de 560px). */
+.hero-search-selects {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 @media (min-width: 560px) {
   .hero-search-selects {
-    display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
   }
 }
 
@@ -649,7 +648,11 @@ html {
 
 /* Primary Action Buttons — vert marque + variante outline */
 .btn-cta-lost {
-  background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+  /* background-color (et non le raccourci `background`) : de nombreux boutons
+     surchargent la couleur via style={{ backgroundColor }} — un dégradé en
+     `background` restait peint par-dessus et donnait du texte sombre sur vert. */
+  background-color: var(--primary-700);
+  background-image: none;
   color: #ffffff;
   border: none;
   padding: 14px 20px;
@@ -668,6 +671,23 @@ html {
 .btn-cta-lost:hover {
   transform: translateY(-2px);
   box-shadow: 0 16px 28px -10px rgba(13, 92, 58, 0.6);
+}
+
+/* Variante dégradée, réservée aux CTA d'accueil (aucune surcharge inline). */
+.btn-cta-lost--grad {
+  background-image: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+}
+
+/* État désactivé : la plupart des CTA figent leur couleur en style inline
+   (backgroundColor/color), qu'aucun sélecteur ne peut battre sans !important.
+   On force donc uniquement ces deux propriétés, pour que « désactivé » se voie. */
+.btn-cta-lost:disabled {
+  background-color: var(--slate-300) !important;
+  background-image: none !important;
+  color: var(--slate-700) !important;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .btn-cta-found {
@@ -3299,11 +3319,45 @@ html {
   padding: 11px 14px;
   border-bottom: 1px solid var(--slate-100, #f1f5f9);
   align-items: flex-start;
+  /* Chaque notification est un bouton : elle mène à l'écran de l'action */
+  width: 100%;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.notif-item:hover { background: var(--slate-50, #f8fafc); }
+
+.notif-item:focus-visible {
+  outline: 2px solid var(--primary-600);
+  outline-offset: -2px;
 }
 
 .notif-item:last-child { border-bottom: none; }
 
 .notif-item.unread { background: var(--primary-50, #eef2ff); }
+
+.notif-item.unread:hover { background: var(--primary-100, #dbeafe); }
+
+.notif-item-tail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.notif-item-go {
+  color: var(--slate-400);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.notif-item:hover .notif-item-go { color: var(--primary-700); }
 
 .notif-item-icon {
   flex-shrink: 0;
@@ -3719,3 +3773,214 @@ html {
 .input-icon-wrap > .form-input {
   padding-left: 40px;
 }
+
+/* ══════════════════ ÉCRAN DE CHARGEMENT (APP) ══════════════════
+   Repère visuel pendant l'initialisation (session + dossiers). Sur réseau
+   faible, l'attente dépasse la seconde : sans ce retour, la page semble
+   cassée. Animations désactivées si l'utilisateur préfère moins de mouvement. */
+.app-loader {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 12%, rgba(16, 122, 76, 0.10), transparent 60%),
+    var(--surface-page, #f8fafc);
+}
+
+.app-loader-mark {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: var(--primary-700);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 18px 34px -18px rgba(5, 46, 22, 0.55);
+}
+
+.app-loader-ring {
+  position: absolute;
+  inset: -9px;
+  border-radius: 27px;
+  border: 2px solid var(--primary-400, #34d399);
+  animation: app-loader-pulse 1.7s ease-out infinite;
+}
+
+@keyframes app-loader-pulse {
+  0%   { transform: scale(0.92); opacity: 0.85; }
+  70%  { transform: scale(1.14); opacity: 0; }
+  100% { transform: scale(1.14); opacity: 0; }
+}
+
+.app-loader-brand {
+  font-weight: 800;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--primary-900, #052e16);
+}
+
+.app-loader-bar {
+  width: 180px;
+  max-width: 70vw;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--primary-100, #dcfce7);
+  overflow: hidden;
+}
+
+.app-loader-bar > span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--primary-600);
+  animation: app-loader-slide 1.3s ease-in-out infinite;
+}
+
+@keyframes app-loader-slide {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(360%); }
+}
+
+.app-loader-text {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--slate-700, #334155);
+}
+
+.app-loader-hint {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--slate-500, #64748b);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loader-ring,
+  .app-loader-bar > span { animation: none; }
+}
+
+/* ══════════════════ WALLET (CITOYEN / PARTENAIRE) ══════════════════ */
+.wallet-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 720px) {
+  .wallet-grid { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+
+.wallet-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wallet-card--citizen { border-top: 3px solid var(--primary-600); }
+.wallet-card--partner { border-top: 3px solid var(--gold-500, #d97706); }
+
+.wallet-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wallet-card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--slate-900);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.wallet-amount {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--primary-800, #065f46);
+  line-height: 1.1;
+}
+
+.wallet-amount--partner { color: var(--gold-700, #b45309); }
+
+.wallet-amount small {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--slate-500);
+  letter-spacing: 0;
+}
+
+.wallet-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.78rem;
+  color: var(--slate-600);
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--slate-200, #e2e8f0);
+}
+
+.wallet-row:last-child { border-bottom: none; }
+.wallet-row strong { color: var(--slate-900); font-size: 0.82rem; }
+
+.wallet-note {
+  font-size: 0.74rem;
+  color: var(--slate-500);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.wallet-movement {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--slate-100, #f1f5f9);
+}
+
+.wallet-movement:last-child { border-bottom: none; }
+
+.wallet-movement-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--slate-800);
+}
+
+.wallet-movement-meta {
+  font-size: 0.7rem;
+  color: var(--slate-500);
+  margin-top: 1px;
+}
+
+.wallet-movement-amount {
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.wallet-movement-amount--in { color: var(--primary-700); }
+.wallet-movement-amount--out { color: var(--slate-600); }

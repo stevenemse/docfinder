@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { User, Phone, Mail, KeyRound, Save, Loader2, CheckCircle2, AlertCircle, ShieldCheck, Bell, BellOff } from 'lucide-react';
+import { User, Phone, Mail, KeyRound, Save, Loader2, CheckCircle2, AlertCircle, ShieldCheck, Bell, BellOff, Wallet } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 import { normalizePhone } from '../services/authService';
 import { pushService } from '../services/pushService';
+import { WalletSection } from './WalletSection';
 import type { Profile } from '../types';
 
 interface ProfilePageProps {
   profile: Profile;
   onProfileUpdated: (p: Profile) => void;
   showToast: (msg: string) => void;
+  /** Ouvre la page partenaire (wallet partenaire ou candidature). */
+  onOpenPartnerPage?: (tab?: 'scan' | 'wallet') => void;
 }
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpdated, showToast }) => {
+export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpdated, showToast, onOpenPartnerPage }) => {
   // ---- Informations personnelles ----
   const [displayName, setDisplayName] = useState(profile.display_name || '');
   // Format local 9 chiffres (le +237 est implicite et affiché dans le label)
@@ -397,6 +400,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
           Un seul abonnement par appareil — vous pouvez le retirer à tout moment.
           Aucune donnée personnelle n'est incluse dans les notifications.
         </p>
+      </div>
+
+      {/* Carte wallet : les deux portefeuilles du compte, bien séparés */}
+      <div className="profile-card">
+        <div className="profile-card-title">
+          <Wallet size={16} />
+          Mon Wallet — citoyen et partenaire
+        </div>
+        <p style={{ fontSize: '0.76rem', color: 'var(--slate-500)', marginBottom: '12px', lineHeight: 1.5 }}>
+          Deux portefeuilles distincts : vos gains et frais de restitution (citoyen) d'un côté,
+          vos dividendes et retraits de point de dépôt (partenaire) de l'autre.
+        </p>
+        <WalletSection profileId={profile.id} onOpenPartnerPage={onOpenPartnerPage} />
       </div>
 
       {/* Carte sécurité */}

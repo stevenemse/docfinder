@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { DocumentType } from '../types';
 import { useReveal } from '../lib/useReveal';
+import { AnimatedNumber } from './AnimatedNumber';
 
 interface HomeHeroProps {
   docTypes: DocumentType[];
@@ -74,11 +75,6 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
         <div className="hero-inner">
           <div>
-            <div className="hero-chip reveal">
-              <ShieldCheck size={14} />
-              <span>Plateforme Civique &amp; Sécurisée — République du Cameroun</span>
-            </div>
-
             <h1 className="hero-title reveal reveal-d1">
               Retrouvez vos documents{' '}
               <span className="hero-title-accent">officiels</span>{' '}
@@ -138,7 +134,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
             {/* CTAs */}
             <div className="hero-action-buttons reveal reveal-d3">
-              <button className="btn-cta-lost" onClick={onLostClick}>
+              <button className="btn-cta-lost btn-cta-lost--grad" onClick={onLostClick}>
                 <PlusCircle size={18} />
                 <span>Déclarer une perte</span>
               </button>
@@ -251,19 +247,19 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
         </div>
         <div className="impact-stats">
           <div className="impact-stat">
-            <div className="impact-stat-num">{foundDocsCount + 180}+</div>
+            <AnimatedNumber className="impact-stat-num" value={foundDocsCount + 180} suffix="+" />
             <div className="impact-stat-label">Pièces protégées</div>
           </div>
           <div className="impact-stat">
-            <div className="impact-stat-num">89%</div>
+            <AnimatedNumber className="impact-stat-num" value={89} suffix="%" durationMs={1600} />
             <div className="impact-stat-label">Restitution réussie</div>
           </div>
           <div className="impact-stat">
-            <div className="impact-stat-num">&lt;24h</div>
+            <AnimatedNumber className="impact-stat-num" value={24} prefix="<" suffix="h" durationMs={1000} />
             <div className="impact-stat-label">Alerte au propriétaire</div>
           </div>
           <div className="impact-stat">
-            <div className="impact-stat-num" style={{ color: '#fbbf24' }}>2 000 F</div>
+            <AnimatedNumber className="impact-stat-num" value={2000} suffix=" F" group style={{ color: '#fbbf24' }} durationMs={1800} />
             <div className="impact-stat-label">Frais forfaitaires MoMo</div>
           </div>
         </div>

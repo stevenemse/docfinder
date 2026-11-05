@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Bell, CheckCheck, PackageCheck, Wallet, Clock, XCircle, Store, BadgeCheck, Inbox } from 'lucide-react';
+import { Bell, CheckCheck, PackageCheck, Wallet, Clock, XCircle, Store, BadgeCheck, Inbox, ChevronRight } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import type { AppNotification } from '../types';
 
@@ -28,10 +28,12 @@ function timeAgo(iso: string): string {
 
 interface Props {
   enabled: boolean; // false → visiteur non connecté
+  /** Emmène l'utilisateur sur l'écran où l'action attendue se fait. */
+  onNavigate?: (notification: AppNotification) => void;
 }
 
 /** Cloche de notifications in-app : panneau déroulant, polling 30 s, tout marquer lu. */
-export const NotificationBell: React.FC<Props> = ({ enabled }) => {
+export const NotificationBell: React.FC<Props> = ({ enabled, onNavigate }) => {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -79,6 +81,17 @@ export const NotificationBell: React.FC<Props> = ({ enabled }) => {
     setItems(prev => prev.map(n => ({ ...n, read: true })));
   };
 
+  // Une notification lue mais jamais ouverte reste une action en attente : on
+  // ne l'efface pas, on l'ouvre (marquée lue) vers l'écran concerné.
+  const openNotification = (n: AppNotification) => {
+    if (!n.read) {
+      setItems(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
+      void dataService.markNotificationsRead([n.id]);
+    }
+    setOpen(false);
+    onNavigate?.(n);
+  };
+
   return (
     <div className="notif-bell-wrap" ref={wrapRef}>
       <button
@@ -115,15 +128,25 @@ export const NotificationBell: React.FC<Props> = ({ enabled }) => {
               </div>
             ) : (
               items.map(n => (
-                <div key={n.id} className={`notif-item${n.read ? '' : ' unread'}`}>
+                <button
+                  key={n.id}
+                  type="button"
+                  className={`notif-item${n.read ? '' : ' unread'}`}
+                  onClick={() => openNotification(n)}
+                  aria-label={`Ouvrir : ${n.title}`}
+                  title="Ouvrir et aller à l'action"
+                >
                   <div className="notif-item-icon">{ICONS[n.type] ?? <Bell size={16} />}</div>
                   <div className="notif-item-body">
                     <div className="notif-item-title">{n.title}</div>
                     {n.body && <div className="notif-item-text">{n.body}</div>}
                     <div className="notif-item-time">{timeAgo(n.created_at)}</div>
                   </div>
-                  {!n.read && <span className="notif-unread-dot" aria-hidden />}
-                </div>
+                  <div className="notif-item-tail">
+                    {!n.read && <span className="notif-unread-dot" aria-hidden />}
+                    {onNavigate && <ChevronRight size={16} className="notif-item-go" aria-hidden />}
+                  </div>
+                </button>
               ))
             )}
           </div>

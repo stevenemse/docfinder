@@ -12,7 +12,7 @@ import {
   Mail,
   Phone
 } from 'lucide-react';
-import type { Profile } from '../types';
+import type { Profile, AppNotification } from '../types';
 import { NotificationBell } from './NotificationBell';
 
 interface HeaderProps {
@@ -26,6 +26,8 @@ interface HeaderProps {
   onOpenLostModal: () => void;
   onOpenProfile: () => void;
   onOpenLegal: (doc: 'privacy' | 'terms' | 'cookies') => void;
+  /** Clic sur une notification : amène l'utilisateur à l'action à faire. */
+  onNotificationNavigate?: (notification: AppNotification) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -37,7 +39,8 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onOpenFoundModal,
   onOpenLostModal,
-  onOpenProfile
+  onOpenProfile,
+  onNotificationNavigate
 }) => {
   const role = profile?.role;
   const isAdmin = role === 'admin' || role === 'moderator';
@@ -259,7 +262,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {/* Cloche notifications in-app (tous rôles connectés) */}
-              <NotificationBell enabled={isAuthenticated} />
+              <NotificationBell enabled={isAuthenticated} onNavigate={onNotificationNavigate} />
 
               {/* Pill Profil — cliquable : ouvre la page Mon Profil */}
               <button

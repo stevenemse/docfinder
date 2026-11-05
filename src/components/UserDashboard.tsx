@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   FolderCheck, 
   Search, 
   PlusCircle, 
   Clock, 
   Sparkles,
-  PackageCheck
+  PackageCheck,
+  Store,
+  Wallet
 } from 'lucide-react';
 import type { 
   LostDocument, 
@@ -13,8 +15,10 @@ import type {
   Match, 
   RecoveryRequest, 
   DocumentType, 
-  PickupInfo 
+  PickupInfo
 } from '../types';
+import { dataService } from '../services/dataService';
+import { WalletSection } from './WalletSection';
 
 interface UserDashboardProps {
   lostDocs: LostDocument[];
@@ -29,6 +33,12 @@ interface UserDashboardProps {
   onDepositDocument: (requestId: string) => void;
   /** Charge la fiche de retrait (partenaire, adresse, code) d'une demande payée. */
   onLoadPickupInfo?: (requestId: string) => Promise<PickupInfo | null>;
+  /** Ouvre la page partenaire, éventuellement directement sur le wallet. */
+  onOpenPartnerPage?: (tab?: 'scan' | 'wallet') => void;
+  /** Dossier visé par une notification (clic sur la cloche). */
+  focusRequestId?: string | null;
+  /** Horodatage de la demande : rejoue la navigation même pour le même dossier. */
+  focusAt?: number;
   profileId?: string;
 }
 
@@ -44,17 +54,66 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onProceedToPayment,
   onDepositDocument,
   onLoadPickupInfo,
+  onOpenPartnerPage,
+  focusRequestId,
+  focusAt,
   profileId
 }) => {
-  const [activeTab, setActiveTab] = useState<'lost' | 'found' | 'requests'>('lost');
+  const [activeTab, setActiveTab] = useState<'lost' | 'found' | 'requests' | 'wallet'>('lost');
+  /** Dossier brièvement surligné après une arrivée par notification. */
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // Candidature partenaire du compte connecté : undefined = en cours de
+  // chargement, null = aucune candidature.
+  const [partnerInfo, setPartnerInfo] = useState<{ id: string; name: string; status: string } | null | undefined>(undefined);
   const [pickupInfos, setPickupInfos] = useState<Record<string, PickupInfo | null>>({});
 
-  // Le catalogue `foundDocs` contient TOUS les documents publiés (lecture
-  // publique). « Mes Signalements » ne doit montrer que ceux que CE citoyen
-  // a déposés, sinon la liste affiche ceux de tout le pays.
-  const myFoundDocs = profileId
-    ? foundDocs.filter(doc => doc.finder_id === profileId)
-    : [];
+  // Le catalogue `foundDocs` ne contient que les documents PUBLIÉS (lecture
+  // publique). « Mes Signalements » doit aussi montrer les signalements du
+  // citoyen encore en attente de validation → lecture dédiée (RLS finder).
+  const [myFoundDocs, setMyFoundDocs] = useState<FoundDocument[]>([]);
+  useEffect(() => {
+    if (!profileId) { setPartnerInfo(null); return; }
+    let cancelled = false;
+    dataService.getMyPartnerStatus()
+      .then(p => { if (!cancelled) setPartnerInfo(p ? { id: p.id, name: p.name, status: p.status } : null); })
+      .catch(() => { if (!cancelled) setPartnerInfo(null); });
+    return () => { cancelled = true; };
+  }, [profileId]);
+
+  useEffect(() => {
+    if (!profileId) { setMyFoundDocs([]); return; }
+    let cancelled = false;
+    dataService.getMyFoundDocuments(profileId)
+      .then(list => { if (!cancelled) setMyFoundDocs(list); })
+      .catch(() => { if (!cancelled) setMyFoundDocs(foundDocs.filter(d => d.finder_id === profileId)); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId, foundDocs.length]);
+
+  // Ouvre une restitution, charge sa fiche de retrait et fait défiler jusqu'à
+  // elle — utilisé par la cloche de notifications et par le wallet.
+  const focusRestitution = (requestId: string) => {
+    setActiveTab('requests');
+    setHighlightId(requestId);
+    if (onLoadPickupInfo && !pickupInfos[requestId]) {
+      onLoadPickupInfo(requestId)
+        .then(info => setPickupInfos(prev => ({ ...prev, [requestId]: info })))
+        .catch(() => setPickupInfos(prev => ({ ...prev, [requestId]: { found: false } })));
+    }
+    window.setTimeout(() => {
+      document.getElementById(`restitution-${requestId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+    window.setTimeout(() => setHighlightId(null), 2600);
+  };
+
+  // Arrivée par la cloche : on atterrit sur le dossier concerné.
+  useEffect(() => {
+    if (!focusRequestId || !focusAt) return;
+    focusRestitution(focusRequestId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusAt, focusRequestId]);
 
   const getTypeName = (typeId: string) => {
     return docTypes.find(dt => dt.id === typeId)?.name || 'Document Officiel';
@@ -69,6 +128,58 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           <span>Espace Citoyen — Mes Dossiers</span>
         </div>
       </div>
+
+      {/* Candidature / statut partenaire du compte */}
+      {partnerInfo !== undefined && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+          background: partnerInfo?.status === 'active'
+            ? 'var(--primary-50, #ecfdf5)'
+            : partnerInfo?.status === 'pending'
+              ? 'var(--gold-50, #fffbeb)'
+              : 'var(--surface-card)',
+          border: `1px solid ${partnerInfo?.status === 'pending'
+            ? 'var(--gold-200, #fde68a)'
+            : partnerInfo ? 'var(--primary-200, #bbf7d0)' : 'var(--border-color)'}`,
+          borderRadius: 'var(--radius-lg)',
+          padding: '12px 14px',
+          marginBottom: '16px'
+        }}>
+          <Store size={18} color="var(--primary-700)" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: '180px' }}>
+            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              {partnerInfo
+                ? partnerInfo.name
+                : 'Devenir point de dépôt partenaire'}
+            </div>
+            <div style={{ fontSize: '0.76rem', color: 'var(--slate-600)', marginTop: '2px', lineHeight: 1.45 }}>
+              {!partnerInfo &&
+                'Recevez les documents trouvés et gagnez un dividende à chaque retrait confirmé.'}
+              {partnerInfo?.status === 'pending' &&
+                'Candidature en attente de validation par la modération. Vous pouvez déjà confirmer des dépôts.'}
+              {partnerInfo?.status === 'active' &&
+                'Partenaire actif — chaque retrait confirmé crédite votre wallet.'}
+              {partnerInfo?.status === 'suspended' &&
+                'Compte partenaire suspendu. Contactez la modération.'}
+              {partnerInfo?.status === 'rejected' &&
+                'Candidature refusée. Contactez la modération pour en connaître le motif.'}
+            </div>
+          </div>
+          {onOpenPartnerPage && partnerInfo?.status !== 'active' && (
+            <button
+              type="button"
+              onClick={() => onOpenPartnerPage()}
+              style={{
+                background: 'var(--primary-700)', color: '#ffffff', border: 'none',
+                borderRadius: 'var(--radius-md)', padding: '8px 12px',
+                fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0
+              }}
+            >
+              {partnerInfo ? 'Voir mon espace partenaire' : 'Faire une demande'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Navigation tabs */}
       <div className="dashboard-tabs" role="tablist" aria-label="Sections de mes dossiers" style={{
@@ -165,6 +276,28 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           }}>
             {recoveryRequests.length}
           </span>
+        </button>
+
+        <button
+          role="tab"
+          aria-selected={activeTab === 'wallet'}
+          onClick={() => setActiveTab('wallet')}
+          style={{
+            padding: '10px 14px',
+            border: 'none',
+            background: 'none',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderBottom: activeTab === 'wallet' ? '3px solid var(--primary-700)' : '3px solid transparent',
+            color: activeTab === 'wallet' ? 'var(--primary-700)' : 'var(--slate-500)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <Wallet size={15} />
+          <span>Mon Wallet</span>
         </button>
       </div>
 
@@ -372,15 +505,37 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 </div>
               </div>
 
-              <div style={{
-                background: 'var(--slate-100)',
-                color: 'var(--slate-700)',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.72rem',
-                fontWeight: 700
-              }}>
-                En ligne (Caviardé)
+              <div
+                title={
+                  doc.status === 'pending_verification'
+                    ? 'Un modérateur contrôle le caviardage avant publication'
+                    : doc.status === 'rejected'
+                      ? 'Signalement refusé — contactez le support'
+                      : 'Visible dans le catalogue public'
+                }
+                style={{
+                  background: doc.status === 'pending_verification'
+                    ? 'var(--gold-50, #fffbeb)'
+                    : doc.status === 'rejected'
+                      ? 'var(--red-50, #fef2f2)'
+                      : 'var(--primary-50, #ecfdf5)',
+                  color: doc.status === 'pending_verification'
+                    ? '#92400e'
+                    : doc.status === 'rejected'
+                      ? '#b91c1c'
+                      : 'var(--primary-800, #065f46)',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  flexShrink: 0
+                }}
+              >
+                {doc.status === 'pending_verification'
+                  ? 'En attente de validation'
+                  : doc.status === 'rejected'
+                    ? 'Refusé'
+                    : 'En ligne (Caviardé)'}
               </div>
             </div>
           ))}
@@ -414,14 +569,23 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               return (
                 <div
                   key={req.id}
+                  id={`restitution-${req.id}`}
                   style={{
                     background: 'var(--surface-card)',
-                    border: '1px solid var(--border-color)',
+                    border: highlightId === req.id
+                      ? '2px solid var(--primary-500, #22c55e)'
+                      : '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-lg)',
                     padding: '16px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '12px',
+                    // Le header fixe ne doit pas masquer la carte visée
+                    scrollMarginTop: '110px',
+                    boxShadow: highlightId === req.id
+                      ? '0 0 0 4px var(--primary-100, #dcfce7)'
+                      : 'none',
+                    transition: 'box-shadow 0.4s ease, border-color 0.4s ease'
                   }}
                 >
                   <div className="dossier-header">
@@ -644,6 +808,17 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               );
             })
           )}
+        </div>
+      )}
+
+      {/* Tab Content: Mon Wallet — deux portefeuilles bien distincts */}
+      {activeTab === 'wallet' && profileId && (
+        <div role="tabpanel" aria-label="Mon wallet">
+          <WalletSection
+            profileId={profileId}
+            onOpenPartnerPage={onOpenPartnerPage}
+            onOpenRestitution={focusRestitution}
+          />
         </div>
       )}
     </div>

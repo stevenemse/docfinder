@@ -17,7 +17,15 @@ import type { LookupResult, PartnerWalletFull } from '../types';
  * Plus aucun mode anonyme : chaque confirmation engage un point de dépôt
  * identifié, traçable et responsable.
  */
-export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: boolean; onOpenAuth?: () => void }> = ({ onBack, isAuthenticated = false, onOpenAuth }) => {
+export const PartnerScanPage: React.FC<{
+  onBack: () => void;
+  isAuthenticated?: boolean;
+  onOpenAuth?: (mode?: 'login' | 'register') => void;
+  /** La modale d'authentification est-elle ouverte ? (abandon de l'envoi différé) */
+  authModalOpen?: boolean;
+  /** Onglet d'arrivée (le wallet quand une notification parle d'argent). */
+  initialTab?: 'scan' | 'wallet';
+}> = ({ onBack, isAuthenticated = false, onOpenAuth, authModalOpen, initialTab = 'scan' }) => {
   const [partnerStatus, setPartnerStatus] = useState<'loading' | 'none' | 'linked'>('loading');
   const [partnerName, setPartnerName] = useState('');
   const [code, setCode] = useState('');
@@ -28,7 +36,7 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ recipient: string; funds: boolean } | null>(null);
   const [history, setHistory] = useState<{ code: string; name: string; at: string }[]>([]);
-  const [tab, setTab] = useState<'scan' | 'confirm-deposit' | 'register' | 'wallet'>('scan');
+  const [tab, setTab] = useState<'scan' | 'confirm-deposit' | 'register' | 'wallet'>(initialTab);
 
   // Confirmation de dépôt (code présenté par le trouveur)
   const [depCode, setDepCode] = useState('');
@@ -45,6 +53,8 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
   const [regContact, setRegContact] = useState('');
   const [regSubmitting, setRegSubmitting] = useState(false);
   const [regSuccess, setRegSuccess] = useState(false);
+  // Candidature rédigée sans compte : mise en attente le temps de l'inscription
+  const [pendingRegister, setPendingRegister] = useState(false);
 
   // Wallet partenaire (onglet visible uniquement si connecté)
   const [wallet, setWallet] = useState<PartnerWalletFull | null>(null);
@@ -194,12 +204,45 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
         contactName: regContact
       });
       setRegSuccess(true);
+      // Le compte est désormais rattaché à un point de dépôt
+      void loadWallet();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la candidature.');
     } finally {
       setRegSubmitting(false);
     }
   };
+
+  /**
+   * Être partenaire exige un compte : la candidature n'est pas perdue pour
+   * autant. Sans session, on ouvre l'inscription et on la renvoie aussitôt le
+   * compte créé — les champs déjà saisis restent à l'écran.
+   */
+  const handleRegisterClick = () => {
+    if (regName.trim().length < 3 || regPhone.length !== 9 || !regAddress.trim()) return;
+    if (!isAuthenticated) {
+      setPendingRegister(true);
+      onOpenAuth?.('register');
+      return;
+    }
+    void handleRegister();
+  };
+
+  // Envoi différé : déclenché dès que la session existe.
+  useEffect(() => {
+    if (!isAuthenticated || !pendingRegister) return;
+    setPendingRegister(false);
+    void handleRegister();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, pendingRegister]);
+
+  // Inscription abandonnée (modale fermée sans compte) → pas de candidature
+  // surprise plus tard, l'utilisateur reprend la main.
+  useEffect(() => {
+    if (authModalOpen === false && pendingRegister && !isAuthenticated) {
+      setPendingRegister(false);
+    }
+  }, [authModalOpen, pendingRegister, isAuthenticated]);
 
   const nameMatches = lookup?.found && recipientName.trim().length >= 3 &&
     lookup.recipient_name && lookup.recipient_name.toLowerCase().trim() === recipientName.toLowerCase().trim();
@@ -318,7 +361,7 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
                 backgroundColor: 'transparent', color: 'var(--primary-700)',
                 border: '1.5px solid var(--primary-200, #bbf7d0)', marginLeft: '8px'
               }}
-              onClick={onOpenAuth}
+              onClick={() => onOpenAuth('login')}
             >
               <LogIn size={15} style={{ marginRight: '6px' }} />
               Se connecter
@@ -497,6 +540,24 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {!isAuthenticated && (
+              <div style={{
+                display: 'flex', gap: '8px', alignItems: 'flex-start',
+                background: 'var(--primary-50, #eef7f2)',
+                border: '1px solid var(--primary-200, #bbf7d0)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '12px 14px'
+              }}>
+                <LogIn size={16} color="var(--primary-700)" style={{ flexShrink: 0, marginTop: '1px' }} />
+                <div style={{ fontSize: '0.78rem', color: 'var(--slate-700)', lineHeight: 1.5 }}>
+                  <strong>Un compte DocFinder est requis</strong> pour être partenaire (chaque
+                  remise doit être traçable). Remplissez le formulaire puis touchez
+                  « Créer mon compte et envoyer » : l'inscription s'ouvre, et votre
+                  candidature part automatiquement ensuite — rien à ressaisir.
+                </div>
+              </div>
+            )}
+
             <div style={{
               background: 'var(--surface-card)',
               border: '1px solid var(--border-color)',
@@ -597,15 +658,17 @@ export const PartnerScanPage: React.FC<{ onBack: () => void; isAuthenticated?: b
                   cursor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'pointer' : 'not-allowed'
                 }}
                 disabled={regSubmitting || regName.trim().length < 3 || regPhone.length !== 9 || !regAddress.trim()}
-                onClick={handleRegister}
+                onClick={handleRegisterClick}
               >
                 {regSubmitting ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     <Loader2 size={15} className="animate-spin" />
                     Envoi de la candidature…
                   </span>
-                ) : (
+                ) : isAuthenticated ? (
                   'Soumettre ma candidature →'
+                ) : (
+                  'Créer mon compte et envoyer →'
                 )}
               </button>
               <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', textAlign: 'center' }}>

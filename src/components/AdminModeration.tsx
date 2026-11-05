@@ -44,6 +44,7 @@ import type {
   WalletWithdrawal
 } from '../types';
 import { dataService } from '../services/dataService';
+import { AdminRedactionModal } from './AdminRedactionModal';
 
 interface AdminModerationProps {
   recoveryRequests: RecoveryRequest[];
@@ -54,9 +55,11 @@ interface AdminModerationProps {
   onApproveRequest: (requestId: string) => void;
   onRejectRequest: (requestId: string) => void;
   showToast: (msg: string) => void;
+  /** Onglet imposé par une notification ; `at` rejoue la demande identique. */
+  openTab?: { tab: AdminTab; at: number } | null;
 }
 
-type AdminTab = 'overview' | 'documents' | 'users' | 'requests' | 'payments' | 'partners' | 'audit';
+export type AdminTab = 'overview' | 'documents' | 'users' | 'requests' | 'payments' | 'partners' | 'audit';
 
 /** Libellés français des statuts de document. */
 const DOC_STATUS_LABELS: Record<DocStatus, string> = {
@@ -500,7 +503,8 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   isAdmin,
   onApproveRequest,
   onRejectRequest,
-  showToast
+  showToast,
+  openTab
 }) => {
   const [adminTab, setAdminTab] = useState<AdminTab>('overview');
   const [adminPartners, setAdminPartners] = useState<Partner[]>([]);
@@ -510,12 +514,23 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [adminDocs, setAdminDocs] = useState<{ found: AdminDocumentRow[]; lost: AdminDocumentRow[] } | null>(null);
   const [editingDoc, setEditingDoc] = useState<AdminDocumentRow | null>(null);
+  /** Signalement en cours de contrôle du caviardage (file de validation). */
+  const [reviewDoc, setReviewDoc] = useState<AdminDocumentRow | null>(null);
   const [editForm, setEditForm] = useState({ title: '', region: '', city: '', status: 'published' });
   const [busyDocId, setBusyDocId] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
   // Popups KPI (documents protégés / déclarations de perte)
   const [kpiModal, setKpiModal] = useState<'found' | 'lost' | null>(null);
+
+  // Clic sur une notification (nouvelle candidature partenaire) : on ouvre
+  // directement l'onglet concerné plutôt que de laisser l'admin chercher.
+  const openTabAt = openTab?.at;
+  useEffect(() => {
+    if (!openTab || openTabAt === undefined) return;
+    setAdminTab(openTab.tab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTabAt]);
   // Preuve en cours d'examen : affiche la comparaison document trouvé ↔ preuve
   const [proofModal, setProofModal] = useState<RecoveryRequest | null>(null);
 
@@ -526,23 +541,29 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   const [rejectingWd, setRejectingWd] = useState<{ id: string; reason: string } | null>(null);
 
   const pendingRequests = recoveryRequests.filter(r => r.verification_status === 'pending');
+  // File de validation : aucun signalement n'est publié sans passage humain.
+  const pendingFoundDocs = (adminDocs?.found ?? []).filter(d => d.status === 'pending_verification');
+  // Candidatures partenaires à instruire (issues de comptes citoyens).
+  const pendingPartners = adminPartners.filter(p => p.status === 'pending');
   const totalRevenue = payments.filter(p => p.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoadingData(true);
-      const [s, u, logs, docs] = await Promise.all([
+      const [s, u, logs, docs, partners] = await Promise.all([
         dataService.getAdminStats(),
         dataService.getAdminProfiles(),
         dataService.getAuditLogs(),
-        dataService.getAdminDocuments()
+        dataService.getAdminDocuments(),
+        dataService.getAdminPartners().catch(() => [] as Partner[])
       ]);
       if (!cancelled) {
         setStats(s);
         setUsers(u);
         setAuditLogs(logs);
         setAdminDocs(docs);
+        setAdminPartners(partners);
         setLoadingData(false);
       }
     })();
@@ -831,14 +852,14 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           </div>
           <div className="admin-side-group">
             <div className="admin-side-label">Modération</div>
-            {sideItem('documents', 'Documents', <FileCheck2 size={17} />, adminDocs ? (adminDocs.found.length + adminDocs.lost.length) : undefined)}
+            {sideItem('documents', 'Documents', <FileCheck2 size={17} />, adminDocs ? pendingFoundDocs.length : undefined)}
             {sideItem('users', 'Citoyens', <Users size={17} />, stats?.users)}
             {sideItem('requests', 'Preuves', <FileImage size={17} />, pendingRequests.length)}
           </div>
           <div className="admin-side-group">
             <div className="admin-side-label">Finances</div>
             {sideItem('payments', 'Transactions', <CreditCard size={17} />, payments.length)}
-            {sideItem('partners', 'Partenaires', <Store size={17} />, adminPartners.length || undefined)}
+            {sideItem('partners', 'Partenaires', <Store size={17} />, pendingPartners.length || undefined)}
           </div>
           <div className="admin-side-group">
             <div className="admin-side-label">Outils</div>
@@ -1081,6 +1102,59 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             </div>
             <div className="admin-card-sub">Tous statuts · modification & suppression définitive</div>
           </div>
+
+          {/* File de validation : rien n'est publié sans contrôle humain */}
+          {!loadingData && adminDocs && pendingFoundDocs.length > 0 && (
+            <div style={{
+              border: '1px solid var(--gold-200, #fde68a)',
+              background: 'var(--gold-50, #fffbeb)',
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 14px',
+              marginBottom: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.86rem', color: '#92400e' }}>
+                <ShieldAlert size={15} />
+                En attente de validation ({pendingFoundDocs.length})
+              </div>
+              <div style={{ fontSize: '0.74rem', color: '#92400e', marginTop: '2px', lineHeight: 1.5 }}>
+                Ces signalements ne sont pas encore publics. Contrôlez le caviardage — vous pouvez
+                ajouter des masques sur l'image — puis publiez ou rejetez.
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
+                {pendingFoundDocs.map(d => (
+                  <div key={d.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
+                    background: 'var(--surface-card)', border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)', padding: '9px 11px'
+                  }}>
+                    <div className="admin-doc-thumb" style={{ width: '46px', height: '46px' }}>
+                      {d.masked_image_url
+                        ? <img src={d.masked_image_url} alt="" />
+                        : <ImageOff size={16} />}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="admin-doc-name">{d.title}</div>
+                      <div className="admin-doc-meta">
+                        {d.city} ({d.region}) · déposé le {new Date(d.created_at).toLocaleDateString('fr-FR')}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setReviewDoc(d)}
+                      style={{
+                        background: 'var(--primary-700)', color: '#ffffff', border: 'none',
+                        borderRadius: 'var(--radius-sm)', padding: '7px 12px',
+                        fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: '4px'
+                      }}
+                    >
+                      <Eye size={13} /> Contrôler l'image
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {loadingData ? (
             <div style={{ textAlign: 'center', padding: '24px', color: 'var(--slate-500)' }}>
@@ -1549,7 +1623,9 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {adminPartners.map(pt => {
+                {[...adminPartners]
+                  .sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending'))
+                  .map(pt => {
                   const statusColors: Record<string, string> = {
                     pending: '#f59e0b', active: '#10b981', suspended: '#64748b', rejected: '#dc2626'
                   };
@@ -1579,6 +1655,30 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                             📍 {pt.address || '—'}{pt.city ? ` — ${pt.city}` : ''}{pt.region ? ` (${pt.region})` : ''}
                             {pt.phone && <> · 📞 {pt.phone}</>}
                             {pt.contact_name && <> · Contact : {pt.contact_name}</>}
+                          </div>
+                          {/* Compte citoyen à l'origine de la candidature */}
+                          <div style={{ fontSize: '0.74rem', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                            <Users size={12} color="var(--slate-500)" />
+                            {(() => {
+                              if (!pt.linked_profile_id) {
+                                return (
+                                  <span style={{ color: '#b45309', fontWeight: 700 }}>
+                                    Sans compte citoyen lié — impossible de notifier le candidat
+                                  </span>
+                                );
+                              }
+                              const owner = users?.find(u => u.id === pt.linked_profile_id);
+                              return (
+                                <span style={{ color: 'var(--slate-600)' }}>
+                                  Compte citoyen :{' '}
+                                  <strong>{owner?.display_name ?? `profil ${pt.linked_profile_id.slice(0, 8)}…`}</strong>
+                                  {owner?.phone ? ` · ${owner.phone}` : ''}
+                                  {owner?.status === 'suspended' || owner?.status === 'blocked'
+                                    ? ' · ⚠ compte inactif'
+                                    : ''}
+                                </span>
+                              );
+                            })()}
                           </div>
                           <div style={{ fontSize: '0.74rem', color: 'var(--slate-500)', marginTop: '4px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -1869,6 +1969,16 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Contrôle du caviardage avant publication */}
+      {reviewDoc && (
+        <AdminRedactionModal
+          doc={reviewDoc}
+          showToast={showToast}
+          onClose={() => setReviewDoc(null)}
+          onDone={refreshAdminDocs}
+        />
       )}
     </div>
   );

@@ -118,6 +118,47 @@ function mergeZones(zones: RedactionZone[], margin = 6): RedactionZone[] {
   return rects.map(r => ({ x: Math.round(r.x1), y: Math.round(r.y1), w: Math.round(r.x2 - r.x1), h: Math.round(r.y2 - r.y1) }));
 }
 
+/** Part des pixels de l'image couverte par les zones (0..1). */
+export function coveredRatio(zones: RedactionZone[], iw: number, ih: number): number {
+  if (!iw || !ih || zones.length === 0) return 0;
+  let area = 0;
+  for (const z of zones) {
+    const w = Math.min(Math.max(0, z.w), iw);
+    const h = Math.min(Math.max(0, z.h), ih);
+    area += w * h;
+  }
+  return Math.min(1, area / (iw * ih));
+}
+
+/** Recouvrement d'une zone par une autre, relatif à la surface de `z`. */
+function overlapRatio(z: RedactionZone, other: RedactionZone): number {
+  const x1 = Math.max(z.x, other.x);
+  const y1 = Math.max(z.y, other.y);
+  const x2 = Math.min(z.x + z.w, other.x + other.w);
+  const y2 = Math.min(z.y + z.h, other.y + other.h);
+  if (x2 <= x1 || y2 <= y1) return 0;
+  const inter = (x2 - x1) * (y2 - y1);
+  const own = Math.max(1, z.w * z.h);
+  return Math.min(1, inter / own);
+}
+
+/**
+ * Ligne à haut risque : numéro long, date, MRZ ou libellé de champ sensible.
+ * Ces valeurs partagent souvent leur ligne avec le libellé et peuvent déborder
+ * de la boîte OCR (chiffres fins, cachet ou reflet par-dessus) → on masque
+ * toute la largeur de l'image plutôt que la seule boîte détectée.
+ */
+const HIGH_RISK_KEYWORDS = /\bnum[eé]ro\b|\bn[°º]|\bdate\b|\bsignature\b|\bvalable\b|\bexpir\w*|\bd[ée]livr\w*/i;
+
+export function isHighRiskLine(text: string): boolean {
+  const digits = (text.match(/\d/g) || []).length;
+  if (digits >= 5) return true; // n° CNI, passeport, permis, téléphone
+  if (/\d{1,2}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*\d{2,4}/.test(text)) return true; // date
+  if (text.includes('<')) return true; // bande MRZ des passeports
+  if (HIGH_RISK_KEYWORDS.test(text)) return true;
+  return false;
+}
+
 /**
  * OCR (Tesseract wasm, identique au moteur de Presidio Image Redactor) :
  * reconnaît le texte de l'image et retourne une boîte de caviardage par
@@ -126,11 +167,11 @@ function mergeZones(zones: RedactionZone[], margin = 6): RedactionZone[] {
  */
 export async function detectOcrTextZones(
   img: HTMLImageElement | HTMLCanvasElement
-): Promise<{ zones: RedactionZone[]; chars: number }> {
+): Promise<{ zones: RedactionZone[]; chars: number; highRisk: number }> {
   const src = img as HTMLImageElement;
   const iw = src.naturalWidth || (img as HTMLCanvasElement).width;
   const ih = src.naturalHeight || (img as HTMLCanvasElement).height;
-  if (!iw || !ih) return { zones: [], chars: 0 };
+  if (!iw || !ih) return { zones: [], chars: 0, highRisk: 0 };
 
   // Downscale pour la vitesse : l'OCR reste précis à ~1200 px de large,
   // et les boîtes sont re-mises à l'échelle de l'original ensuite.
@@ -142,13 +183,13 @@ export async function detectOcrTextZones(
     c.width = Math.round(iw * scale);
     c.height = Math.round(ih * scale);
     const ctx = c.getContext('2d');
-    if (!ctx) return { zones: [], chars: 0 };
+    if (!ctx) return { zones: [], chars: 0, highRisk: 0 };
     ctx.drawImage(img, 0, 0, c.width, c.height);
     input = c;
   }
 
   const worker = await loadOcrWorker();
-  if (!worker) return { zones: [], chars: 0 };
+  if (!worker) return { zones: [], chars: 0, highRisk: 0 };
 
   // v7 : les blocs (bbox par ligne/mot) ne sont PAS générés par défaut —
   // il faut demander explicitement blocks: true.
@@ -157,6 +198,7 @@ export async function detectOcrTextZones(
   // Chaque ligne lue → une zone (bbox Tesseract + mots exploitables).
   const boxes: RedactionZone[] = [];
   let chars = 0;
+  let highRisk = 0;
   const lines = (data.blocks ?? []).flatMap(b => b.paragraphs ?? []).flatMap(p => p.lines ?? []);
   for (const line of lines) {
     const words = (line.words ?? []).filter(
@@ -172,13 +214,18 @@ export async function detectOcrTextZones(
     if (bw <= 0 || bh <= 0) continue;
     if (bw * bh > iw * ih * 0.5) continue; // boîte absurde (page entière)
     // Padding proportionnel : couvre hauts/descendants et la chasse du texte
-    const padX = Math.max(3, bh * 0.2);
-    const padY = Math.max(3, bh * 0.3);
-    boxes.push({ x: bx - padX, y: by - padY, w: bw + padX * 2, h: bh + padY * 2 });
+    const padX = Math.max(4, bh * 0.25);
+    const padY = Math.max(3, bh * 0.35);
+    if (isHighRiskLine(text)) {
+      highRisk++;
+      boxes.push({ x: 0, y: by - padY, w: iw, h: bh + padY * 2 });
+    } else {
+      boxes.push({ x: bx - padX, y: by - padY, w: bw + padX * 2, h: bh + padY * 2 });
+    }
   }
 
   // Fusion légère des lignes qui se touchent (label + valeur très proches).
-  return { zones: mergeZones(boxes, 8), chars };
+  return { zones: mergeZones(boxes, 8), chars, highRisk };
 }
 
 /**
@@ -280,12 +327,16 @@ export function detectTextBands(
 export interface AutoDetectResult {
   zones: RedactionZone[];
   faces: number;
-  /** Nombre de zones de texte finales (OCR ou bandes de repli). */
+  /** Nombre de zones de texte finales (OCR et/ou bandes). */
   textBands: number;
-  /** true si les zones viennent de l'OCR Tesseract (plutôt que des bandes). */
+  /** true si au moins une zone vient de l'OCR Tesseract. */
   ocrUsed: boolean;
   /** Caractères reconnus par l'OCR (0 si indisponible). */
   ocrChars: number;
+  /** Lignes à haut risque (numéro, date, MRZ) masquées sur toute la largeur. */
+  highRisk: number;
+  /** Part de l'image couverte par l'ensemble des zones (0..1). */
+  coverage: number;
 }
 
 /** Analyse complète : visages (IA) + texte (OCR Tesseract, repli bandes). */
@@ -319,31 +370,61 @@ export async function autoDetectZones(
     console.warn('Détection visages échouée:', err);
   }
 
-  // 2) Texte — OCR en priorité (boîtes précises type Presidio), bandes en repli
+  // 2) Texte — OCR (boîtes précises type Presidio) COMPLÉTÉ par les bandes.
+  //    Les deux ne sont pas exclusifs : un OCR qui ne lit que quelques
+  //    caractères (photo sombre, cachet, angle) laisserait sinon la carte à
+  //    découvert. Le repli bandes reste donc calculé, et sert aussi de filet
+  //    de sécurité quand la couverture OCR est faible.
+  const src = img as HTMLImageElement;
+  const iw = src.naturalWidth || 0;
+  const ih = src.naturalHeight || 0;
+
   let textZones: RedactionZone[] = [];
   let ocrChars = 0;
+  let highRisk = 0;
+  let ocrUsed = false;
+
+  let bands: RedactionZone[] = [];
+  try {
+    bands = detectTextBands(img);
+  } catch (err) {
+    console.warn('Détection de bandes échouée:', err);
+  }
+
   try {
     const ocr = await detectOcrTextZones(img);
     ocrChars = ocr.chars;
-    if (ocr.chars >= 3) textZones = ocr.zones;
+    highRisk = ocr.highRisk;
+    if (ocr.zones.length > 0) {
+      textZones = ocr.zones;
+      ocrUsed = true;
+    }
   } catch (err) {
     console.warn('OCR échoué, repli bandes:', err);
   }
-  const ocrUsed = textZones.length > 0 || ocrChars >= 3;
-  if (textZones.length === 0) {
-    textZones = detectTextBands(img);
+
+  const ocrCoverage = coveredRatio(textZones, iw, ih);
+  const weakOcr = ocrChars < 20 || ocrCoverage < 0.04;
+  if (weakOcr && bands.length > 0) {
+    // N'ajoute que les bandes qui n'apportent pas déjà une information
+    // redondante : évite d'empiler 20 zones inutiles sur les lignes lues.
+    const extra = bands.filter(b => !textZones.some(t => overlapRatio(b, t) > 0.5));
+    textZones = [...textZones, ...extra];
   }
 
   // Fusion PAR CATÉGORIE (jamais visage+texte ensemble, sinon une seule
   // méga-zone recouvrirait toute la carte) puis concaténation.
   const mergedFaces = mergeZones(faceZones, 4);
   const mergedText = mergeZones(textZones, 8);
+  const zones = [...mergedFaces, ...mergedText];
 
   return {
-    zones: [...mergedFaces, ...mergedText],
+    zones,
     faces,
     textBands: mergedText.length,
     ocrUsed,
-    ocrChars
+    ocrChars,
+    highRisk,
+    coverage: coveredRatio(zones, iw, ih)
   };
 }

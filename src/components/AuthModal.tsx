@@ -59,6 +59,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   }, [isOpen]);
 
+  // La modale reste montée : sans cette synchro, l'ouvrir en mode « inscription »
+  // (ex. candidature partenaire) réafficherait l'onglet connexion choisi la fois d'avant.
+  useEffect(() => {
+    if (isOpen) setMode(initialMode);
+  }, [isOpen, initialMode]);
+
   if (!isOpen) return null;
 
   const handleGoogle = async () => {

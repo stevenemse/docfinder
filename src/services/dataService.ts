@@ -5,6 +5,8 @@ import type {
   Partner,
   PartnerWallet,
   PartnerWalletFull,
+  CitizenWallet,
+  CitizenWalletMovement,
   WalletWithdrawal,
   PartnerEarning,
   AppNotification,
@@ -102,7 +104,34 @@ export const dataService = {
         console.warn('Erreur Supabase found_documents:', err);
       }
     }
-    return getLocal<FoundDocument[]>(STORAGE_KEYS.FOUND_DOCS, []);
+    // Mode démo : on n'expose que ce qui serait publié côté serveur.
+    return getLocal<FoundDocument[]>(STORAGE_KEYS.FOUND_DOCS, []).filter(
+      d => d.status === 'published'
+    );
+  },
+
+  /**
+   * Signalements déposés par CE citoyen, tous statuts confondus : le catalogue
+   * public ne contient que les documents validés, donc le trouveur ne verrait
+   * jamais son propre signalement « en attente » s'il passait par lui.
+   */
+  async getMyFoundDocuments(profileId: string): Promise<FoundDocument[]> {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('found_documents')
+          .select('*')
+          .eq('finder_id', profileId)
+          .order('created_at', { ascending: false });
+        if (!error && data) return data as unknown as FoundDocument[];
+        if (error) console.warn('Lecture de mes signalements refusée:', error.message);
+      } catch (err) {
+        console.warn('Erreur Supabase my found_documents:', err);
+      }
+    }
+    return getLocal<FoundDocument[]>(STORAGE_KEYS.FOUND_DOCS, []).filter(
+      d => d.finder_id === profileId
+    );
   },
 
   async createFoundDocument(doc: Omit<FoundDocument, 'id' | 'created_at' | 'updated_at'>): Promise<FoundDocument> {
@@ -146,6 +175,8 @@ export const dataService = {
     const list = getLocal<FoundDocument[]>(STORAGE_KEYS.FOUND_DOCS, []);
     const newDoc: FoundDocument = {
       ...doc,
+      // Pas de modération en mode démo : le signalement est visible tout de suite.
+      status: 'published',
       id: `found-${Date.now()}`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -1249,6 +1280,51 @@ export const dataService = {
     }
   },
 
+  /**
+   * Validation d'un signalement par un modérateur.
+   *
+   * Rien n'entre dans le catalogue public sans cette étape : le citoyen dépose
+   * (`pending_verification`), le modérateur contrôle l'image — et peut y ajouter
+   * des masques, réécrits dans le fichier — puis publie ou rejette.
+   * À la publication, on relance le matching : la RPC serveur ne croise que les
+   * documents publiés, donc un signalement validé plus tard ne serait jamais
+   * apparié autrement.
+   */
+  async adminModerateFoundDocument(
+    docId: string,
+    status: 'published' | 'rejected',
+    maskedDataUrl?: string | null
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!isSupabaseConfigured()) {
+      return { ok: false, error: 'Supabase non configuré (mode démo).' };
+    }
+    try {
+      const patch: Record<string, unknown> = { status };
+      if (maskedDataUrl) {
+        const url = await this.uploadMaskedImage(maskedDataUrl, 'moderation');
+        // uploadMaskedImage retombe sur la data URL en cas d'échec : on ne
+        // publie alors surtout pas une image non réécrite.
+        if (!url || url.startsWith('data:')) {
+          return { ok: false, error: "Échec de l'enregistrement de l'image recaviardée." };
+        }
+        patch.masked_image_url = url;
+      }
+
+      const { error } = await supabase
+        .from('found_documents')
+        .update(patch)
+        .eq('id', docId);
+      if (error) return { ok: false, error: error.message };
+
+      if (status === 'published') {
+        await this.serverScanMatchesForFoundDoc({ id: docId } as FoundDocument);
+      }
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Erreur inconnue' };
+    }
+  },
+
   /** Suppression définitive d'un document (motif OBLIGATOIRE, journalisé). */
   async adminDeleteDocument(kind: 'found' | 'lost', docId: string, reason: string): Promise<boolean> {
     if (!isSupabaseConfigured()) return false;
@@ -1286,6 +1362,78 @@ export const dataService = {
     const { data, error } = await supabase.rpc('get_my_partner_wallet');
     if (error) throw new Error(error.message);
     return (Array.isArray(data) ? data[0] : data) as PartnerWalletFull | null;
+  },
+
+  /**
+   * Wallet CITOYEN du compte connecté — distinct du wallet partenaire.
+   * Côté citoyen, l'argent se lit dans deux tables : `payouts` (gain du
+   * trouveur, séquestré puis libéré) et `payments` (frais payés par le
+   * propriétaire). On filtre explicitement sur le profil : la RLS laisse un
+   * modérateur lire toutes les lignes, pas seulement les siennes.
+   */
+  async getMyCitizenWallet(profileId: string): Promise<CitizenWallet> {
+    const wallet: CitizenWallet = { earned_total: 0, escrow_total: 0, paid_total: 0, movements: [] };
+    if (!isSupabaseConfigured() || !profileId) return wallet;
+
+    try {
+      const [payoutsRes, paymentsRes] = await Promise.all([
+        supabase
+          .from('payouts')
+          .select('id,amount,status,recovery_request_id,released_at,created_at')
+          .eq('finder_id', profileId)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('payments')
+          .select('id,amount,status,recovery_request_id,created_at')
+          .eq('user_id', profileId)
+          .order('created_at', { ascending: false })
+          .limit(50)
+      ]);
+
+      if (payoutsRes.error) console.warn('Wallet citoyen (payouts):', payoutsRes.error.message);
+      if (paymentsRes.error) console.warn('Wallet citoyen (payments):', paymentsRes.error.message);
+
+      for (const row of (payoutsRes.data ?? []) as {
+        id: string; amount: number; status: string;
+        recovery_request_id: string | null; released_at: string | null; created_at: string;
+      }[]) {
+        if (row.status === 'released') wallet.earned_total += row.amount;
+        else if (row.status === 'held') wallet.escrow_total += row.amount;
+        const movement: CitizenWalletMovement = {
+          id: row.id,
+          kind: 'earning',
+          amount: row.amount,
+          status: row.status,
+          label: 'Gain de restitution',
+          at: row.released_at ?? row.created_at,
+          recovery_request_id: row.recovery_request_id
+        };
+        wallet.movements.push(movement);
+      }
+
+      for (const row of (paymentsRes.data ?? []) as {
+        id: string; amount: number; status: string;
+        recovery_request_id: string | null; created_at: string;
+      }[]) {
+        if (row.status === 'paid') wallet.paid_total += row.amount;
+        wallet.movements.push({
+          id: row.id,
+          kind: 'payment',
+          amount: row.amount,
+          status: row.status,
+          label: 'Frais de restitution',
+          at: row.created_at,
+          recovery_request_id: row.recovery_request_id
+        });
+      }
+
+      wallet.movements.sort((a, b) => (a.at < b.at ? 1 : -1));
+      return wallet;
+    } catch (err) {
+      console.warn('Erreur wallet citoyen:', err);
+      return wallet;
+    }
   },
 
   /**

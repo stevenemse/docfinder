@@ -224,6 +224,30 @@ export interface PartnerWalletFull {
   withdrawals: WalletWithdrawal[];
 }
 
+// ── Wallet CITOYEN — à ne pas confondre avec le wallet partenaire ────────────
+// Citoyen : gains de restitution (séquestre → versé) et frais engagés.
+// Partenaire : dividendes par retrait confirmé + retraits Mobile Money.
+export interface CitizenWalletMovement {
+  id: string;
+  kind: 'earning' | 'payment';
+  amount: number;
+  /** earning : held | released | cancelled — payment : paid | pending | failed */
+  status: string;
+  label: string;
+  at: string;
+  recovery_request_id?: string | null;
+}
+
+export interface CitizenWallet {
+  /** Gains libérés au trouveur (remise confirmée). */
+  earned_total: number;
+  /** Gains encore séquestrés (document pas encore remis). */
+  escrow_total: number;
+  /** Frais de restitution payés par le compte (côté propriétaire). */
+  paid_total: number;
+  movements: CitizenWalletMovement[];
+}
+
 // Dépôt d'un document chez un partenaire (code de retrait associé)
 export interface DocumentHandover {
   id: string;
