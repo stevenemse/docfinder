@@ -8,8 +8,16 @@
 
 type Rule = { test: RegExp; message: string };
 
+const ACTIVE_ACCOUNT_REQUIRED =
+  'Ce compte est suspendu : la connexion est bloquée. Écrivez à docfinder@gmail.com pour le rétablir.';
+
 const RULES: Rule[] = [
   // Authentification
+  // Compte banni côté Supabase Auth (banned_until) ou suspendu côté profil :
+  // ne jamais afficher « identifiants incorrects », l'utilisateur doit savoir
+  // que son compte est en cause et à qui s'adresser.
+  { test: /user_banned|user is banned|user banned|banned_until/i, message: ACTIVE_ACCOUNT_REQUIRED },
+  { test: /compte (est )?(suspendu|bloqué)|suspendu|suspended|blocked/i, message: ACTIVE_ACCOUNT_REQUIRED },
   { test: /invalid login credentials|invalid_credentials/i, message: 'Numéro/email ou mot de passe incorrect.' },
   { test: /email not confirmed/i, message: 'Confirmez votre adresse email avant de vous connecter.' },
   { test: /user already registered|already been registered|duplicate key.*profiles/i, message: 'Ce numéro possède déjà un compte. Connectez-vous plutôt.' },

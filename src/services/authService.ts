@@ -84,6 +84,14 @@ export const authService = {
             profile = await authService.ensureProfile();
           }
 
+          // Compte suspendu/bloqué par la modération : on ferme la session
+          // au lieu de laisser l'app tourner avec un profil inactif.
+          if (profile && profile.status !== 'active') {
+            await supabase.auth.signOut().catch(() => {});
+            localStorage.removeItem(STORAGE_SESSION_KEY);
+            return { isAuthenticated: false, profile: null, role: 'citizen', isLiveSupabase: true };
+          }
+
           if (profile) {
             return {
               isAuthenticated: true,
@@ -103,12 +111,17 @@ export const authService = {
       const stored = localStorage.getItem(STORAGE_SESSION_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as Profile;
-        return {
-          isAuthenticated: true,
-          profile: parsed,
-          role: parsed.role,
-          isLiveSupabase: isSupabaseConfigured()
-        };
+        // Profil mis en cache puis suspendu : on ne restaure pas la session.
+        if (parsed.status && parsed.status !== 'active') {
+          localStorage.removeItem(STORAGE_SESSION_KEY);
+        } else {
+          return {
+            isAuthenticated: true,
+            profile: parsed,
+            role: parsed.role,
+            isLiveSupabase: isSupabaseConfigured()
+          };
+        }
       }
     } catch {
       // Ignore parsing errors
@@ -219,7 +232,9 @@ export const authService = {
         });
 
         if (authError) {
-          return { profile: null, error: 'Numéro/email ou mot de passe incorrect.' };
+          // Message brut conservé : handleSupabaseError sait distinguer un
+          // identifiant erroné d'un compte banni par Supabase Auth.
+          return { profile: null, error: authError.message };
         }
 
         if (authData.user) {
@@ -231,6 +246,13 @@ export const authService = {
 
           if (profileError || !profile) {
             return { profile: null, error: 'Profil introuvable. Veuillez vous réinscrire.' };
+          }
+
+          // Suspension décidée par la modération (sans bannissement Auth) :
+          // on refuse la session et on efface celle qui vient d'être ouverte.
+          if (profile.status !== 'active') {
+            await supabase.auth.signOut().catch(() => {});
+            return { profile: null, error: `Compte suspendu (${profile.status})` };
           }
 
           localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(profile));
