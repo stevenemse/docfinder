@@ -6,6 +6,7 @@ import {
 import { dataService } from '../services/dataService';
 import { citiesOfRegion, regionNames } from '../lib/cameroonGeo';
 import type { LookupResult, PartnerWalletFull } from '../types';
+import { handleSupabaseError } from '../lib/errors';
 
 /**
  * Page Partenaire — dépôt/retrait vérifié.
@@ -112,7 +113,7 @@ export const PartnerScanPage: React.FC<{
       setWdAmount('');
       await loadWallet();
     } catch (err) {
-      setWdError(err instanceof Error ? err.message : 'Erreur lors de la demande.');
+      setWdError(handleSupabaseError(err, 'Demande de retrait impossible pour le moment.'));
     } finally {
       setWdSubmitting(false);
     }
@@ -150,7 +151,7 @@ export const PartnerScanPage: React.FC<{
       setLookup(res);
       if (!res.found) setErrorMsg('Code inconnu ou dépôt déjà traité.');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur de vérification.');
+      setErrorMsg(handleSupabaseError(err, 'Vérification impossible. Réessayez.'));
     } finally {
       setChecking(false);
     }
@@ -169,7 +170,7 @@ export const PartnerScanPage: React.FC<{
       setRecipientName('');
       setLookup(null);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la validation.');
+      setErrorMsg(handleSupabaseError(err, 'Validation impossible. Réessayez.'));
     } finally {
       setVerifying(false);
     }
@@ -184,7 +185,7 @@ export const PartnerScanPage: React.FC<{
       setDepSuccess({ pickupCode: res.pickupCode, recipient: res.recipientName });
       setDepCode('');
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la confirmation.');
+      setErrorMsg(handleSupabaseError(err, 'Confirmation impossible. Réessayez.'));
     } finally {
       setDepChecking(false);
     }
@@ -207,7 +208,7 @@ export const PartnerScanPage: React.FC<{
       // Le compte est désormais rattaché à un point de dépôt
       void loadWallet();
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la candidature.');
+      setErrorMsg(handleSupabaseError(err, 'Candidature impossible pour le moment. Réessayez.'));
     } finally {
       setRegSubmitting(false);
     }

@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldCheck, FileImage, Loader2, AlertCircle, MapPin, Calendar, Hash, User } from 'lucide-react';
 import type { FoundDocument } from '../types';
 import { CheckoutSection } from './CheckoutSection';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
 import { useModalA11y } from '../lib/useModalA11y';
+import { handleSupabaseError } from '../lib/errors';
+import { claimSchema, type ClaimFormValues } from '../lib/validation';
 
 interface ClaimModalProps {
   isOpen: boolean;
@@ -21,31 +25,78 @@ interface ClaimModalProps {
   }) => Promise<void>;
 }
 
+const FieldError: React.FC<{ id: string; message?: string }> = ({ id, message }) =>
+  message ? (
+    <p id={id} role="alert" className="form-error">
+      {message}
+    </p>
+  ) : null;
+
 /**
  * Revendication « C'est mon document » — formulaire unique, court, en sections.
  * Crée automatiquement la déclaration de perte à la volée (RPC serveur) puis
  * soumet la revendication si une correspondance couvre ce document.
  */
 export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDoc, onSubmit }) => {
-  const [fullName, setFullName] = useState('');
-  const [docNumber, setDocNumber] = useState('');
-  const [region, setRegion] = useState('Centre');
-  const [city, setCity] = useState(citiesOfRegion('Centre')[0]);
-  const [cityOther, setCityOther] = useState('');
-  const [approxZone, setApproxZone] = useState('');
-  const [lostDate, setLostDate] = useState(new Date().toISOString().split('T')[0]);
-  const [secretAnswer, setSecretAnswer] = useState('');
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const modalRef = useModalA11y(isOpen, onClose);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    clearErrors,
+    watch,
+    formState: { errors, isSubmitting }
+  } = useForm<ClaimFormValues>({
+    resolver: zodResolver(claimSchema),
+    mode: 'onBlur',
+    defaultValues: {
+      fullName: '',
+      docNumber: '',
+      region: 'Centre',
+      city: citiesOfRegion('Centre')[0],
+      cityOther: '',
+      approxZone: '',
+      lostDate: new Date().toISOString().split('T')[0],
+      secretAnswer: ''
+    }
+  });
+
+  const region = watch('region');
+  const city = watch('city');
+
+  // Chaque ouverture repart d'un formulaire vierge (le document visé change).
+  useEffect(() => {
+    if (!isOpen) return;
+    setErrorMsg(null);
+    setReferenceFile(null);
+    setReferencePreview(null);
+    reset({
+      fullName: '',
+      docNumber: '',
+      region: 'Centre',
+      city: citiesOfRegion('Centre')[0],
+      cityOther: '',
+      approxZone: '',
+      lostDate: new Date().toISOString().split('T')[0],
+      secretAnswer: ''
+    });
+  }, [isOpen, reset]);
 
   if (!isOpen) return null;
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] || null;
+    if (f && !f.type.startsWith('image/')) {
+      setErrorMsg('Format non accepté : choisissez une image (JPEG, PNG…).');
+      return;
+    }
+    setErrorMsg(null);
     setReferenceFile(f);
     if (f) {
       const reader = new FileReader();
@@ -56,27 +107,25 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = handleSubmit(async (values) => {
     setErrorMsg(null);
-    setSubmitting(true);
     try {
       await onSubmit({
-        fullName,
-        docNumber,
-        region,
-        city: city === CITY_OTHER ? cityOther.trim() : city,
-        approxZone,
-        lostDate,
-        secretAnswer,
+        fullName: values.fullName.trim(),
+        docNumber: values.docNumber.trim(),
+        region: values.region,
+        city: values.city === CITY_OTHER ? (values.cityOther ?? '').trim() : values.city,
+        approxZone: values.approxZone ?? '',
+        lostDate: values.lostDate ?? '',
+        secretAnswer: values.secretAnswer.trim(),
         referenceFile
       });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors de la revendication.');
-    } finally {
-      setSubmitting(false);
+      setErrorMsg(handleSupabaseError(err, 'Revendication impossible pour le moment. Réessayez.'));
     }
-  };
+  });
+
+  const hasFieldErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -108,115 +157,134 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
         </div>
 
         <div className="modal-body">
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form onSubmit={submit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <CheckoutSection step={1} title="Votre pièce" subtitle="Les informations telles qu'inscrites sur le document" />
 
+            {hasFieldErrors && (
+              <p className="form-hint-error">
+                Certains champs sont incomplets — les messages sont indiqués sous chaque champ.
+              </p>
+            )}
+
             <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <label className="form-label" htmlFor="claim-full-name" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <User size={13} />
                 Noms et prénoms inscrits sur la pièce *
               </label>
               <input
+                id="claim-full-name"
                 type="text"
                 className="form-input"
                 placeholder="ex: Kamga Marie Chantal"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                minLength={3}
+                autoComplete="name"
+                aria-invalid={!!errors.fullName}
+                aria-describedby={errors.fullName ? 'claim-full-name-error' : undefined}
+                {...register('fullName')}
               />
+              <FieldError id="claim-full-name-error" message={errors.fullName?.message} />
             </div>
 
             <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <label className="form-label" htmlFor="claim-doc-number" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <Hash size={13} />
                 Numéro de la pièce * (si vous vous en souvenez)
               </label>
               <input
+                id="claim-doc-number"
                 type="text"
                 className="form-input"
                 placeholder="ex: 1029384758"
-                value={docNumber}
-                onChange={(e) => setDocNumber(e.target.value)}
-                required
-                minLength={4}
+                aria-invalid={!!errors.docNumber}
+                aria-describedby={errors.docNumber ? 'claim-doc-number-error' : 'claim-doc-number-hint'}
+                {...register('docNumber')}
               />
-              <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '4px' }}>
-                Haché SHA-256 côté serveur — jamais stocké ni affiché en clair.
-              </div>
+              <p id="claim-doc-number-hint" className="form-hint">
+                Haché SHA-256 — jamais stocké ni affiché en clair.
+              </p>
+              <FieldError id="claim-doc-number-error" message={errors.docNumber?.message} />
             </div>
 
             <CheckoutSection step={2} title="Où et quand l'avez-vous perdu ?" />
 
             <div className="form-grid-2">
               <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <label className="form-label" htmlFor="claim-region" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <MapPin size={12} />
                   Région *
                 </label>
                 <select
+                  id="claim-region"
                   className="form-select"
-                  value={region}
-                  onChange={(e) => {
-                    const r = e.target.value;
-                    setRegion(r);
-                    setCity(citiesOfRegion(r)[0] ?? '');
-                    setCityOther('');
-                  }}
+                  aria-invalid={!!errors.region}
+                  {...register('region', {
+                    onChange: (e) => {
+                      const r = e.target.value;
+                      setValue('city', citiesOfRegion(r)[0] ?? '');
+                      setValue('cityOther', '');
+                      clearErrors(['city', 'cityOther']);
+                    }
+                  })}
                 >
                   {regionNames().map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
+                <FieldError id="claim-region-error" message={errors.region?.message} />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Ville *</label>
+                <label className="form-label" htmlFor="claim-city">Ville *</label>
                 <select
+                  id="claim-city"
                   className="form-select"
-                  value={city === CITY_OTHER ? CITY_OTHER : city}
-                  onChange={(e) => {
-                    if (e.target.value === CITY_OTHER) setCity(CITY_OTHER);
-                    else { setCity(e.target.value); setCityOther(''); }
-                  }}
-                  required
+                  aria-invalid={!!errors.city}
+                  {...register('city', {
+                    onChange: (e) => {
+                      if (e.target.value !== CITY_OTHER) setValue('cityOther', '');
+                    }
+                  })}
                 >
                   {citiesOfRegion(region).map(c => <option key={c} value={c}>{c}</option>)}
                   <option value={CITY_OTHER}>Autre (préciser)…</option>
                 </select>
                 {city === CITY_OTHER && (
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={{ marginTop: '8px' }}
-                    placeholder="Nom de la ville ou du village"
-                    value={cityOther}
-                    onChange={(e) => setCityOther(e.target.value)}
-                    required
-                  />
+                  <>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ marginTop: '8px' }}
+                      placeholder="Nom de la ville ou du village"
+                      aria-label="Nom de la ville ou du village"
+                      aria-invalid={!!errors.cityOther}
+                      aria-describedby={errors.cityOther ? 'claim-city-other-error' : undefined}
+                      {...register('cityOther')}
+                    />
+                    <FieldError id="claim-city-other-error" message={errors.cityOther?.message} />
+                  </>
                 )}
+                <FieldError id="claim-city-error" message={errors.city?.message} />
               </div>
             </div>
 
             <div className="form-grid-2">
               <div className="form-group">
-                <label className="form-label">Zone approximative</label>
+                <label className="form-label" htmlFor="claim-approx-zone">Zone approximative</label>
                 <input
+                  id="claim-approx-zone"
                   type="text"
                   className="form-input"
                   placeholder="ex: Bastos, marché central…"
-                  value={approxZone}
-                  onChange={(e) => setApproxZone(e.target.value)}
+                  {...register('approxZone')}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <label className="form-label" htmlFor="claim-lost-date" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <Calendar size={12} />
                   Date approximative
                 </label>
                 <input
+                  id="claim-lost-date"
                   type="date"
                   className="form-input"
-                  value={lostDate}
-                  onChange={(e) => setLostDate(e.target.value)}
+                  {...register('lostDate')}
                 />
               </div>
             </div>
@@ -224,30 +292,39 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
             <CheckoutSection step={3} title="Preuve de propriété" subtitle="Vérifiée par nos modérateurs — jamais publique" />
 
             <div className="form-group">
-              <label className="form-label">Réponse de vérification * (lieu de naissance, date de délivrance…)</label>
+              <label className="form-label" htmlFor="claim-secret-answer">
+                Réponse de vérification * (lieu de naissance, date de délivrance…)
+              </label>
               <input
+                id="claim-secret-answer"
                 type="text"
                 className="form-input"
                 placeholder="ex: Née le 12/03/1995 à Bafoussam"
-                value={secretAnswer}
-                onChange={(e) => setSecretAnswer(e.target.value)}
-                required
+                aria-invalid={!!errors.secretAnswer}
+                aria-describedby={errors.secretAnswer ? 'claim-secret-answer-error' : undefined}
+                {...register('secretAnswer')}
               />
+              <FieldError id="claim-secret-answer-error" message={errors.secretAnswer?.message} />
             </div>
 
             <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <label className="form-label" htmlFor="claim-photo" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <FileImage size={13} />
                 Photo d'une pièce similaire ou de votre dossier (optionnelle — accélère la validation)
               </label>
               <input
+                id="claim-photo"
                 type="file"
                 accept="image/*"
                 capture="environment"
                 className="form-input"
                 onChange={handleFile}
+                aria-describedby="claim-photo-hint"
                 style={{ padding: '8px' }}
               />
+              <p id="claim-photo-hint" className="form-hint">
+                L'image est redimensionnée puis stockée dans le coffre privé (visible par vous et les modérateurs).
+              </p>
               {referencePreview && (
                 <div style={{
                   marginTop: '8px',
@@ -256,23 +333,13 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
                   border: '1px solid var(--border-color)',
                   maxHeight: '140px'
                 }}>
-                  <img src={referencePreview} alt="Aperçu" style={{ width: '100%', objectFit: 'cover' }} />
+                  <img src={referencePreview} alt="Aperçu de la photo jointe" style={{ width: '100%', objectFit: 'cover' }} />
                 </div>
               )}
             </div>
 
             {errorMsg && (
-              <div style={{
-                background: 'var(--red-50, #fef2f2)',
-                border: '1px solid var(--red-100, #fecaca)',
-                color: 'var(--red-700, #b91c1c)',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
+              <div role="alert" className="form-alert">
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{errorMsg}</span>
               </div>
@@ -280,16 +347,17 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
               className="btn-cta-lost"
               style={{
                 backgroundColor: 'var(--primary-700)',
                 color: '#ffffff',
-                opacity: submitting ? 0.7 : 1,
-                cursor: submitting ? 'not-allowed' : 'pointer'
+                opacity: isSubmitting ? 0.7 : 1,
+                cursor: isSubmitting ? 'not-allowed' : 'pointer'
               }}
             >
-              {submitting ? (
+              {isSubmitting ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                   <Loader2 size={16} className="animate-spin" />
                   Traitement…
@@ -299,7 +367,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               )}
             </button>
 
-            <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--slate-600)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <ShieldCheck size={12} color="var(--primary-600)" />
               Votre déclaration de perte est créée automatiquement — surveillance immédiate.
             </div>

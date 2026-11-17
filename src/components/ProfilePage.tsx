@@ -5,6 +5,7 @@ import { normalizePhone } from '../services/authService';
 import { pushService } from '../services/pushService';
 import { WalletSection } from './WalletSection';
 import type { Profile } from '../types';
+import { handleSupabaseError } from '../lib/errors';
 
 interface ProfilePageProps {
   profile: Profile;
@@ -119,7 +120,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
           .select();
 
         if (error) {
-          setInfoMsg({ type: 'err', text: `Échec de la mise à jour : ${error.message}` });
+          setInfoMsg({ type: 'err', text: `Échec de la mise à jour : ${handleSupabaseError(error)}` });
           return;
         }
 
@@ -154,7 +155,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
     } catch (err) {
       setInfoMsg({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Erreur inattendue lors de la mise à jour.'
+        text: handleSupabaseError(err, 'Mise à jour impossible. Réessayez.')
       });
     } finally {
       setSavingInfo(false);
@@ -178,7 +179,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
       if (isSupabaseConfigured()) {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) {
-          setPwdMsg({ type: 'err', text: error.message });
+          setPwdMsg({ type: 'err', text: handleSupabaseError(error) });
           return;
         }
         setPwdMsg({ type: 'ok', text: 'Mot de passe modifié avec succès.' });
@@ -190,7 +191,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
     } catch (err) {
       setPwdMsg({
         type: 'err',
-        text: err instanceof Error ? err.message : 'Erreur inattendue.'
+        text: handleSupabaseError(err, 'Modification impossible. Réessayez.')
       });
     } finally {
       setSavingPwd(false);
@@ -311,7 +312,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
             {savingInfo ? 'Enregistrement...' : 'Enregistrer les modifications'}
           </button>
           {!infoDirty && (
-            <span style={{ fontSize: '0.74rem', color: 'var(--slate-400)' }}>
+            <span style={{ fontSize: '0.74rem', color: 'var(--slate-600)' }}>
               Aucune modification à enregistrer
             </span>
           )}

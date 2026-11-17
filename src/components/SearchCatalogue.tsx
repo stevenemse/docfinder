@@ -229,7 +229,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
                       loading="lazy"
                     />
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--slate-400)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'var(--slate-600)' }}>
                       <EyeOff size={28} />
                       <span style={{ fontSize: '0.72rem', marginTop: '4px' }}>Image non publique</span>
                     </div>

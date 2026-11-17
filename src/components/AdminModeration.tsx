@@ -45,6 +45,7 @@ import type {
 } from '../types';
 import { dataService } from '../services/dataService';
 import { AdminRedactionModal } from './AdminRedactionModal';
+import { handleSupabaseError } from '../lib/errors';
 
 interface AdminModerationProps {
   recoveryRequests: RecoveryRequest[];
@@ -341,7 +342,7 @@ const ProofReviewModal: React.FC<{
                 </span>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--slate-400)', fontSize: '0.78rem', background: 'var(--slate-50)', borderRadius: '10px', marginBottom: '10px' }}>
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--slate-600)', fontSize: '0.78rem', background: 'var(--slate-50)', borderRadius: '10px', marginBottom: '10px' }}>
                 <ImageOff size={22} style={{ margin: '0 auto 6px' }} />
                 Aucune image caviardée
               </div>
@@ -438,7 +439,7 @@ const ProofReviewModal: React.FC<{
               )}
               {!request.proof_image_path && (
                 <div style={{
-                  textAlign: 'center', padding: '12px', fontSize: '0.74rem', color: 'var(--slate-400)',
+                  textAlign: 'center', padding: '12px', fontSize: '0.74rem', color: 'var(--slate-600)',
                   background: 'var(--slate-50)', borderRadius: '10px', border: '1px dashed var(--border-color)'
                 }}>
                   <ImageOff size={18} style={{ margin: '0 auto 4px' }} />
@@ -576,7 +577,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
     try {
       setAdminPartners(await dataService.getAdminPartners());
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erreur de chargement des partenaires');
+      showToast(handleSupabaseError(err, 'Chargement des partenaires impossible.'));
     } finally {
       setPartnersLoading(false);
     }
@@ -604,7 +605,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
       setWithdrawals(w => w ? w.map(x => x.id === id ? { ...x, status: action } : x) : w);
       setRejectingWd(null);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erreur de traitement');
+      showToast(handleSupabaseError(err, 'Traitement impossible. Réessayez.'));
     } finally {
       setBusyWdId(null);
     }
@@ -616,7 +617,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
       showToast(status === 'active' ? 'Partenaire validé ✓' : `Partenaire : ${status}`);
       await loadPartners();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erreur de mise à jour');
+      showToast(handleSupabaseError(err, 'Mise à jour impossible. Réessayez.'));
     }
   };
 
@@ -918,7 +919,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                 <Kpi value={`${(stats?.paidTotal ?? totalRevenue).toLocaleString('fr-FR')} F`} label="Revenus MoMo" tone="gold" icon={<CreditCard size={16} />} />
                 <Kpi value={stats?.strongMatches ?? 0} label="Correspondances fortes" icon={<Activity size={16} />} />
               </div>
-              <div style={{ fontSize: '0.66rem', color: 'var(--slate-400)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '0.66rem', color: 'var(--slate-600)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Info size={11} /> Cliquez sur « Documents protégés » ou « Déclarations de perte » pour voir la liste détaillée.
               </div>
             </div>
@@ -1798,7 +1799,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   </div>
                 </div>
 
-                <div style={{ color: 'var(--slate-400)', fontSize: '0.7rem', flexShrink: 0 }}>
+                <div style={{ color: 'var(--slate-600)', fontSize: '0.7rem', flexShrink: 0 }}>
                   {new Date(log.created_at).toLocaleString('fr-FR')}
                 </div>
               </div>
@@ -1843,7 +1844,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               </div>
               <button
                 onClick={() => setKpiModal(null)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--slate-400)', padding: '6px', borderRadius: 8 }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--slate-600)', padding: '6px', borderRadius: 8 }}
                 aria-label="Fermer"
               >
                 <X size={18} />
@@ -1938,7 +1939,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.68rem' }}>
               <span style={{ color: 'var(--red-600)', fontWeight: 600 }}>{reasonModal.error || ''}</span>
-              <span style={{ color: 'var(--slate-400)' }}>{reasonModal.reason.length}/500</span>
+              <span style={{ color: 'var(--slate-600)' }}>{reasonModal.reason.length}/500</span>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '16px' }}>

@@ -68,3 +68,29 @@
 Edge Functions + webhook MTN MoMo / Orange Money (clés secrètes côté serveur
 uniquement), puis supprimer la politique INSERT de `payments` (écriture
 service_role seulement). Voir notes en bas de `supabase/schema.sql`.
+
+## Étape 6 — Durcissement des RPC (obligatoire avant mise en production)
+
+L'audit `SECURITY-AUDIT-RPC.md` a relevé une faille critique :
+`admin_list_profiles()` (SECURITY DEFINER) était appelable sans contrôle de rôle
+et renvoyait tous les profils avec téléphone et email.
+
+```bash
+# PostgreSQL direct
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migration-rpc-security-hardening.sql
+
+# ou via la CLI Supabase
+supabase db execute --file supabase/migration-rpc-security-hardening.sql
+```
+
+Puis vérifier :
+
+```bash
+# Doit répondre 401/403 (et non la liste des profils)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$SUPABASE_URL/rest/v1/rpc/admin_list_profiles" \
+  -H "apikey: $ANON_KEY" -H "Content-Type: application/json" -d '{}'
+```
+
+Le client utilise désormais `scan_matches_for_found`, `scan_matches_for_lost` et
+`admin_expire_stale_handovers` : déployer le front **et** appliquer la migration
+ensemble, sinon le matching et le balayage d'expiration échouent.

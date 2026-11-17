@@ -15,6 +15,7 @@ import { CheckoutSection } from './CheckoutSection';
 import { dataService } from '../services/dataService';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { useModalA11y } from '../lib/useModalA11y';
+import { handleSupabaseError } from '../lib/errors';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -33,6 +34,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [paymentStep, setPaymentStep] = useState<'form' | 'redirecting' | 'ussd_pending' | 'success' | 'error'>('form');
   const [transactionRef, setTransactionRef] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  // Appel de l'Edge Function gp-create-payment : peut prendre 1 à 3 s en 3G.
+  // On garde le formulaire visible avec un spinner explicite pendant l'attente.
+  const [creating, setCreating] = useState(false);
 
   const modalRef = useModalA11y(isOpen, onClose);
 
@@ -68,17 +72,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     // Production — checkout GeniusPay hébergé
     setErrorMessage('');
-    setPaymentStep('redirecting');
+    setCreating(true);
     try {
       const { checkoutUrl, reference } = await dataService.createGeniusPayPayment({
         requestId: recoveryRequestId,
         phone: phoneNumber
       });
       setTransactionRef(reference);
+      setPaymentStep('redirecting');
       window.location.href = checkoutUrl;
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Erreur inconnue');
+      setErrorMessage(
+        handleSupabaseError(err, "Le paiement n'a pas pu être initialisé. Vérifiez votre numéro et réessayez.")
+      );
       setPaymentStep('error');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -205,11 +214,31 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="submit"
                 className="btn-cta-lost"
-                style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
-                disabled={paymentStep !== 'form'}
+                style={{
+                  backgroundColor: 'var(--primary-700)',
+                  color: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  opacity: creating ? 0.85 : 1,
+                  cursor: creating ? 'progress' : 'pointer'
+                }}
+                disabled={paymentStep !== 'form' || creating}
+                aria-busy={creating}
               >
-                Payer 2 000 FCFA en toute sécurité →
+                {creating ? (
+                  <>
+                    <Loader2 size={17} className="animate-spin" aria-hidden="true" />
+                    Initialisation du paiement…
+                  </>
+                ) : (
+                  'Payer 2 000 FCFA en toute sécurité →'
+                )}
               </button>
+              <p role="status" aria-live="polite" style={{ minHeight: '1em', fontSize: '0.72rem', color: 'var(--slate-600)', textAlign: 'center', margin: 0 }}>
+                {creating ? 'Connexion sécurisée à GeniusPay, ne fermez pas cette fenêtre.' : ''}
+              </p>
             </form>
           )}
 

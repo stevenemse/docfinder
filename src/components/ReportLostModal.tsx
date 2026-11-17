@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   X,
   Search,
@@ -12,23 +14,33 @@ import {
   Calendar,
   User,
   Hash,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 import type { DocumentType, LostDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
 import { useModalA11y } from '../lib/useModalA11y';
 import { dataService } from '../services/dataService';
+import { handleSupabaseError } from '../lib/errors';
+import { buildReportLostSchema, type ReportLostFormValues } from '../lib/validation';
 import { CheckoutSection } from './CheckoutSection';
 
 interface ReportLostModalProps {
   isOpen: boolean;
   onClose: () => void;
   docTypes: DocumentType[];
-  onLostCreated: (lostDoc: LostDocument) => void;
+  onLostCreated: (lostDoc: LostDocument) => void | Promise<void>;
   seekerProfileId: string;
   onViewMatches: () => void;
 }
+
+const FieldError: React.FC<{ id: string; message?: string }> = ({ id, message }) =>
+  message ? (
+    <p id={id} role="alert" className="form-error">
+      {message}
+    </p>
+  ) : null;
 
 export const ReportLostModal: React.FC<ReportLostModalProps> = ({
   isOpen,
@@ -38,48 +50,103 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
   seekerProfileId,
   onViewMatches
 }) => {
-  const [docTypeId, setDocTypeId] = useState<string>(docTypes[0]?.id || 'dt-1');
-  const [fullName, setFullName] = useState<string>('');
-  const [partialDocNum, setPartialDocNum] = useState<string>('');
-  const [region, setRegion] = useState<string>('Centre');
-  const [city, setCity] = useState<string>(citiesOfRegion('Centre')[0]);
-  const [cityOther, setCityOther] = useState<string>('');
-  const [approxZone, setApproxZone] = useState<string>('');
-  const [lostDate, setLostDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [secretQuestion, setSecretQuestion] = useState<string>(
-    'Quel est le lieu exact de naissance inscrit sur la pièce ?'
-  );
-  const [secretAnswer, setSecretAnswer] = useState<string>('');
-
-  // Champs de preuve structurés (config admin par type de document).
-  // Sont stockés dans secret_proof_answer (hashé) sous forme « Label: valeur | … »
-  const [proofFieldValues, setProofFieldValues] = useState<Record<string, string>>({});
-
-  // Photo de référence privée (crédibilité) — optionnelle
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [referencePreview, setReferencePreview] = useState<string | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const modalRef = useModalA11y(isOpen, onClose);
+
+  /** Champs de preuve du type courant : lus par le resolver (qui est stable). */
+  const proofFieldsRef = useRef<DocumentType['secret_proof_fields']>([]);
+
+  const resolver = useMemo(
+    () => (values: ReportLostFormValues, ctx: unknown, options: unknown) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (zodResolver(buildReportLostSchema(proofFieldsRef.current ?? [])) as any)(values, ctx, options),
+    []
+  );
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    clearErrors,
+    formState: { errors, isSubmitting }
+  } = useForm<ReportLostFormValues>({
+    resolver,
+    mode: 'onBlur',
+    defaultValues: {
+      docTypeId: docTypes[0]?.id || 'dt-1',
+      fullName: '',
+      partialDocNum: '',
+      region: 'Centre',
+      city: citiesOfRegion('Centre')[0],
+      cityOther: '',
+      approxZone: '',
+      lostDate: new Date().toISOString().split('T')[0],
+      secretQuestion: 'Quel est le lieu exact de naissance inscrit sur la pièce ?',
+      secretAnswer: '',
+      proofs: {}
+    }
+  });
+
+  const docTypeId = watch('docTypeId');
+  const region = watch('region');
+  const city = watch('city');
+
+  const currentProofFields = useMemo(
+    () => docTypes.find((dt) => dt.id === docTypeId)?.secret_proof_fields ?? [],
+    [docTypes, docTypeId]
+  );
+
+  useEffect(() => {
+    proofFieldsRef.current = currentProofFields;
+  }, [currentProofFields]);
 
   // Les types arrivent async (Supabase) : si l'état initial pointait vers le
   // mock 'dt-1', on resynchronise dès que la vraie liste est chargée.
   useEffect(() => {
-    if (docTypes.length > 0 && !docTypes.some(d => d.id === docTypeId)) {
-      setDocTypeId(docTypes[0].id);
+    if (docTypes.length > 0 && !docTypes.some((d) => d.id === docTypeId)) {
+      setValue('docTypeId', docTypes[0].id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docTypes]);
+  }, [docTypes, docTypeId, setValue]);
 
-  const modalRef = useModalA11y(isOpen, onClose);
+  // Formulaire remis à zéro à chaque ouverture (pas de fuite d'un dossier à l'autre).
+  useEffect(() => {
+    if (!isOpen) return;
+    setIsSuccess(false);
+    setSubmitError(null);
+    setReferenceFile(null);
+    setReferencePreview(null);
+    reset({
+      docTypeId: docTypes[0]?.id || 'dt-1',
+      fullName: '',
+      partialDocNum: '',
+      region: 'Centre',
+      city: citiesOfRegion('Centre')[0],
+      cityOther: '',
+      approxZone: '',
+      lostDate: new Date().toISOString().split('T')[0],
+      secretQuestion: 'Quel est le lieu exact de naissance inscrit sur la pièce ?',
+      secretAnswer: '',
+      proofs: {}
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handlePickPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return;
+    if (!file.type.startsWith('image/')) {
+      setSubmitError('Format non accepté : choisissez une image (JPEG, PNG…).');
+      return;
+    }
+    setSubmitError(null);
     setReferenceFile(file);
     const reader = new FileReader();
     reader.onload = () => setReferencePreview(reader.result as string);
@@ -91,47 +158,40 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
     setReferencePreview(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setUploadingPhoto(!!referenceFile);
-
+  const onSubmit = handleSubmit(async (values) => {
+    setSubmitError(null);
     try {
-      // Upload de la photo de référence (bucket privé vault)
+      // Upload de la photo de référence (bucket privé vault) — best effort
       let referenceImagePath: string | null = null;
       if (referenceFile) {
         try {
           const up = await dataService.uploadReferenceImage(referenceFile, seekerProfileId);
           referenceImagePath = up.path;
-          setUploadingPhoto(false);
-        } catch {
-          // La photo est optionnelle : on continue sans elle en cas d'échec
-          referenceImagePath = null;
-          setUploadingPhoto(false);
+        } catch (err) {
+          console.warn('Upload photo de référence échoué (on continue sans):', err);
         }
       }
 
-      // Preuve secrète : champs structurés (config admin) ou question/réponse libre
-      const configuredFields = docTypes.find(dt => dt.id === docTypeId)?.secret_proof_fields ?? [];
+      const configuredFields = currentProofFields;
       const hasConfiguredFields = configuredFields.length > 0;
       const secretQuestionFinal = hasConfiguredFields
-        ? configuredFields.map(f => f.label).join(' | ')
-        : secretQuestion;
+        ? configuredFields.map((f) => f.label).join(' | ')
+        : (values.secretQuestion || 'Preuve de propriété');
       const secretAnswerFinal = hasConfiguredFields
-        ? configuredFields.map(f => `${f.label}: ${proofFieldValues[f.key] || ''}`).join(' | ')
-        : secretAnswer;
+        ? configuredFields.map((f) => `${f.label}: ${values.proofs?.[f.key] || ''}`).join(' | ')
+        : (values.secretAnswer ?? '');
 
       const newLost: Omit<LostDocument, 'id' | 'created_at' | 'updated_at'> = {
         seeker_id: seekerProfileId,
-        document_type_id: docTypeId,
-        full_name_search: fullName.trim(),
-        doc_number_partial: partialDocNum.trim() || undefined,
+        document_type_id: values.docTypeId,
+        full_name_search: values.fullName.trim(),
+        doc_number_partial: values.partialDocNum?.trim() || undefined,
         // Sécurité : SHA-256 — le numéro et la réponse secrète ne sont jamais stockés en clair
-        doc_number_hash: partialDocNum ? await sha256Hex(partialDocNum) : undefined,
-        lost_region: region,
-        lost_city: city === CITY_OTHER ? cityOther.trim() : city,
-        approx_loss_zone: approxZone || undefined,
-        lost_date_approx: lostDate || new Date().toISOString().split('T')[0],
+        doc_number_hash: values.partialDocNum ? await sha256Hex(values.partialDocNum) : undefined,
+        lost_region: values.region,
+        lost_city: values.city === CITY_OTHER ? (values.cityOther ?? '').trim() : values.city,
+        approx_loss_zone: values.approxZone || undefined,
+        lost_date_approx: values.lostDate || new Date().toISOString().split('T')[0],
         secret_proof_question: secretQuestionFinal,
         secret_proof_answer_hash: await sha256Hex(secretAnswerFinal),
         reference_image_path: referenceImagePath,
@@ -145,13 +205,16 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         updated_at: new Date().toISOString()
       };
 
-      onLostCreated(saved);
+      await onLostCreated(saved);
       setIsSuccess(true);
-    } finally {
-      setIsSubmitting(false);
-      setUploadingPhoto(false);
+    } catch (err) {
+      setSubmitError(
+        handleSupabaseError(err, "Enregistrement impossible pour le moment. Vérifiez votre connexion et réessayez.")
+      );
     }
-  };
+  });
+
+  const hasFieldErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -215,7 +278,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                     onViewMatches();
                   }}
                 >
-                  Consulter mes correspondances 🔍
+                  Consulter mes correspondances →
                 </button>
 
                 <button
@@ -239,7 +302,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={onSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="alert-security-box">
                 <Lock size={18} style={{ flexShrink: 0, color: 'var(--gold-600)' }} />
                 <div>
@@ -250,49 +313,70 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 </div>
               </div>
 
+              {submitError && (
+                <div role="alert" className="form-alert">
+                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                  <span>{submitError}</span>
+                </div>
+              )}
+
+              {hasFieldErrors && (
+                <p className="form-hint-error">
+                  Certains champs sont incomplets — les messages sont indiqués sous chaque champ.
+                </p>
+              )}
+
               {/* ÉTAPE 1 — La pièce */}
               <CheckoutSection step={1} title="La pièce égarée" />
 
               <div className="form-group">
-                <label className="form-label">Type de document *</label>
+                <label className="form-label" htmlFor="lost-doc-type">Type de document *</label>
                 <select
+                  id="lost-doc-type"
                   className="form-select"
-                  value={docTypeId}
-                  onChange={(e) => setDocTypeId(e.target.value)}
+                  aria-invalid={!!errors.docTypeId}
+                  aria-describedby={errors.docTypeId ? 'lost-doc-type-error' : undefined}
+                  {...register('docTypeId')}
                 >
                   {docTypes.map(dt => (
                     <option key={dt.id} value={dt.id}>{dt.name}</option>
                   ))}
                 </select>
+                <FieldError id="lost-doc-type-error" message={errors.docTypeId?.message} />
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label className="form-label" htmlFor="lost-full-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <User size={13} />
                   Nom et prénom inscrits sur la pièce *
                 </label>
                 <input
+                  id="lost-full-name"
                   type="text"
                   className="form-input"
                   placeholder="ex: Kamga Chantal"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
+                  autoComplete="name"
+                  aria-invalid={!!errors.fullName}
+                  aria-describedby={errors.fullName ? 'lost-full-name-error' : undefined}
+                  {...register('fullName')}
                 />
+                <FieldError id="lost-full-name-error" message={errors.fullName?.message} />
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label className="form-label" htmlFor="lost-doc-number" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Hash size={13} />
                   Numéro partiel de la pièce (si mémorisé)
                 </label>
                 <input
+                  id="lost-doc-number"
                   type="text"
                   className="form-input"
                   placeholder="ex: 109288 ou fragments"
-                  value={partialDocNum}
-                  onChange={(e) => setPartialDocNum(e.target.value)}
+                  aria-describedby="lost-doc-number-hint"
+                  {...register('partialDocNum')}
                 />
+                <p id="lost-doc-number-hint" className="form-hint">Haché SHA-256 côté client — jamais stocké en clair.</p>
               </div>
 
               {/* Photo de référence — optionnelle, privée */}
@@ -304,7 +388,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 {referencePreview ? (
                   <div className="ref-upload-zone has-file">
                     <div className="ref-upload-preview">
-                      <img src={referencePreview} alt="Aperçu de la pièce" className="ref-upload-thumb" />
+                      <img src={referencePreview} alt="Aperçu de la pièce jointe" className="ref-upload-thumb" />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="ref-upload-title">Photo jointe ✓</div>
                         <div className="ref-upload-sub">
@@ -314,6 +398,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                       <button
                         type="button"
                         onClick={handleRemovePhoto}
+                        aria-label="Retirer la photo jointe"
                         title="Retirer la photo"
                         style={{
                           background: 'var(--red-50)',
@@ -357,77 +442,83 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
 
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <label className="form-label" htmlFor="lost-region" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <MapPin size={12} />
                     Région *
                   </label>
                   <select
+                    id="lost-region"
                     className="form-select"
-                    value={region}
-                    onChange={(e) => {
-                      const r = e.target.value;
-                      setRegion(r);
-                      setCity(citiesOfRegion(r)[0] ?? '');
-                      setCityOther('');
-                    }}
+                    aria-invalid={!!errors.region}
+                    {...register('region', {
+                      onChange: (e) => {
+                        const r = e.target.value;
+                        setValue('city', citiesOfRegion(r)[0] ?? '');
+                        setValue('cityOther', '');
+                        clearErrors(['city', 'cityOther']);
+                      }
+                    })}
                   >
                     {regionNames().map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
+                  <FieldError id="lost-region-error" message={errors.region?.message} />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Ville *</label>
+                  <label className="form-label" htmlFor="lost-city">Ville *</label>
                   <select
+                    id="lost-city"
                     className="form-select"
-                    value={city === CITY_OTHER ? CITY_OTHER : city}
-                    onChange={(e) => {
-                      if (e.target.value === CITY_OTHER) {
-                        setCity(CITY_OTHER);
-                      } else {
-                        setCity(e.target.value);
-                        setCityOther('');
+                    aria-invalid={!!errors.city}
+                    {...register('city', {
+                      onChange: (e) => {
+                        if (e.target.value !== CITY_OTHER) setValue('cityOther', '');
                       }
-                    }}
-                    required
+                    })}
                   >
                     {citiesOfRegion(region).map(c => <option key={c} value={c}>{c}</option>)}
                     <option value={CITY_OTHER}>Autre (préciser)…</option>
                   </select>
                   {city === CITY_OTHER && (
-                    <input
-                      type="text"
-                      className="form-input"
-                      style={{ marginTop: '8px' }}
-                      placeholder="Nom de la ville ou du village"
-                      value={cityOther}
-                      onChange={(e) => setCityOther(e.target.value)}
-                      required
-                    />
+                    <>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ marginTop: '8px' }}
+                        placeholder="Nom de la ville ou du village"
+                        aria-label="Nom de la ville ou du village"
+                        aria-invalid={!!errors.cityOther}
+                        aria-describedby={errors.cityOther ? 'lost-city-other-error' : undefined}
+                        {...register('cityOther')}
+                      />
+                      <FieldError id="lost-city-other-error" message={errors.cityOther?.message} />
+                    </>
                   )}
+                  <FieldError id="lost-city-error" message={errors.city?.message} />
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Zone approximative de la perte</label>
+                <label className="form-label" htmlFor="lost-approx-zone">Zone approximative de la perte</label>
                 <input
+                  id="lost-approx-zone"
                   type="text"
                   className="form-input"
                   placeholder="ex: Bastos, Tsinga, Agence Buca Voyages..."
-                  value={approxZone}
-                  onChange={(e) => setApproxZone(e.target.value)}
+                  {...register('approxZone')}
                 />
               </div>
 
               <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label className="form-label" htmlFor="lost-date" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Calendar size={13} />
                   Date approximative de la perte
                 </label>
                 <input
+                  id="lost-date"
                   type="date"
                   className="form-input"
-                  value={lostDate}
-                  onChange={(e) => setLostDate(e.target.value)}
+                  {...register('lostDate')}
                 />
               </div>
 
@@ -448,62 +539,61 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                   Informations confidentielles de vérification
                 </div>
 
-                {(() => {
-                  const fields = docTypes.find(dt => dt.id === docTypeId)?.secret_proof_fields ?? [];
-                  if (fields.length === 0) {
-                    // Repli : ancien format question/réponse unique
-                    return (
-                      <>
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontSize: '0.78rem' }}>Question :</label>
-                          <select
-                            className="form-select"
-                            value={secretQuestion}
-                            onChange={(e) => setSecretQuestion(e.target.value)}
-                            style={{ fontSize: '0.82rem' }}
-                          >
-                            <option value="Quel est le lieu exact de naissance inscrit sur la pièce ?">
-                              Quel est le lieu exact de naissance inscrit sur la pièce ?
-                            </option>
-                            <option value="Quelle est l'autorité signataire ou commissariat émetteur ?">
-                              Quelle est l'autorité signataire ou commissariat émetteur ?
-                            </option>
-                            <option value="Quel signe distinctif se trouve sur la pochette/étui ?">
-                              Quel signe distinctif se trouve sur la pochette/étui ?
-                            </option>
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontSize: '0.78rem' }}>
-                            Réponse secrète attendue (confidentielle) * :
-                          </label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="ex: Bafoussam ou Yaoundé 2"
-                            value={secretAnswer}
-                            onChange={(e) => setSecretAnswer(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </>
-                    );
-                  }
-                  return fields.map(f => (
+                {currentProofFields.length === 0 ? (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="lost-secret-question" style={{ fontSize: '0.78rem' }}>Question :</label>
+                      <select
+                        id="lost-secret-question"
+                        className="form-select"
+                        style={{ fontSize: '0.82rem' }}
+                        {...register('secretQuestion')}
+                      >
+                        <option value="Quel est le lieu exact de naissance inscrit sur la pièce ?">
+                          Quel est le lieu exact de naissance inscrit sur la pièce ?
+                        </option>
+                        <option value="Quelle est l'autorité signataire ou commissariat émetteur ?">
+                          Quelle est l'autorité signataire ou commissariat émetteur ?
+                        </option>
+                        <option value="Quel signe distinctif se trouve sur la pochette/étui ?">
+                          Quel signe distinctif se trouve sur la pochette/étui ?
+                        </option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="lost-secret-answer" style={{ fontSize: '0.78rem' }}>
+                        Réponse secrète attendue (confidentielle) *
+                      </label>
+                      <input
+                        id="lost-secret-answer"
+                        type="text"
+                        className="form-input"
+                        placeholder="ex: Bafoussam ou Yaoundé 2"
+                        aria-invalid={!!errors.secretAnswer}
+                        aria-describedby={errors.secretAnswer ? 'lost-secret-answer-error' : undefined}
+                        {...register('secretAnswer')}
+                      />
+                      <FieldError id="lost-secret-answer-error" message={errors.secretAnswer?.message} />
+                    </div>
+                  </>
+                ) : (
+                  currentProofFields.map((f) => (
                     <div className="form-group" key={f.key} style={{ marginBottom: 0 }}>
-                      <label className="form-label" style={{ fontSize: '0.78rem' }}>
+                      <label className="form-label" htmlFor={`lost-proof-${f.key}`} style={{ fontSize: '0.78rem' }}>
                         {f.label}{f.required ? ' *' : ''}
                       </label>
                       <input
+                        id={`lost-proof-${f.key}`}
                         type={f.type === 'date' ? 'date' : 'text'}
                         className="form-input"
-                        value={proofFieldValues[f.key] || ''}
-                        onChange={(e) => setProofFieldValues(prev => ({ ...prev, [f.key]: e.target.value }))}
-                        required={f.required}
+                        aria-invalid={!!errors.proofs?.[f.key]}
+                        aria-describedby={errors.proofs?.[f.key] ? `lost-proof-${f.key}-error` : undefined}
+                        {...register(`proofs.${f.key}` as const)}
                       />
+                      <FieldError id={`lost-proof-${f.key}-error`} message={errors.proofs?.[f.key]?.message} />
                     </div>
-                  ));
-                })()}
+                  ))
+                )}
               </div>
 
               <button
@@ -511,13 +601,14 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 className="btn-cta-lost"
                 style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '10px' }}
                 disabled={isSubmitting}
+                aria-busy={isSubmitting}
               >
                 {isSubmitting
-                  ? (uploadingPhoto ? 'Envoi de la photo...' : 'Enregistrement...')
-                  : 'Lancer la recherche automatique 🚀'}
+                  ? (referenceFile ? 'Envoi de la photo...' : 'Enregistrement...')
+                  : 'Lancer la recherche automatique →'}
               </button>
 
-              <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--slate-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                 <ShieldCheck size={12} color="var(--primary-600)" />
                 Données chiffrées SHA-256 · photo stockée en coffre privé
               </div>

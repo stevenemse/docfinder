@@ -5,6 +5,7 @@ import type { Partner } from '../types';
 import { CheckoutSection } from './CheckoutSection';
 import { dataService } from '../services/dataService';
 import { useModalA11y } from '../lib/useModalA11y';
+import { handleSupabaseError } from '../lib/errors';
 
 interface HandoverModalProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
       setDepositResult({ depositCode: res.pickupCode, recipientName: res.recipientName });
       onDeposited?.(res.pickupCode);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Erreur lors du dépôt.');
+      setErrorMsg(handleSupabaseError(err, 'Dépôt impossible pour le moment. Réessayez.'));
     } finally {
       setLoading(false);
     }

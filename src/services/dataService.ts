@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { MOCK_DOCUMENT_TYPES } from '../lib/supabase';
 import { sha256Hex } from '../lib/crypto';
+import { handleSupabaseError } from '../lib/errors';
 import type {
   Partner,
   PartnerWallet,
@@ -436,7 +437,9 @@ export const dataService = {
     try {
       // La RPC insère les matchs elle-même (SECURITY DEFINER) — les upserts
       // côté client seraient bloqués par la RLS pour les pertes d'autrui.
-      await supabase.rpc('find_lost_candidates', { p_found_doc: foundDoc.id });
+      // Wrapper vérifié (migration-rpc-security-hardening.sql) : la RPC
+      // d'origine n'est plus exécutable par les rôles clients.
+      await supabase.rpc('scan_matches_for_found', { p_found_doc: foundDoc.id });
     } catch (err) {
       console.warn('Erreur matching serveur (found):', err);
     }
@@ -444,7 +447,7 @@ export const dataService = {
 
   async serverScanMatchesForLostDoc(lostDoc: LostDocument): Promise<void> {
     try {
-      await supabase.rpc('find_matches_for_lost', { p_lost_doc: lostDoc.id });
+      await supabase.rpc('scan_matches_for_lost', { p_lost_doc: lostDoc.id });
     } catch (err) {
       console.warn('Erreur matching serveur (lost):', err);
     }
@@ -621,7 +624,7 @@ export const dataService = {
         }
       } catch (err) {
         console.error('Erreur RPC claim_match_by_doc:', err);
-        throw err instanceof Error ? err : new Error('Erreur de soumission de la preuve');
+        throw new Error(handleSupabaseError(err, 'Erreur de soumission de la preuve. Réessayez.'));
       }
     }
 
@@ -727,7 +730,7 @@ export const dataService = {
         };
       } catch (err) {
         console.error('Erreur RPC claim_with_lost_declaration:', err);
-        throw err instanceof Error ? err : new Error('Erreur de revendication');
+        throw new Error(handleSupabaseError(err, 'Revendication impossible pour le moment. Réessayez.'));
       }
     }
 
@@ -938,7 +941,7 @@ export const dataService = {
 
   /** Expiration manuelle (test/agent) — le cron la lance chaque jour. */
   async runExpirationSweep(): Promise<number> {
-    const { data, error } = await supabase.rpc('expire_stale_handovers');
+    const { data, error } = await supabase.rpc('admin_expire_stale_handovers');
     if (error) throw new Error(error.message);
     return (Array.isArray(data) ? data[0] : data) as number;
   },
@@ -1101,7 +1104,7 @@ export const dataService = {
 
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body?.checkout_url) {
-      throw new Error(body?.error || 'Initialisation du paiement impossible. Réessayez.');
+      throw new Error(handleSupabaseError(body?.error, 'Initialisation du paiement impossible. Réessayez.'));
     }
     return { checkoutUrl: body.checkout_url, reference: body.reference };
   },

@@ -80,6 +80,10 @@ export function App() {
   const [isPartnerScan, setIsPartnerScan] = useState(false);
   /** Initialisation en cours (session + données) : écran de chargement. */
   const [bootLoading, setBootLoading] = useState(true);
+
+  // Paiement GeniusPay revenu du checkout mais pas encore confirmé par le
+  // webhook : on affiche un statut « en attente » et on re-vérifie tout seul.
+  const [pendingPayment, setPendingPayment] = useState<{ ref: string } | null>(null);
   /** Onglet d'arrivée de la page partenaire (wallet depuis une notification d'argent). */
   const [partnerInitialTab, setPartnerInitialTab] = useState<'scan' | 'wallet'>('scan');
   /** Dossier de restitution visé par une notification (défilement + fiche). */
@@ -249,6 +253,29 @@ export function App() {
           await refreshAllDataRef.current();
           showToast('Paiement confirmé ! Instructions de retrait débloquées.');
           setCurrentTab('dashboard');
+        } else if (payRef) {
+          // Le webhook GeniusPay peut arriver quelques secondes après le retour
+          // de l'utilisateur : on affiche « en attente » et on re-vérifie.
+          setPendingPayment({ ref: payRef });
+          showToast('Paiement en cours de vérification — confirmation automatique en cours.');
+          void (async () => {
+            for (let attempt = 0; attempt < 8; attempt++) {
+              await new Promise((resolve) => setTimeout(resolve, 5000));
+              try {
+                const confirmed = await dataService.confirmGeniusPayPayment(payRef);
+                if (confirmed) {
+                  await refreshAllDataRef.current();
+                  setPendingPayment(null);
+                  showToast('Paiement confirmé ! Instructions de retrait débloquées.');
+                  setCurrentTab('dashboard');
+                  return;
+                }
+              } catch {
+                // réseau instable : on retentera au prochain tour
+              }
+            }
+            showToast("Paiement toujours en attente — il sera confirmé dès réception du webhook de l'opérateur.");
+          })();
         } else {
           showToast('Paiement en cours de vérification — le statut sera mis à jour dans quelques instants.');
         }
@@ -938,6 +965,25 @@ export function App() {
         recoveryRequestId={activePaymentRequestId}
         onPaymentSuccess={handlePaymentSuccess}
       />
+
+      {/* Paiement revenu du checkout, en attente du webhook opérateur */}
+      {pendingPayment && (
+        <div className="payment-pending-banner" role="status" aria-live="polite">
+          <span className="payment-pending-spinner" aria-hidden="true" />
+          <span>
+            <strong>Paiement en attente de confirmation</strong> — réf. {pendingPayment.ref}. Vérification
+            automatique en cours, vous pouvez continuer à naviguer.
+          </span>
+          <button
+            type="button"
+            className="payment-pending-close"
+            onClick={() => setPendingPayment(null)}
+            aria-label="Masquer le bandeau de paiement en attente"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Bandeau consentement cookies (production) */}
       <OfflineBanner />

@@ -313,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'var(--slate-400)',
+                  color: 'var(--slate-600)',
                   cursor: 'pointer',
                   padding: '6px',
                   borderRadius: 'var(--radius-md)',

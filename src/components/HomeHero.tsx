@@ -173,7 +173,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
                   <ScanFace size={12} />
                   CAVIARDÉ · PROTÉGÉ
                 </div>
-                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--slate-400)' }}>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--slate-600)' }}>
                   102****58
                 </div>
               </div>

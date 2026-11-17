@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldCheck, AlertCircle, Phone, Mail, ChevronDown, ChevronUp, UserRound, KeyRound } from 'lucide-react';
 import { CheckoutSection } from './CheckoutSection';
 import { authService } from '../services/authService';
 import { useModalA11y } from '../lib/useModalA11y';
+import { handleSupabaseError } from '../lib/errors';
+import { authFormSchema, type AuthFormValues } from '../lib/validation';
 import type { Profile } from '../types';
 
 const GoogleIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
@@ -24,6 +28,14 @@ interface AuthModalProps {
   onOpenLegal?: (doc: 'privacy' | 'terms' | 'cookies') => void;
 }
 
+/** Message d'erreur relié au champ par aria-describedby (et annoncé). */
+const FieldError: React.FC<{ id: string; message?: string }> = ({ id, message }) =>
+  message ? (
+    <p id={id} role="alert" className="form-error">
+      {message}
+    </p>
+  ) : null;
+
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
@@ -32,38 +44,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenLegal
 }) => {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
-
-  // Champs formulaire
-  const [phoneOrEmail, setPhoneOrEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [optionalEmail, setOptionalEmail] = useState('');
-  const [showEmailOption, setShowEmailOption] = useState(false);
+  const [optionalEmailOpen, setOptionalEmailOpen] = useState(false);
 
   // Consentement RGPD / loi camerounaise 2024/017 (obligatoire à l'inscription)
-  const [consentAccepted, setConsentAccepted] = useState(false);
-
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const modalRef = useModalA11y(isOpen, onClose);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    trigger,
+    formState: { errors, isSubmitting }
+  } = useForm<AuthFormValues>({
+    resolver: zodResolver(authFormSchema),
+    mode: 'onBlur',
+    defaultValues: {
+      mode: initialMode,
+      phoneOrEmail: '',
+      password: '',
+      displayName: '',
+      phone: '',
+      optionalEmail: '',
+      consentAccepted: false
+    }
+  });
 
   // Sur un appareil partagé, ne jamais rouvrir la modale avec le mot de passe
   // précédent encore présent dans le champ.
   useEffect(() => {
     if (!isOpen) {
-      setPassword('');
+      reset({ mode: initialMode, phoneOrEmail: '', password: '', displayName: '', phone: '', optionalEmail: '', consentAccepted: false });
+      setOptionalEmailOpen(false);
       setErrorMsg(null);
     }
-  }, [isOpen]);
+  }, [isOpen, initialMode, reset]);
 
   // La modale reste montée : sans cette synchro, l'ouvrir en mode « inscription »
   // (ex. candidature partenaire) réafficherait l'onglet connexion choisi la fois d'avant.
   useEffect(() => {
-    if (isOpen) setMode(initialMode);
-  }, [isOpen, initialMode]);
+    if (!isOpen) return;
+    setMode(initialMode);
+    reset({ mode: initialMode, phoneOrEmail: '', password: '', displayName: '', phone: '', optionalEmail: '', consentAccepted: false });
+  }, [isOpen, initialMode, reset]);
 
   if (!isOpen) return null;
 
@@ -72,7 +98,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setIsGoogleLoading(true);
     const res = await authService.signInWithGoogle();
     if (res.error) {
-      setErrorMsg(res.error);
+      setErrorMsg(handleSupabaseError(res.error, "Connexion Google impossible pour le moment."));
       setIsGoogleLoading(false);
       return;
     }
@@ -91,77 +117,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleSwitchMode = (newMode: 'login' | 'register') => {
     setMode(newMode);
     setErrorMsg(null);
-    setPhoneOrEmail('');
-    setPassword('');
-    setDisplayName('');
-    setPhone('');
-    setOptionalEmail('');
-    setShowEmailOption(false);
+    setOptionalEmailOpen(false);
+    reset({ mode: newMode, phoneOrEmail: '', password: '', displayName: '', phone: '', optionalEmail: '', consentAccepted: false });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = handleSubmit(async (values) => {
     setErrorMsg(null);
-    setIsLoading(true);
-
     try {
-      if (mode === 'login') {
-        if (!phoneOrEmail.trim() || !password.trim()) {
-          setErrorMsg('Veuillez renseigner votre numéro de téléphone et votre mot de passe.');
-          setIsLoading(false);
-          return;
-        }
-
-        const res = await authService.login({ phoneOrEmail: phoneOrEmail.trim(), password });
+      if (values.mode === 'login') {
+        const res = await authService.login({
+          phoneOrEmail: (values.phoneOrEmail ?? '').trim(),
+          password: values.password
+        });
         if (res.error) {
-          setErrorMsg(res.error);
+          setErrorMsg(handleSupabaseError(res.error));
         } else if (res.profile) {
           onAuthSuccess(res.profile);
           onClose();
         }
       } else {
-        if (!phone.trim() || !password.trim() || !displayName.trim()) {
-          setErrorMsg('Veuillez renseigner votre nom, votre numéro de téléphone et un mot de passe.');
-          setIsLoading(false);
-          return;
-        }
-        // Numéro camerounais : exactement 9 chiffres, commençant par 6 (MTN/Orange)
-        const phoneDigits = phone.replace(/\D/g, '');
-        if (phoneDigits.length !== 9 || !phoneDigits.startsWith('6')) {
-          setErrorMsg('Numéro invalide : saisissez les 9 chiffres après le +237 (ex : 6XX XX XX XX).');
-          setIsLoading(false);
-          return;
-        }
-        if (password.length < 8) {
-          setErrorMsg('Le mot de passe doit contenir au moins 6 caractères.');
-          setIsLoading(false);
-          return;
-        }
-        if (!consentAccepted) {
-          setErrorMsg('Vous devez accepter la Politique de Confidentialité et les Conditions d\'Utilisation pour créer un compte.');
-          setIsLoading(false);
-          return;
-        }
-
         const res = await authService.register({
-          phone,
-          password,
-          displayName,
-          email: optionalEmail.trim() || undefined
+          phone: values.phone ?? '',
+          password: values.password,
+          displayName: (values.displayName ?? '').trim(),
+          email: values.optionalEmail?.trim() || undefined
         });
         if (res.error) {
-          setErrorMsg(res.error);
+          setErrorMsg(handleSupabaseError(res.error));
         } else if (res.profile) {
           onAuthSuccess(res.profile);
           onClose();
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Une erreur est survenue.');
-    } finally {
-      setIsLoading(false);
+    } catch (err) {
+      setErrorMsg(handleSupabaseError(err));
     }
-  };
+  });
+
+  const phoneRegistration = register('phone');
+  const hasFieldErrors = Object.keys(errors).length > 0;
 
   const legalLinkStyle: React.CSSProperties = {
     background: 'none',
@@ -218,13 +212,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               key={m}
               type="button"
               onClick={() => handleSwitchMode(m)}
+              aria-pressed={mode === m}
               style={{
                 padding: '12px',
                 border: 'none',
                 background: mode === m ? '#ffffff' : 'transparent',
                 fontWeight: 700,
                 fontSize: '0.85rem',
-                color: mode === m ? 'var(--primary-700)' : 'var(--slate-500)',
+                color: mode === m ? 'var(--primary-700)' : 'var(--slate-600)',
                 borderBottom: mode === m ? '3px solid var(--primary-700)' : 'none',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease'
@@ -241,7 +236,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={handleGoogle}
-            disabled={isGoogleLoading || isLoading}
+            disabled={isGoogleLoading || isSubmitting}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -275,7 +270,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             alignItems: 'center',
             gap: '12px',
             marginBottom: '14px',
-            color: 'var(--slate-400)',
+            color: 'var(--slate-500)',
             fontSize: '0.75rem',
             fontWeight: 600
           }}>
@@ -283,6 +278,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             ou avec votre numéro
             <span style={{ flex: 1, height: '1px', background: 'var(--border-color)' }} />
           </div>
+
           {/* Unified Citizen Info Banner */}
           <div style={{
             background: 'var(--primary-50)',
@@ -295,7 +291,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             gap: '8px',
             alignItems: 'flex-start'
           }}>
-            <span style={{ fontSize: '1rem', flexShrink: 0 }}>ℹ️</span>
+            <span style={{ fontSize: '1rem', flexShrink: 0 }} aria-hidden="true">ℹ️</span>
             <span>
               <strong>Compte Citoyen Unique :</strong> Avec un seul compte, vous pouvez
               à la fois <em>signaler un document que vous avez trouvé</em> et <em>déclarer
@@ -303,10 +299,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </span>
           </div>
 
-          {/* Error — message unique annoncé aux lecteurs d'écran */}<AnimatePresence initial={false}>
+          {/* Erreur globale — annoncée une seule fois aux lecteurs d'écran */}
+          <AnimatePresence initial={false}>
             {errorMsg && (
               <motion.div
-                id="auth-error"
+                id="auth-form-error"
                 role="alert"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -328,9 +325,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{errorMsg}</span>
               </motion.div>
-            )}</AnimatePresence>
+            )}
+          </AnimatePresence>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
+          <form
+            onSubmit={onSubmit}
+            noValidate
+            aria-describedby={hasFieldErrors ? 'auth-form-hint' : undefined}
+            style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}
+          >
+            {hasFieldErrors && (
+              <p id="auth-form-hint" className="form-hint-error">
+                Certains champs sont incomplets — les messages sont indiqués sous chaque champ.
+              </p>
+            )}
 
             {/* REGISTER FORM */}
             {mode === 'register' && (
@@ -340,57 +348,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 {/* Full Name */}
                 <div className="form-group">
-                  <label className="form-label">Nom et Prénom *</label>
+                  <label className="form-label" htmlFor="auth-display-name">Nom et Prénom *</label>
                   <div className="input-icon-wrap">
                     <UserRound size={15} />
                     <input
+                      id="auth-display-name"
                       type="text"
                       className="form-input"
                       placeholder="ex: Chantal Kamga ou Paul Eto'o"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      required
+                      autoComplete="name"
+                      aria-invalid={!!errors.displayName}
+                      aria-describedby={errors.displayName ? 'auth-display-name-error' : undefined}
+                      {...register('displayName')}
                     />
                   </div>
+                  <FieldError id="auth-display-name-error" message={errors.displayName?.message} />
                 </div>
 
                 {/* Phone — Identifiant principal (saisie 9 chiffres uniquement) */}
                 <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label className="form-label" htmlFor="auth-phone" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={14} />
                     Numéro de Téléphone * — <span style={{ color: 'var(--primary-700)', fontWeight: 800 }}>Identifiant de connexion</span>
                   </label>
                   <div style={{ display: 'flex' }}>
                     <span className="phone-prefix">
-                      <span style={{ fontSize: '1rem', lineHeight: 1 }}>🇨🇲</span>
+                      <span style={{ fontSize: '1rem', lineHeight: 1 }} aria-hidden="true">🇨🇲</span>
                       +237
                     </span>
                     <input
+                      id="auth-phone"
                       type="tel"
                       className="form-input"
                       style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0' }}
-                      placeholder="6XX XX XX XX..."
+                      placeholder="6XX XX XX XX"
                       inputMode="numeric"
                       autoComplete="tel-national"
                       maxLength={12}
-                      value={phone}
+                      aria-invalid={!!errors.phone}
+                      aria-describedby={errors.phone ? 'auth-phone-error' : 'auth-phone-hint'}
+                      {...phoneRegistration}
                       onChange={(e) => {
                         // 9 chiffres max, formatage automatique 4-2-2-2
+                        // 9 chiffres max, affichage 3-2-2-2 (677 88 99 00)
                         const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
-                        setPhone([
-                          digits.slice(0, 4),
-                          digits.slice(4, 6),
-                          digits.slice(6, 8),
-                          digits.slice(8, 9)
-                        ].filter(Boolean).join(' '));
+                        const formatted = [
+                          digits.slice(0, 3),
+                          digits.slice(3, 5),
+                          digits.slice(5, 7),
+                          digits.slice(7, 9)
+                        ].filter(Boolean).join(' ');
+                        setValue('phone', formatted, { shouldDirty: true });
+                        if (errors.phone) void trigger('phone');
                       }}
-                      required
-                      aria-describedby="auth-error"
                     />
                   </div>
-                  <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', marginTop: '4px' }}>
+                  <p id="auth-phone-hint" style={{ fontSize: '0.72rem', color: 'var(--slate-600)', marginTop: '4px' }}>
                     Les 9 chiffres après le +237 (MTN ou Orange). Ce numéro sera votre identifiant de connexion.
                   </p>
+                  <FieldError id="auth-phone-error" message={errors.phone?.message} />
                 </div>
 
                 {/* Étape 2 — Sécurité */}
@@ -398,28 +414,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 {/* Password */}
                 <div className="form-group">
-                  <label className="form-label">Mot de Passe * (min. 8 caractères)</label>
+                  <label className="form-label" htmlFor="auth-register-password">Mot de Passe * (min. 8 caractères)</label>
                   <div className="input-icon-wrap">
                     <KeyRound size={15} />
                     <input
+                      id="auth-register-password"
                       type="password"
                       className="form-input"
                       placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={8}
                       autoComplete="new-password"
-                      aria-describedby="auth-error"
+                      aria-invalid={!!errors.password}
+                      aria-describedby={errors.password ? 'auth-register-password-error' : undefined}
+                      {...register('password')}
                     />
                   </div>
+                  <FieldError id="auth-register-password-error" message={errors.password?.message} />
                 </div>
 
                 {/* Optional Email — Collapsible */}
                 <div>
                   <button
                     type="button"
-                    onClick={() => setShowEmailOption(!showEmailOption)}
+                    onClick={() => setOptionalEmailOpen(!optionalEmailOpen)}
+                    aria-expanded={optionalEmailOpen}
+                    aria-controls="auth-optional-email"
                     style={{
                       background: 'none',
                       border: 'none',
@@ -434,27 +452,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     }}
                   >
                     <Mail size={13} />
-                    {showEmailOption ? 'Masquer' : 'Ajouter une adresse email'} (optionnel — récupération de compte)
-                    {showEmailOption ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    {optionalEmailOpen ? 'Masquer' : 'Ajouter une adresse email'} (optionnel — récupération de compte)
+                    {optionalEmailOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   </button>
 
                   <AnimatePresence initial={false}>
-                    {showEmailOption && (
+                    {optionalEmailOpen && (
                       <motion.div
+                        id="auth-optional-email"
                         className="form-group"
                         style={{ marginTop: '10px', overflow: 'hidden' }}
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2, ease: 'easeOut' }}
-                      ><input
-                      type="email"
-                      className="form-input"
-                      placeholder="votre.email@exemple.com... (facultatif)"
-                      value={optionalEmail}
-                      onChange={(e) => setOptionalEmail(e.target.value)}
-                      autoComplete="email"
-                    />
+                      >
+                        <input
+                          type="email"
+                          className="form-input"
+                          placeholder="votre.email@exemple.com (facultatif)"
+                          autoComplete="email"
+                          aria-label="Adresse email optionnelle"
+                          aria-invalid={!!errors.optionalEmail}
+                          aria-describedby={errors.optionalEmail ? 'auth-optional-email-error' : undefined}
+                          {...register('optionalEmail')}
+                        />
+                        <FieldError id="auth-optional-email-error" message={errors.optionalEmail?.message} />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -463,7 +486,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {/* Consentement RGPD / Loi n° 2024/017 — obligatoire */}
                 <div style={{
                   background: 'var(--slate-50)',
-                  border: '1px solid var(--border-color)',
+                  border: errors.consentAccepted ? '1px solid var(--red-300, #fca5a5)' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-md)',
                   padding: '12px 14px',
                   display: 'flex',
@@ -473,11 +496,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <input
                     type="checkbox"
                     id="rgpd-consent"
-                    checked={consentAccepted}
-                    onChange={(e) => setConsentAccepted(e.target.checked)}
+                    aria-invalid={!!errors.consentAccepted}
+                    aria-describedby={errors.consentAccepted ? 'auth-consent-error' : undefined}
                     style={{ marginTop: '2px', width: '16px', height: '16px', flexShrink: 0, accentColor: 'var(--primary-700)' }}
+                    {...register('consentAccepted')}
                   />
-                  <label htmlFor="rgpd-consent" style={{ fontSize: '0.76rem', color: 'var(--slate-600)', lineHeight: 1.55 }}>
+                  <label htmlFor="rgpd-consent" style={{ fontSize: '0.76rem', color: 'var(--slate-700)', lineHeight: 1.55 }}>
                     J'accepte la{' '}
                     <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('privacy')}>
                       Politique de Confidentialité
@@ -492,6 +516,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     données à caractère personnel au Cameroun.
                   </label>
                 </div>
+                <FieldError id="auth-consent-error" message={errors.consentAccepted?.message} />
               </>
             )}
 
@@ -501,47 +526,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <CheckoutSection title="Vos identifiants" subtitle="Numéro de téléphone + mot de passe" />
 
                 <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label className="form-label" htmlFor="auth-identifier" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={14} />
                     Numéro de téléphone ou adresse email
                   </label>
                   <div className="input-icon-wrap">
                     <UserRound size={15} />
                     <input
+                      id="auth-identifier"
                       type="text"
                       className="form-input"
-                      placeholder="+237 6xx xx xx xx... ou email@exemple.com"
-                      value={phoneOrEmail}
-                      onChange={(e) => setPhoneOrEmail(e.target.value)}
-                      required
+                      placeholder="6XX XX XX XX ou email@exemple.com"
                       autoComplete="username"
-                      aria-describedby="auth-error"
+                      aria-invalid={!!errors.phoneOrEmail}
+                      aria-describedby={errors.phoneOrEmail ? 'auth-identifier-error' : undefined}
+                      {...register('phoneOrEmail')}
                     />
                   </div>
+                  <FieldError id="auth-identifier-error" message={errors.phoneOrEmail?.message} />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Mot de Passe</label>
+                  <label className="form-label" htmlFor="auth-password">Mot de Passe</label>
                   <div className="input-icon-wrap">
                     <KeyRound size={15} />
                     <input
+                      id="auth-password"
                       type="password"
                       className="form-input"
                       placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
                       autoComplete="current-password"
+                      aria-invalid={!!errors.password}
+                      aria-describedby={errors.password ? 'auth-password-error' : undefined}
+                      {...register('password')}
                     />
                   </div>
+                  <FieldError id="auth-password-error" message={errors.password?.message} />
                 </div>
 
                 {/* Légal — accessible depuis la connexion aussi */}
-                <p style={{ fontSize: '0.72rem', color: 'var(--slate-500)', textAlign: 'center', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.72rem', color: 'var(--slate-600)', textAlign: 'center', lineHeight: 1.5 }}>
                   En vous connectant, vous acceptez nos{' '}
                   <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('terms')}>
                     CGU
-                  </button>{' '}
+                  </button>
                   et notre{' '}
                   <button type="button" style={legalLinkStyle} onClick={() => onOpenLegal?.('privacy')}>
                     Politique de Confidentialité
@@ -553,7 +581,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* Submit */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
               style={{
                 backgroundColor: 'var(--primary-700)',
                 color: '#ffffff',
@@ -562,17 +591,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 padding: '13px 20px',
                 fontSize: '0.95rem',
                 fontWeight: 800,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 marginTop: '4px',
-                opacity: isLoading ? 0.7 : 1,
+                opacity: isSubmitting ? 0.7 : 1,
                 transition: 'opacity 0.15s ease'
               }}
             >
-              {isLoading
+              {isSubmitting
                 ? 'Connexion en cours...'
                 : mode === 'login'
-                  ? '🔐  Se Connecter'
-                  : '✅  Créer mon Compte Citoyen'}
+                  ? 'Se Connecter'
+                  : 'Créer mon Compte Citoyen'}
             </button>
           </form>
         </div>

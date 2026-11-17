@@ -1321,7 +1321,7 @@ html {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--slate-400);
+  color: var(--slate-600);
   pointer-events: none;
 }
 
@@ -1545,7 +1545,7 @@ html {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--slate-400);
+  color: var(--slate-600);
 }
 
 .search-input {
@@ -1562,7 +1562,7 @@ html {
 }
 
 .search-input::placeholder {
-  color: var(--slate-400);
+  color: var(--slate-600);
   opacity: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -1964,7 +1964,7 @@ html {
 .modal-close-btn {
   background: none;
   border: none;
-  color: var(--slate-400);
+  color: var(--slate-600);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-full);
@@ -2889,7 +2889,7 @@ html {
 
 .admin-bar-label {
   font-size: 0.56rem;
-  color: var(--slate-400);
+  color: var(--slate-600);
   font-weight: 700;
 }
 
@@ -3352,7 +3352,7 @@ html {
 }
 
 .notif-item-go {
-  color: var(--slate-400);
+  color: var(--slate-600);
   flex-shrink: 0;
   margin-top: 4px;
 }
@@ -3388,7 +3388,7 @@ html {
 
 .notif-item-time {
   font-size: 0.64rem;
-  color: var(--slate-400);
+  color: var(--slate-600);
   font-weight: 600;
   margin-top: 4px;
 }
@@ -3408,7 +3408,7 @@ html {
   align-items: center;
   gap: 8px;
   padding: 28px 16px;
-  color: var(--slate-400);
+  color: var(--slate-600);
   font-size: 0.78rem;
   text-align: center;
 }
@@ -3586,7 +3586,7 @@ html {
   font-weight: 800;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--slate-400);
+  color: var(--slate-600);
   padding: 6px 10px 4px;
 }
 
@@ -3984,3 +3984,110 @@ html {
 
 .wallet-movement-amount--in { color: var(--primary-700); }
 .wallet-movement-amount--out { color: var(--slate-600); }
+
+/* ── Formulaires : erreurs, aides, alertes ───────────────────────────────────
+   Les messages d'erreur sont reliés au champ par aria-describedby et portent
+   role="alert" (annonce immédiate par les lecteurs d'écran). */
+.form-error {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--red-700);
+}
+
+.form-hint {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--slate-600);
+}
+
+.form-hint-error {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--red-50);
+  border: 1px solid var(--red-100);
+  color: var(--red-700);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.form-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--red-50);
+  border: 1px solid var(--red-100);
+  color: var(--red-700);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.form-input[aria-invalid='true'],
+.form-select[aria-invalid='true'] {
+  border-color: var(--red-500, #ef4444);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+/* ── Paiement en attente de confirmation (retour checkout) ─────────────────── */
+.payment-pending-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(560px, calc(100vw - 24px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  border: 1px solid var(--gold-100);
+  box-shadow: 0 18px 40px -18px rgba(5, 46, 22, 0.35);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--slate-800);
+}
+
+.payment-pending-banner strong { color: var(--slate-900); }
+
+.payment-pending-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--gold-100);
+  border-top-color: var(--gold-600);
+  animation: paymentPendingSpin 0.9s linear infinite;
+}
+
+@keyframes paymentPendingSpin {
+  to { transform: rotate(360deg); }
+}
+
+.payment-pending-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: var(--slate-50);
+  color: var(--slate-600);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+@media (min-width: 768px) {
+  .payment-pending-banner { bottom: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-pending-spinner { animation-duration: 3s; }
+}
