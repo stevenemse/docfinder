@@ -54,7 +54,8 @@ interface AdminModerationProps {
   docTypes: DocumentType[];
   isAdmin: boolean;
   onApproveRequest: (requestId: string) => void;
-  onRejectRequest: (requestId: string) => void;
+  /** Clôture une demande sans suite ; `reason` est journalisé côté serveur. */
+  onRejectRequest: (requestId: string, reason?: string) => void;
   showToast: (msg: string) => void;
   /** Onglet imposé par une notification ; `at` rejoue la demande identique. */
   openTab?: { tab: AdminTab; at: number } | null;
@@ -542,6 +543,16 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
   const [rejectingWd, setRejectingWd] = useState<{ id: string; reason: string } | null>(null);
 
   const pendingRequests = recoveryRequests.filter(r => r.verification_status === 'pending');
+  /**
+   * Demandes validées mais jamais réglées : elles restent ouvertes indéfiniment
+   * et bloquent la fiche du document. Le modérateur peut les clôturer.
+   */
+  const staleRequests = recoveryRequests.filter(r =>
+    (r.status === 'info_needed' || r.status === 'verified') &&
+    r.verification_status === 'approved' &&
+    !payments.some(p => p.recovery_request_id === r.id)
+  );
+  const [staleReasons, setStaleReasons] = useState<Record<string, string>>({});
   // File de validation : aucun signalement n'est publié sans passage humain.
   const pendingFoundDocs = (adminDocs?.found ?? []).filter(d => d.status === 'pending_verification');
   // Candidatures partenaires à instruire (issues de comptes citoyens).
@@ -1259,6 +1270,69 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
       {/* ============ TAB: REQUESTS ============ */}
       {adminTab === 'requests' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {staleRequests.length > 0 && (
+            <div style={{
+              background: 'var(--surface-card)',
+              border: '1px solid var(--gold-200, #fde68a)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px'
+            }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertTriangle size={15} color="var(--gold-600, #b7791f)" />
+                Demandes sans suite ({staleRequests.length})
+              </div>
+              <div style={{ fontSize: '0.76rem', color: 'var(--slate-600)', marginTop: '4px', lineHeight: 1.5 }}>
+                Preuve validée mais aucun règlement enregistré : la demande reste ouverte et la
+                pièce affiche « objet d'une recherche ». Clôturez celles qui n'ont plus de suite.
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                {staleRequests.map(req => (
+                  <div key={req.id} style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--slate-600)' }}>
+                      Réf. {req.id.slice(0, 8)}… · validée le{' '}
+                      {new Date(req.updated_at || req.created_at).toLocaleDateString('fr-FR')}
+                      {req.match?.lost_doc ? ` · ${req.match.lost_doc.full_name_search}` : ''}
+                    </div>
+                    <input
+                      type="text"
+                      className="form-input"
+                      aria-label={`Motif de clôture de la demande ${req.id.slice(0, 8)}`}
+                      placeholder="Motif de clôture (10 caractères minimum)"
+                      value={staleReasons[req.id] ?? ''}
+                      onChange={(e) => setStaleReasons(prev => ({ ...prev, [req.id]: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      disabled={(staleReasons[req.id] ?? '').trim().length < 10}
+                      onClick={() => onRejectRequest(req.id, staleReasons[req.id])}
+                      style={{
+                        alignSelf: 'flex-start',
+                        background: (staleReasons[req.id] ?? '').trim().length < 10 ? 'var(--slate-300)' : 'var(--primary-700)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '9px 14px',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: (staleReasons[req.id] ?? '').trim().length < 10 ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Clôturer sans suite
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {pendingRequests.length === 0 ? (
             <div style={{
               textAlign: 'center',
@@ -1380,7 +1454,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   marginTop: '4px'
                 }}>
                   <button
-                    onClick={() => onRejectRequest(req.id)}
+                    onClick={() => onRejectRequest(req.id, 'Preuve de propriété jugée non probante.')}
                     style={{
                       background: 'var(--red-50)',
                       color: 'var(--red-700)',
@@ -1816,7 +1890,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           request={proofModal}
           onClose={() => setProofModal(null)}
           onApprove={() => { onApproveRequest(proofModal.id); setProofModal(null); }}
-          onReject={() => { onRejectRequest(proofModal.id); setProofModal(null); }}
+          onReject={() => { onRejectRequest(proofModal.id, 'Preuve de propriété jugée non probante.'); setProofModal(null); }}
         />
       )}
 

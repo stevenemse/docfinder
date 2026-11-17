@@ -946,6 +946,30 @@ export const dataService = {
     return (Array.isArray(data) ? data[0] : data) as number;
   },
 
+  /**
+   * Clôture une demande de restitution sans suite (modérateur).
+   * RPC serveur : motif obligatoire, statut 'rejected', trace dans audit_logs.
+   */
+  async closeRecoveryRequest(requestId: string, reason: string): Promise<void> {
+    if (isSupabaseConfigured()) {
+      const { error } = await supabase.rpc('admin_close_recovery_request', {
+        p_request_id: requestId,
+        p_reason: reason.trim()
+      });
+      if (error) throw new Error(error.message);
+      return;
+    }
+
+    const requests = getLocal<RecoveryRequest[]>(STORAGE_KEYS.RECOVERY_REQUESTS, []);
+    const req = requests.find(r => r.id === requestId);
+    if (req) {
+      req.status = 'rejected';
+      if (req.verification_status === 'pending') req.verification_status = 'rejected';
+      req.updated_at = new Date().toISOString();
+      setLocal(STORAGE_KEYS.RECOVERY_REQUESTS, requests);
+    }
+  },
+
   async approveRecoveryRequest(requestId: string): Promise<void> {
     if (isSupabaseConfigured()) {
       try {
