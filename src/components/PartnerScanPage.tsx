@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   ScanLine, ShieldCheck, AlertCircle, CheckCircle2, Loader2, User,
-  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck, Wallet, LogIn
+  ArrowLeft, PackageCheck, Clock, Store, MapPin, BadgeCheck,   Wallet, LogIn
 } from 'lucide-react';
+import { FormStepper } from './FormStepper';
 import { dataService } from '../services/dataService';
 import { citiesOfRegion, regionNames } from '../lib/cameroonGeo';
 import type { LookupResult, PartnerWalletFull } from '../types';
@@ -54,6 +55,34 @@ export const PartnerScanPage: React.FC<{
   const [regContact, setRegContact] = useState('');
   const [regSubmitting, setRegSubmitting] = useState(false);
   const [regSuccess, setRegSuccess] = useState(false);
+  /** Parcours de candidature : 0 = établissement, 1 = contact & envoi. */
+  const [regStep, setRegStep] = useState(0);
+  const [regStepError, setRegStepError] = useState<string | null>(null);
+
+  /** Valide l'étape courante de la candidature avant d'avancer. */
+  const validateRegStep = (current: number): string | null => {
+    if (current === 0) {
+      if (regName.trim().length < 3) return "Indiquez le nom de votre établissement (3 caractères minimum).";
+      if (!regKind) return 'Choisissez le type de point de dépôt.';
+      if (!regRegion) return 'Choisissez la région.';
+      if (!regCity) return 'Choisissez la ville.';
+      if (regAddress.trim().length < 5) return 'Précisez une adresse ou un repère (5 caractères minimum).';
+    }
+    if (current === 1) {
+      if (regPhone.replace(/\D/g, '').length !== 9) return 'Numéro de téléphone invalide : 9 chiffres après le +237.';
+    }
+    return null;
+  };
+
+  const goToNextRegStep = () => {
+    const error = validateRegStep(regStep);
+    if (error) {
+      setRegStepError(error);
+      return;
+    }
+    setRegStepError(null);
+    setRegStep(1);
+  };
   // Candidature rédigée sans compte : mise en attente le temps de l'inscription
   const [pendingRegister, setPendingRegister] = useState(false);
 
@@ -287,38 +316,45 @@ export const PartnerScanPage: React.FC<{
         </button>
       </div>
 
-      {/* Menu partenaire : grille 2 colonnes, ZÉRO scrollbar */}
-      <div className="partner-tabs">
+      {/* Navigation partenaire (onglets) + action secondaire distincte */}
+      <div className="partner-tabs-row">
+        <div className="partner-tabs">
+          <button
+            className={`partner-tab${tab === 'scan' ? ' active' : ''}`}
+            onClick={() => setTab('scan')}
+            aria-pressed={tab === 'scan'}
+          >
+            <ScanLine size={16} />
+            Retrait
+          </button>
+          <button
+            className={`partner-tab${tab === 'confirm-deposit' ? ' active' : ''}`}
+            onClick={() => setTab('confirm-deposit')}
+            aria-pressed={tab === 'confirm-deposit'}
+          >
+            <PackageCheck size={16} />
+            Dépôt
+          </button>
+          {isAuthenticated && (
+            <button
+              className={`partner-tab${tab === 'wallet' ? ' active' : ''}`}
+              onClick={() => setTab('wallet')}
+              aria-pressed={tab === 'wallet'}
+            >
+              <Wallet size={16} />
+              Mon wallet
+            </button>
+          )}
+        </div>
         <button
-          className={`partner-tab${tab === 'scan' ? ' active' : ''}`}
-          onClick={() => setTab('scan')}
-        >
-          <ScanLine size={16} />
-          Retrait
-        </button>
-        <button
-          className={`partner-tab${tab === 'confirm-deposit' ? ' active' : ''}`}
-          onClick={() => setTab('confirm-deposit')}
-        >
-          <PackageCheck size={16} />
-          Dépôt
-        </button>
-        <button
-          className={`partner-tab${tab === 'register' ? ' active' : ''}`}
+          type="button"
+          className={`partner-tab-link${tab === 'register' ? ' active' : ''}`}
           onClick={() => setTab('register')}
+          aria-pressed={tab === 'register'}
         >
-          <Store size={16} />
+          <Store size={15} />
           Devenir partenaire
         </button>
-        {isAuthenticated && (
-          <button
-            className={`partner-tab${tab === 'wallet' ? ' active' : ''}`}
-            onClick={() => setTab('wallet')}
-          >
-            <Wallet size={16} />
-            Mon wallet
-          </button>
-        )}
       </div>
 
       {/* ── GATE : confirmation réservée aux partenaires enregistrés ── */}
@@ -347,27 +383,27 @@ export const PartnerScanPage: React.FC<{
             point de dépôt devient <strong>temporaire</strong> et peut déjà confirmer —
             l'administration le valide ensuite (wallet + dividendes).
           </p>
-          <button
-            className="btn-cta-lost"
-            style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
-            onClick={() => setTab('register')}
-          >
-            <Store size={15} style={{ marginRight: '6px' }} />
-            Devenir partenaire
-          </button>
           {onOpenAuth && (
             <button
               className="btn-cta-lost"
-              style={{
-                backgroundColor: 'transparent', color: 'var(--primary-700)',
-                border: '1.5px solid var(--primary-200, #bbf7d0)', marginLeft: '8px'
-              }}
+              style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff' }}
               onClick={() => onOpenAuth('login')}
             >
               <LogIn size={15} style={{ marginRight: '6px' }} />
               Se connecter
             </button>
           )}
+          <button
+            className="btn-cta-lost"
+            style={{
+              backgroundColor: 'transparent', color: 'var(--primary-700)',
+              border: '1.5px solid var(--primary-200, #bbf7d0)', marginTop: '10px'
+            }}
+            onClick={() => setTab('register')}
+          >
+            <Store size={15} style={{ marginRight: '6px' }} />
+            Devenir partenaire
+          </button>
         </div>
       )}
 
@@ -588,6 +624,17 @@ export const PartnerScanPage: React.FC<{
               padding: '16px',
               display: 'flex', flexDirection: 'column', gap: '12px'
             }}>
+              <FormStepper
+                steps={['Votre établissement', 'Contact & envoi']}
+                current={regStep}
+                onStepClick={(index) => { setRegStepError(null); setRegStep(index); }}
+              />
+
+              {regStepError && (
+                <p className="form-hint-error" role="alert">{regStepError}</p>
+              )}
+
+              {regStep === 0 && <>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Nom de l'établissement *</label>
                 <input type="text" className="form-input" placeholder="ex: Kiosque MoMo Mvog-Mbi"
@@ -624,6 +671,9 @@ export const PartnerScanPage: React.FC<{
                 <input type="text" className="form-input" placeholder="ex: Carrefour Mvog-Mbi, face pharmacie"
                   value={regAddress} onChange={(e) => setRegAddress(e.target.value)} />
               </div>
+              </>}
+
+              {regStep === 1 && <>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Téléphone (vérification) *</label>
                 <input type="tel" className="form-input" placeholder="6XX XX XX XX" inputMode="numeric"
@@ -650,28 +700,48 @@ export const PartnerScanPage: React.FC<{
                 </div>
               )}
 
-              <button
-                type="button"
-                className="btn-cta-lost"
-                style={{
-                  backgroundColor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'var(--primary-700)' : 'var(--slate-300)',
-                  color: '#ffffff',
-                  cursor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'pointer' : 'not-allowed'
-                }}
-                disabled={regSubmitting || regName.trim().length < 3 || regPhone.length !== 9 || !regAddress.trim()}
-                onClick={handleRegisterClick}
-              >
-                {regSubmitting ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <Loader2 size={15} className="animate-spin" />
-                    Envoi de la candidature…
-                  </span>
-                ) : isAuthenticated ? (
-                  'Soumettre ma candidature →'
-                ) : (
-                  'Créer mon compte et envoyer →'
-                )}
-              </button>
+              </>}
+
+              {regStep === 0 ? (
+                <div className="form-step-nav">
+                  <button type="button" className="btn-step-next" onClick={goToNextRegStep}>
+                    Continuer →
+                  </button>
+                </div>
+              ) : (
+                <div className="form-step-nav">
+                  <button
+                    type="button"
+                    className="btn-step-back"
+                    onClick={() => { setRegStepError(null); setRegStep(0); }}
+                  >
+                    ← Précédent
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-cta-lost"
+                    style={{
+                      backgroundColor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'var(--primary-700)' : 'var(--slate-300)',
+                      color: '#ffffff',
+                      marginTop: 0,
+                      cursor: regName.trim().length >= 3 && regPhone.length === 9 && regAddress.trim() ? 'pointer' : 'not-allowed'
+                    }}
+                    disabled={regSubmitting || regName.trim().length < 3 || regPhone.length !== 9 || !regAddress.trim()}
+                    onClick={handleRegisterClick}
+                  >
+                    {regSubmitting ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                        <Loader2 size={15} className="animate-spin" />
+                        Envoi de la candidature…
+                      </span>
+                    ) : isAuthenticated ? (
+                      'Soumettre ma candidature →'
+                    ) : (
+                      'Créer mon compte et envoyer →'
+                    )}
+                  </button>
+                </div>
+              )}
               <div style={{ fontSize: '0.7rem', color: 'var(--slate-500)', textAlign: 'center' }}>
                 Vérification par l'équipe DocFinder sous 48 h ouvrées.
               </div>

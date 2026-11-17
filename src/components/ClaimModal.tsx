@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldCheck, FileImage, Loader2, AlertCircle, MapPin, Calendar, Hash, User } from 'lucide-react';
 import type { FoundDocument } from '../types';
-import { CheckoutSection } from './CheckoutSection';
+import { FormStepper } from './FormStepper';
+import { useFormSteps, focusFirstInvalidField, type FormStepDef } from '../lib/useFormSteps';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
 import { useModalA11y } from '../lib/useModalA11y';
 import { handleSupabaseError } from '../lib/errors';
@@ -44,15 +45,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
 
   const modalRef = useModalA11y(isOpen, onClose);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    clearErrors,
-    watch,
-    formState: { errors, isSubmitting }
-  } = useForm<ClaimFormValues>({
+  const form = useForm<ClaimFormValues>({
     resolver: zodResolver(claimSchema),
     mode: 'onBlur',
     defaultValues: {
@@ -67,6 +60,30 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
     }
   });
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    clearErrors,
+    watch,
+    formState: { errors, isSubmitting }
+  } = form;
+
+  /** Parcours en 3 étapes : pièce → lieu/date → preuve de propriété. */
+  const formSteps = useMemo<Array<FormStepDef<ClaimFormValues>>>(
+    () => [
+      { label: 'Votre pièce', fields: ['fullName', 'docNumber'] },
+      { label: 'Où et quand ?', fields: ['region', 'city', 'cityOther', 'approxZone', 'lostDate'] },
+      { label: 'Preuve de propriété', fields: ['secretAnswer'] }
+    ],
+    []
+  );
+  const steps = useFormSteps(form, formSteps);
+
+  /** Corps défilant de la modale (cadrage des erreurs). */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
   const region = watch('region');
   const city = watch('city');
 
@@ -76,6 +93,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
     setErrorMsg(null);
     setReferenceFile(null);
     setReferencePreview(null);
+    steps.resetSteps();
     reset({
       fullName: '',
       docNumber: '',
@@ -123,6 +141,9 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
     } catch (err) {
       setErrorMsg(handleSupabaseError(err, 'Revendication impossible pour le moment. Réessayez.'));
     }
+  }, () => {
+    steps.focusFirstErrorStep();
+    window.setTimeout(() => focusFirstInvalidField(bodyRef.current), 160);
   });
 
   const hasFieldErrors = Object.keys(errors).length > 0;
@@ -156,9 +177,17 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
           </button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body" ref={bodyRef}>
           <form onSubmit={submit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <CheckoutSection step={1} title="Votre pièce" subtitle="Les informations telles qu'inscrites sur le document" />
+            <FormStepper
+              steps={formSteps.map((s) => s.label)}
+              current={steps.step}
+              onStepClick={steps.goTo}
+            />
+
+            {steps.stepError && (
+              <p className="form-hint-error" role="alert">{steps.stepError}</p>
+            )}
 
             {hasFieldErrors && (
               <p className="form-hint-error">
@@ -166,6 +195,7 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               </p>
             )}
 
+            {steps.step === 0 && <>
             <div className="form-group">
               <label className="form-label" htmlFor="claim-full-name" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <User size={13} />
@@ -204,7 +234,9 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               <FieldError id="claim-doc-number-error" message={errors.docNumber?.message} />
             </div>
 
-            <CheckoutSection step={2} title="Où et quand l'avez-vous perdu ?" />
+            </>}
+
+            {steps.step === 1 && <>
 
             <div className="form-grid-2">
               <div className="form-group">
@@ -289,7 +321,9 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               </div>
             </div>
 
-            <CheckoutSection step={3} title="Preuve de propriété" subtitle="Vérifiée par nos modérateurs — jamais publique" />
+            </>}
+
+            {steps.step === 2 && <>
 
             <div className="form-group">
               <label className="form-label" htmlFor="claim-secret-answer">
@@ -338,6 +372,8 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               )}
             </div>
 
+            </>}
+
             {errorMsg && (
               <div role="alert" className="form-alert">
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -345,27 +381,46 @@ export const ClaimModal: React.FC<ClaimModalProps> = ({ isOpen, onClose, foundDo
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
-              className="btn-cta-lost"
-              style={{
-                backgroundColor: 'var(--primary-700)',
-                color: '#ffffff',
-                opacity: isSubmitting ? 0.7 : 1,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {isSubmitting ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                  <Loader2 size={16} className="animate-spin" />
-                  Traitement…
-                </span>
-              ) : (
-                'Déclarer la perte et revendiquer →'
-              )}
-            </button>
+            {!steps.isLast ? (
+              <div className="form-step-nav">
+                {steps.step > 0 && (
+                  <button type="button" className="btn-step-back" onClick={steps.goBack}>
+                    ← Précédent
+                  </button>
+                )}
+                <button type="button" className="btn-step-next" onClick={() => void steps.goNext()}>
+                  Continuer →
+                </button>
+              </div>
+            ) : (
+              <div className="form-step-nav">
+                <button type="button" className="btn-step-back" onClick={steps.goBack}>
+                  ← Précédent
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  aria-busy={isSubmitting}
+                  className="btn-cta-lost"
+                  style={{
+                    backgroundColor: 'var(--primary-700)',
+                    color: '#ffffff',
+                    opacity: isSubmitting ? 0.7 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    marginTop: 0
+                  }}
+                >
+                  {isSubmitting ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <Loader2 size={16} className="animate-spin" />
+                      Traitement…
+                    </span>
+                  ) : (
+                    'Déclarer et revendiquer →'
+                  )}
+                </button>
+              </div>
+            )}
 
             <div style={{ fontSize: '0.72rem', color: 'var(--slate-600)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
               <ShieldCheck size={12} color="var(--primary-600)" />

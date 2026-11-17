@@ -99,6 +99,8 @@ export function App() {
 
   // Pending action after auth
   const [pendingAction, setPendingAction] = useState<'open_lost' | 'open_found' | null>(null);
+  /** Pièce visée par « C'est mon document » avant la connexion (reprise après auth). */
+  const [pendingClaimDoc, setPendingClaimDoc] = useState<FoundDocument | null>(null);
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -433,6 +435,29 @@ export function App() {
     // (sinon les listes restent celles chargées en mode visiteur).
     void refreshAllDataRef.current(newProfile.id);
 
+    // Reprise de la revendication interrompue par la connexion (« C'est mon
+    // document » cliqué en visiteur) : on rouvre la vérification sur la pièce
+    // visée, sans refaire chercher l'utilisateur dans le catalogue.
+    if (pendingClaimDoc) {
+      const doc = pendingClaimDoc;
+      setPendingClaimDoc(null);
+      void dataService.getMatches()
+        .then((freshMatches) => {
+          const existing = freshMatches.find(m => m.found_document_id === doc.id);
+          setSelectedFoundDoc(doc);
+          if (existing) {
+            setSelectedMatch(existing);
+            setIsMatchModalOpen(true);
+          } else {
+            setIsClaimModalOpen(true);
+          }
+        })
+        .catch(() => {
+          setSelectedFoundDoc(doc);
+          setIsClaimModalOpen(true);
+        });
+    }
+
     // Execute pending action if user clicked a button before logging in
     if (pendingAction === 'open_lost') {
       setPendingAction(null);
@@ -477,6 +502,9 @@ export function App() {
 
   const handleClaimDoc = (doc: FoundDocument) => {
     if (!isAuthenticated) {
+      // On mémorise la pièce visée : après connexion, la vérification de
+      // propriété s'ouvre directement sur ce document.
+      setPendingClaimDoc(doc);
       showToast('Veuillez vous connecter pour initier la vérification de propriété.');
       handleOpenAuth('login');
       return;
@@ -618,6 +646,14 @@ export function App() {
     );
   }
 
+  const authContextHint = pendingClaimDoc
+    ? "Connectez-vous pour prouver que ce document est bien le vôtre — la vérification de propriété s'ouvre juste après."
+    : pendingAction === 'open_lost'
+      ? "Créez votre compte pour déclarer la perte de votre pièce — le formulaire s'ouvre juste après."
+      : pendingAction === 'open_found'
+        ? "Créez votre compte pour signaler un document trouvé — le formulaire s'ouvre juste après."
+        : undefined;
+
   // Page dédiée partenaire (scan QR / remise vérifiée) — rendue sans la
   // navigation principale pour rester simple et dédiée au comptoir.
   if (isPartnerScan) {
@@ -635,9 +671,13 @@ export function App() {
         />
         <AuthModal
           isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
+          onClose={() => {
+            setIsAuthModalOpen(false);
+            setPendingClaimDoc(null);
+          }}
           onAuthSuccess={handleAuthSuccess}
           initialMode={authModalMode}
+          contextHint={authContextHint}
         />
       </div>
     );
@@ -699,8 +739,10 @@ export function App() {
                 foundDocs={foundDocs.slice(0, 3)}
                 docTypes={docTypes}
                 onClaimDoc={handleClaimDoc}
+                onReportLost={handleLostClick}
               />
-              <div style={{ textAlign: 'center', margin: '24px 0 12px' }}>
+              {foundDocs.length > 0 && (
+                <div style={{ textAlign: 'center', margin: '24px 0 12px' }}>
                 <button
                   onClick={() => setCurrentTab('search')}
                   style={{
@@ -719,7 +761,8 @@ export function App() {
                 >
                   Tous les documents ({foundDocs.length}) →
                 </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -730,6 +773,7 @@ export function App() {
               foundDocs={foundDocs}
               docTypes={docTypes}
               onClaimDoc={handleClaimDoc}
+              onReportLost={handleLostClick}
               initialQuery={searchParams.query}
               initialTypeId={searchParams.typeId}
               initialRegion={searchParams.region}
@@ -912,9 +956,13 @@ export function App() {
       {/* Modals */}
       <AuthModal 
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          setPendingClaimDoc(null);
+        }}
         onAuthSuccess={handleAuthSuccess}
         initialMode={authModalMode}
+        contextHint={authContextHint}
         onOpenLegal={handleOpenLegal}
       />
 

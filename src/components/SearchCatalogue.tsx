@@ -22,6 +22,8 @@ interface SearchCatalogueProps {
   foundDocs: FoundDocument[];
   docTypes: DocumentType[];
   onClaimDoc: (doc: FoundDocument) => void;
+  /** CTA de l'état vide : déclarer une perte (masqué si non fourni). */
+  onReportLost?: () => void;
   initialQuery?: string;
   initialTypeId?: string;
   initialRegion?: string;
@@ -45,6 +47,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
   foundDocs,
   docTypes,
   onClaimDoc,
+  onReportLost,
   initialQuery = '',
   initialTypeId = 'all',
   initialRegion = 'Toutes'
@@ -200,6 +203,16 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
           <p style={{ fontSize: '0.82rem', color: 'var(--slate-500)', marginTop: '4px', maxWidth: '380px', margin: '4px auto 0' }}>
             N'hésitez pas à créer une déclaration de perte. Notre algorithme vous notifiera dès qu'une pièce correspondante sera déposée.
           </p>
+          {onReportLost && (
+            <button
+              type="button"
+              className="btn-cta-lost"
+              style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '16px' }}
+              onClick={onReportLost}
+            >
+              Déclarer une perte
+            </button>
+          )}
         </div>
       ) : (
         <div className="doc-cards-grid">
@@ -263,10 +276,12 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
                   </h3>
 
                   <div className="doc-card-meta">
-                    <div className="doc-card-meta-row">
-                      <CreditCard size={14} color="var(--slate-400)" />
-                      <span>Numéro masqué : <strong>{doc.doc_number_partial}</strong></span>
-                    </div>
+                    {doc.doc_number_partial.replace(/\*/g, '').trim().length > 0 && (
+                      <div className="doc-card-meta-row">
+                        <CreditCard size={14} color="var(--slate-400)" />
+                        <span>Numéro masqué : <strong>{doc.doc_number_partial}</strong></span>
+                      </div>
+                    )}
 
                     <div className="doc-card-meta-row">
                       <MapPin size={14} color="var(--slate-400)" />

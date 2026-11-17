@@ -14,6 +14,7 @@ import type { DocumentType, FoundDocument } from '../types';
 import { sha256Hex } from '../lib/crypto';
 import { dataService } from '../services/dataService';
 import { CheckoutSection } from './CheckoutSection';
+import { FormStepper } from './FormStepper';
 import { autoDetectZones } from '../lib/autoRedact';
 import { citiesOfRegion, regionNames, CITY_OTHER } from '../lib/cameroonGeo';
 import { useModalA11y } from '../lib/useModalA11y';
@@ -311,6 +312,35 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     }
   };
 
+  /** Validation de l'étape courante avant d'avancer dans le parcours. */
+  const validateStep = (current: number): string | null => {
+    if (current === 1) {
+      if (!docTypeId) return 'Choisissez le type de document.';
+      if (!region) return 'Choisissez la région.';
+      if (!city) return 'Choisissez la ville.';
+      if (city === CITY_OTHER && !cityOther.trim()) return 'Précisez le nom de la ville ou du village.';
+      if (!approxLocation.trim()) return 'Indiquez le lieu approximatif de découverte.';
+      if (!foundDate) return 'Indiquez la date de découverte.';
+    }
+    if (current === 2) {
+      if (fullName.trim().length < 3) return 'Indiquez le nom complet figurant sur la pièce.';
+      if (docNumber.trim().length < 4) return 'Indiquez le numéro du document (4 caractères minimum).';
+    }
+    return null;
+  };
+
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  const goToNextStep = () => {
+    const error = validateStep(step);
+    if (error) {
+      setStepError(error);
+      return;
+    }
+    setStepError(null);
+    setStep((value) => value + 1);
+  };
+
   const resetAll = () => {
     setStep(1);
     setCreatedDocId(null);
@@ -351,6 +381,23 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
 
         {/* Modal Body */}
         <div className="modal-body">
+          {step <= 3 && (
+            <FormStepper
+              steps={['Lieu de découverte', 'Identification', 'Photo & caviardage']}
+              current={step - 1}
+              onStepClick={(index) => {
+                setStepError(null);
+                setStep(index + 1);
+              }}
+            />
+          )}
+
+          {stepError && (
+            <p className="form-hint-error" role="alert" style={{ marginTop: '10px' }}>
+              {stepError}
+            </p>
+          )}
+
           {step === 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <CheckoutSection step={1} title="Où avez-vous trouvé la pièce ?" subtitle="Zone publique — soyez précis, jamais personnel" />
@@ -453,7 +500,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                 type="button"
                 className="btn-cta-lost"
                 style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '8px' }}
-                onClick={() => setStep(2)}
+                onClick={goToNextStep}
               >
                 Continuer vers l'identification →
               </button>
@@ -522,7 +569,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   type="button"
                   className="btn-cta-lost"
                   style={{ backgroundColor: 'var(--slate-200)', color: 'var(--slate-800)', flex: 1 }}
-                  onClick={() => setStep(1)}
+                  onClick={() => { setStepError(null); setStep(1); }}
                 >
                   ← Retour
                 </button>
@@ -530,7 +577,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   type="button"
                   className="btn-cta-lost"
                   style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', flex: 2 }}
-                  onClick={() => setStep(3)}
+                  onClick={goToNextStep}
                 >
                   Photo & caviardage (Obligatoire) →
                 </button>
@@ -717,7 +764,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   type="button"
                   className="btn-cta-lost"
                   style={{ backgroundColor: 'var(--slate-200)', color: 'var(--slate-800)', flex: 1 }}
-                  onClick={() => setStep(2)}
+                  onClick={() => { setStepError(null); setStep(2); }}
                 >
                   ← Retour
                 </button>

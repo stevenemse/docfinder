@@ -24,7 +24,8 @@ import { useModalA11y } from '../lib/useModalA11y';
 import { dataService } from '../services/dataService';
 import { handleSupabaseError } from '../lib/errors';
 import { buildReportLostSchema, type ReportLostFormValues } from '../lib/validation';
-import { CheckoutSection } from './CheckoutSection';
+import { FormStepper } from './FormStepper';
+import { useFormSteps, focusFirstInvalidField, type FormStepDef } from '../lib/useFormSteps';
 
 interface ReportLostModalProps {
   isOpen: boolean;
@@ -67,15 +68,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
     []
   );
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    clearErrors,
-    formState: { errors, isSubmitting }
-  } = useForm<ReportLostFormValues>({
+  const form = useForm<ReportLostFormValues>({
     resolver,
     mode: 'onBlur',
     defaultValues: {
@@ -92,6 +85,30 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
       proofs: {}
     }
   });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    clearErrors,
+    formState: { errors, isSubmitting }
+  } = form;
+
+  /** Parcours en 3 étapes : on valide chaque étape avant d'avancer. */
+  const formSteps = useMemo<Array<FormStepDef<ReportLostFormValues>>>(
+    () => [
+      { label: 'La pièce égarée', fields: ['docTypeId', 'fullName', 'partialDocNum'] },
+      { label: 'Où et quand ?', fields: ['region', 'city', 'cityOther', 'approxZone', 'lostDate'] },
+      { label: 'Preuve secrète', fields: [] }
+    ],
+    []
+  );
+  const steps = useFormSteps(form, formSteps);
+
+  /** Corps défilant de la modale (cadrage des erreurs). */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   const docTypeId = watch('docTypeId');
   const region = watch('region');
@@ -121,6 +138,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
     setSubmitError(null);
     setReferenceFile(null);
     setReferencePreview(null);
+    steps.resetSteps();
     reset({
       docTypeId: docTypes[0]?.id || 'dt-1',
       fullName: '',
@@ -212,6 +230,10 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         handleSupabaseError(err, "Enregistrement impossible pour le moment. Vérifiez votre connexion et réessayez.")
       );
     }
+  }, () => {
+    // Validation globale en échec : on revient sur l'étape fautive.
+    steps.focusFirstErrorStep();
+    window.setTimeout(() => focusFirstInvalidField(bodyRef.current), 160);
   });
 
   const hasFieldErrors = Object.keys(errors).length > 0;
@@ -242,7 +264,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="modal-body">
+        <div className="modal-body" ref={bodyRef}>
           {isSuccess ? (
             <div style={{ textAlign: 'center', padding: '16px 8px' }}>
               <div style={{
@@ -303,16 +325,6 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
             </div>
           ) : (
             <form onSubmit={onSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="alert-security-box">
-                <Lock size={18} style={{ flexShrink: 0, color: 'var(--gold-600)' }} />
-                <div>
-                  <strong>Sécurité Anti-Fraude :</strong>
-                  <p style={{ marginTop: '2px', fontSize: '0.78rem' }}>
-                    La question secrète ci-dessous sera exigée lors d'une tentative de réclamation pour prouver que vous êtes bien le titulaire légitime.
-                  </p>
-                </div>
-              </div>
-
               {submitError && (
                 <div role="alert" className="form-alert">
                   <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -326,8 +338,17 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 </p>
               )}
 
-              {/* ÉTAPE 1 — La pièce */}
-              <CheckoutSection step={1} title="La pièce égarée" />
+              <FormStepper
+                steps={formSteps.map((s) => s.label)}
+                current={steps.step}
+                onStepClick={steps.goTo}
+              />
+
+              {steps.stepError && (
+                <p className="form-hint-error" role="alert">{steps.stepError}</p>
+              )}
+
+              {steps.step === 0 && <>
 
               <div className="form-group">
                 <label className="form-label" htmlFor="lost-doc-type">Type de document *</label>
@@ -437,8 +458,9 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 )}
               </div>
 
-              {/* ÉTAPE 2 — Où et quand */}
-              <CheckoutSection step={2} title="Où et quand ?" />
+              </>}
+
+              {steps.step === 1 && <>
 
               <div className="form-grid-2">
                 <div className="form-group">
@@ -522,8 +544,20 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 />
               </div>
 
+              </>}
+
               {/* ÉTAPE 3 — Preuve secrète (champs configurés par type de document) */}
-              <CheckoutSection step={3} title="Preuve secrète de propriété" subtitle="Non publique — sert à vérifier les réclamations" />
+              {steps.step === 2 && <>
+                <div className="alert-security-box">
+                  <Lock size={18} style={{ flexShrink: 0, color: 'var(--gold-600)' }} />
+                  <div>
+                    <strong>Sécurité Anti-Fraude :</strong>
+                    <p style={{ marginTop: '2px', fontSize: '0.78rem' }}>
+                      Cette preuve confidentielle sera exigée lors d'une réclamation pour
+                      prouver que vous êtes bien le titulaire légitime. Elle n'est jamais publique.
+                    </p>
+                  </div>
+                </div>
 
               <div style={{
                 background: 'var(--slate-50)',
@@ -596,17 +630,37 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 )}
               </div>
 
-              <button
-                type="submit"
-                className="btn-cta-lost"
-                style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: '10px' }}
-                disabled={isSubmitting}
-                aria-busy={isSubmitting}
-              >
-                {isSubmitting
-                  ? (referenceFile ? 'Envoi de la photo...' : 'Enregistrement...')
-                  : 'Lancer la recherche automatique →'}
-              </button>
+              </>}
+
+              {steps.step < 2 ? (
+                <div className="form-step-nav">
+                  {steps.step > 0 && (
+                    <button type="button" className="btn-step-back" onClick={steps.goBack}>
+                      ← Précédent
+                    </button>
+                  )}
+                  <button type="button" className="btn-step-next" onClick={() => void steps.goNext()}>
+                    Continuer →
+                  </button>
+                </div>
+              ) : (
+                <div className="form-step-nav">
+                  <button type="button" className="btn-step-back" onClick={steps.goBack}>
+                    ← Précédent
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-cta-lost"
+                    style={{ backgroundColor: 'var(--primary-700)', color: '#ffffff', marginTop: 0 }}
+                    disabled={isSubmitting}
+                    aria-busy={isSubmitting}
+                  >
+                    {isSubmitting
+                      ? (referenceFile ? 'Envoi de la photo...' : 'Enregistrement...')
+                      : 'Lancer la recherche →'}
+                  </button>
+                </div>
+              )}
 
               <div style={{ fontSize: '0.72rem', color: 'var(--slate-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                 <ShieldCheck size={12} color="var(--primary-600)" />

@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, ShieldCheck, AlertCircle, Phone, Mail, ChevronDown, ChevronUp, UserRound, KeyRound } from 'lucide-react';
 import { CheckoutSection } from './CheckoutSection';
+import { FormStepper } from './FormStepper';
+import { useFormSteps, type FormStepDef } from '../lib/useFormSteps';
 import { authService } from '../services/authService';
 import { useModalA11y } from '../lib/useModalA11y';
 import { handleSupabaseError } from '../lib/errors';
@@ -26,6 +28,8 @@ interface AuthModalProps {
   initialMode?: 'login' | 'register';
   initialRole?: string; // Non utilisé — gardé pour compatibilité API
   onOpenLegal?: (doc: 'privacy' | 'terms' | 'cookies') => void;
+  /** Raison de l'ouverture (ex. « déclarer une perte ») — affichée en tête de modale. */
+  contextHint?: string;
 }
 
 /** Message d'erreur relié au champ par aria-describedby (et annoncé). */
@@ -41,8 +45,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onAuthSuccess,
   initialMode = 'login',
-  onOpenLegal
+  onOpenLegal,
+  contextHint
 }) => {
+  /** Conteneur défilant : sert à ramener la vue sur la première erreur. */
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [optionalEmailOpen, setOptionalEmailOpen] = useState(false);
 
@@ -52,14 +59,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const modalRef = useModalA11y(isOpen, onClose);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    trigger,
-    formState: { errors, isSubmitting }
-  } = useForm<AuthFormValues>({
+  const form = useForm<AuthFormValues>({
     resolver: zodResolver(authFormSchema),
     mode: 'onBlur',
     defaultValues: {
@@ -73,6 +73,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   });
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    trigger,
+    formState: { errors, isSubmitting }
+  } = form;
+
+  // Parcours d'inscription : identité → sécurisation. Chaque étape est validée
+  // avant de passer à la suivante (on ne fait pas défiler tout le formulaire).
+  const registerSteps = useMemo<Array<FormStepDef<AuthFormValues>>>(
+    () => [
+      { label: 'Qui êtes-vous ?', fields: ['displayName', 'phone'] },
+      { label: 'Sécurisez votre compte', fields: ['password', 'optionalEmail', 'consentAccepted'] }
+    ],
+    []
+  );
+  const steps = useFormSteps(form, registerSteps);
+  const resetSteps = steps.resetSteps;
+
   // Sur un appareil partagé, ne jamais rouvrir la modale avec le mot de passe
   // précédent encore présent dans le champ.
   useEffect(() => {
@@ -80,8 +101,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       reset({ mode: initialMode, phoneOrEmail: '', password: '', displayName: '', phone: '', optionalEmail: '', consentAccepted: false });
       setOptionalEmailOpen(false);
       setErrorMsg(null);
+      resetSteps();
     }
-  }, [isOpen, initialMode, reset]);
+  }, [isOpen, initialMode, reset, resetSteps]);
 
   // La modale reste montée : sans cette synchro, l'ouvrir en mode « inscription »
   // (ex. candidature partenaire) réafficherait l'onglet connexion choisi la fois d'avant.
@@ -89,7 +111,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!isOpen) return;
     setMode(initialMode);
     reset({ mode: initialMode, phoneOrEmail: '', password: '', displayName: '', phone: '', optionalEmail: '', consentAccepted: false });
-  }, [isOpen, initialMode, reset]);
+    resetSteps();
+  }, [isOpen, initialMode, reset, resetSteps]);
 
   if (!isOpen) return null;
 
@@ -118,7 +141,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setMode(newMode);
     setErrorMsg(null);
     setOptionalEmailOpen(false);
+    steps.resetSteps();
     reset({ mode: newMode, phoneOrEmail: '', password: '', displayName: '', phone: '', optionalEmail: '', consentAccepted: false });
+  };
+
+  /** Ramène la vue de la modale ET le focus sur le premier champ invalide. */
+  const focusFirstInvalid = () => {
+    window.setTimeout(() => {
+      const body = bodyRef.current;
+      const el = body?.querySelector<HTMLElement>('[aria-invalid="true"]');
+      if (!body || !el) return;
+      // On cadre le groupe de champ entier (label compris), pas seulement l'input.
+      const target = el.closest('.form-group') ?? el;
+      const bodyRect = body.getBoundingClientRect();
+      const elRect = target.getBoundingClientRect();
+      body.scrollTo({ top: body.scrollTop + elRect.top - bodyRect.top - 16, behavior: 'smooth' });
+      el.focus({ preventScroll: true });
+    }, 60);
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -152,6 +191,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (err) {
       setErrorMsg(handleSupabaseError(err));
     }
+  }, () => {
+    // Formulaire invalide : on revient sur l'étape fautive, puis on cadre le
+    // premier champ en erreur (le formulaire d'inscription est long).
+    setErrorMsg(null);
+    steps.focusFirstErrorStep();
+    window.setTimeout(focusFirstInvalid, 160);
   });
 
   const phoneRegistration = register('phone');
@@ -231,7 +276,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="modal-body">
+        <div className="modal-body" ref={bodyRef}>
+          {contextHint && (
+            <p className="auth-context-hint" role="note">
+              <AlertCircle size={14} aria-hidden="true" />
+              <span>{contextHint}</span>
+            </p>
+          )}
+
           {/* Connexion Google — zéro friction */}
           <button
             type="button"
@@ -343,8 +395,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* REGISTER FORM */}
             {mode === 'register' && (
               <>
-                {/* Étape 1 — Identité */}
-                <CheckoutSection step={1} title="Qui êtes-vous ?" subtitle="Comme inscrit sur vos pièces officielles" />
+                {/* Parcours : étape 1 — identité */}
+                <FormStepper steps={registerSteps.map((s) => s.label)} current={steps.step} onStepClick={steps.goTo} />
+
+                {steps.stepError && (
+                  <p className="form-hint-error" role="alert">{steps.stepError}</p>
+                )}
+
+                {steps.step === 0 && <>
 
                 {/* Full Name */}
                 <div className="form-group">
@@ -408,9 +466,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </p>
                   <FieldError id="auth-phone-error" message={errors.phone?.message} />
                 </div>
+                </>}
 
-                {/* Étape 2 — Sécurité */}
-                <CheckoutSection step={2} title="Sécurisez votre compte" />
+                {/* Parcours : étape 2 — sécurisation du compte */}
+                {steps.step === 1 && <>
 
                 {/* Password */}
                 <div className="form-group">
@@ -517,6 +576,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </label>
                 </div>
                 <FieldError id="auth-consent-error" message={errors.consentAccepted?.message} />
+                </>}
               </>
             )}
 
@@ -578,31 +638,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
-              style={{
-                backgroundColor: 'var(--primary-700)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                padding: '13px 20px',
-                fontSize: '0.95rem',
-                fontWeight: 800,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                marginTop: '4px',
-                opacity: isSubmitting ? 0.7 : 1,
-                transition: 'opacity 0.15s ease'
-              }}
-            >
-              {isSubmitting
-                ? 'Connexion en cours...'
-                : mode === 'login'
-                  ? 'Se Connecter'
-                  : 'Créer mon Compte Citoyen'}
-            </button>
+            {/* Navigation du parcours (inscription) / envoi (connexion) */}
+            {mode === 'register' && !steps.isLast ? (
+              <div className="form-step-nav">
+                <button
+                  type="button"
+                  className="btn-step-next"
+                  onClick={() => void steps.goNext()}
+                >
+                  Continuer →
+                </button>
+              </div>
+            ) : (
+              <div className={mode === 'register' ? 'form-step-nav' : undefined}>
+                {mode === 'register' && (
+                  <button type="button" className="btn-step-back" onClick={steps.goBack}>
+                    ← Précédent
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  aria-busy={isSubmitting}
+                  style={{
+                    backgroundColor: 'var(--primary-700)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '13px 20px',
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    marginTop: '4px',
+                    opacity: isSubmitting ? 0.7 : 1,
+                    transition: 'opacity 0.15s ease'
+                  }}
+                >
+                  {isSubmitting
+                    ? 'Connexion en cours...'
+                    : mode === 'login'
+                      ? 'Se Connecter'
+                      : 'Créer mon Compte Citoyen'}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>
