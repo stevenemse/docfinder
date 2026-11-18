@@ -16,8 +16,11 @@ const RULES: Rule[] = [
   // Compte banni côté Supabase Auth (banned_until) ou suspendu côté profil :
   // ne jamais afficher « identifiants incorrects », l'utilisateur doit savoir
   // que son compte est en cause et à qui s'adresser.
+  // Volontairement restreint : seuls les marqueurs d'un refus de connexion
+  // comptent. Les mots nus « suspendu », « blocked » ou « CORS » apparaissent
+  // dans des erreurs réseau sans rapport avec l'état du compte.
   { test: /user_banned|user is banned|user banned|banned_until/i, message: ACTIVE_ACCOUNT_REQUIRED },
-  { test: /compte (est )?(suspendu|bloqué)|suspendu|suspended|blocked/i, message: ACTIVE_ACCOUNT_REQUIRED },
+  { test: /compte (est )?(suspendu|bloqué)/i, message: ACTIVE_ACCOUNT_REQUIRED },
   { test: /invalid login credentials|invalid_credentials/i, message: 'Numéro/email ou mot de passe incorrect.' },
   { test: /email not confirmed/i, message: 'Confirmez votre adresse email avant de vous connecter.' },
   { test: /user already registered|already been registered|duplicate key.*profiles/i, message: 'Ce numéro possède déjà un compte. Connectez-vous plutôt.' },
@@ -38,7 +41,7 @@ const RULES: Rule[] = [
   { test: /mime|content.?type|415/i, message: 'Format de fichier non accepté (image JPEG/PNG attendue).' },
 
   // Réseau
-  { test: /failed to fetch|load failed|networkerror|network request failed/i, message: 'Connexion instable — vérifiez votre réseau puis réessayez.' },
+  { test: /failed to fetch|load failed|networkerror|network request failed|cors|blocked by client/i, message: 'Connexion instable — vérifiez votre réseau puis réessayez.' },
   { test: /timeout|timed out|504/i, message: 'Le serveur met trop de temps à répondre. Réessayez dans un instant.' },
   { test: /function .* does not exist|pgrst202/i, message: "Service momentanément indisponible (mise à jour en cours). Réessayez plus tard." },
 ];
