@@ -32,6 +32,10 @@ const RULES: Rule[] = [
   { test: /row-level security|permission denied|42501|accès (refusé|réservé)/i, message: "Cette action n'est pas autorisée pour votre compte." },
   { test: /profils? introuvable|profile.*not found/i, message: 'Profil introuvable. Reconnectez-vous ou réinscrivez-vous.' },
 
+  // Paiement (Edge Function gp-create-payment — anti-double paiement)
+  { test: /restitution.*déjà (été )?r[ée]gl[ée]e|déjà été réglée/i, message: "Cette restitution a déjà été réglée : aucun second paiement n'est nécessaire." },
+  { test: /paiement (est )?déjà en (attente|initialisation)|déjà été effectué/i, message: "Un paiement est déjà en attente pour cette restitution. Finalisez-le depuis le lien de paiement ou réessayez dans quelques minutes." },
+
   // Données / contraintes
   { test: /violates foreign key|23503/i, message: "Ce dossier n'existe plus ou a été supprimé." },
   { test: /violates not-null|23502/i, message: 'Un champ obligatoire est manquant. Vérifiez le formulaire.' },

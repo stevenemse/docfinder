@@ -165,6 +165,11 @@ CREATE TABLE IF NOT EXISTS public.payments (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Anti-double paiement : au plus un paiement en attente par demande
+CREATE UNIQUE INDEX IF NOT EXISTS payments_one_pending_per_request
+    ON public.payments (recovery_request_id)
+    WHERE status = 'pending';
+
 -- 8. Table: reports
 CREATE TABLE IF NOT EXISTS public.reports (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -933,9 +938,25 @@ FOR SELECT USING (
     OR public.is_moderator()
 );
 
+-- Seul chemin d'insertion légitime pour un client : la ligne 'pending' du
+-- forfait de restitution. Un utilisateur ne peut PAS créer une ligne 'paid'
+-- (elle débloquerait la restitution sans paiement) : 'paid' est écrit
+-- uniquement en service_role par le webhook / le statut de paiement.
 DROP POLICY IF EXISTS "User Inserts Own Payments" ON public.payments;
 CREATE POLICY "User Inserts Own Payments" ON public.payments
-FOR INSERT WITH CHECK (user_id = public.current_profile_id());
+FOR INSERT TO authenticated
+WITH CHECK (
+    user_id = public.current_profile_id()
+    AND status = 'pending'
+    AND amount = 2000
+    AND currency = 'XAF'
+    AND provider = 'geniuspay'
+    AND EXISTS (
+      SELECT 1 FROM public.recovery_requests r
+      WHERE r.id = recovery_request_id
+        AND r.requester_id = public.current_profile_id()
+    )
+);
 
 -- NB : les mises à jour de paiement (webhook opérateur) passent par la clé
 -- service_role (Edge Function) qui contourne la RLS.

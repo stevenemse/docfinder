@@ -1127,6 +1127,12 @@ export const dataService = {
     });
 
     const body = await res.json().catch(() => ({}));
+    // 409 = un paiement existe déjà pour cette demande. S'il porte encore un
+    // checkout valable, on renvoie CE lien (aucun second débit) au lieu d'en
+    // créer un nouveau.
+    if (res.status === 409 && body?.checkout_url && body?.reference) {
+      return { checkoutUrl: body.checkout_url as string, reference: body.reference as string };
+    }
     if (!res.ok || !body?.checkout_url) {
       throw new Error(handleSupabaseError(body?.error, 'Initialisation du paiement impossible. Réessayez.'));
     }
