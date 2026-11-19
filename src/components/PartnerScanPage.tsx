@@ -26,7 +26,7 @@ export const PartnerScanPage: React.FC<{
   /** La modale d'authentification est-elle ouverte ? (abandon de l'envoi différé) */
   authModalOpen?: boolean;
   /** Onglet d'arrivée (le wallet quand une notification parle d'argent). */
-  initialTab?: 'scan' | 'wallet';
+  initialTab?: 'scan' | 'register' | 'wallet';
 }> = ({ onBack, isAuthenticated = false, onOpenAuth, authModalOpen, initialTab = 'scan' }) => {
   const [partnerStatus, setPartnerStatus] = useState<'loading' | 'none' | 'linked'>('loading');
   const [partnerName, setPartnerName] = useState('');

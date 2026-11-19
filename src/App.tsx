@@ -86,7 +86,7 @@ export function App() {
   // webhook : on affiche un statut « en attente » et on re-vérifie tout seul.
   const [pendingPayment, setPendingPayment] = useState<{ ref: string } | null>(null);
   /** Onglet d'arrivée de la page partenaire (wallet depuis une notification d'argent). */
-  const [partnerInitialTab, setPartnerInitialTab] = useState<'scan' | 'wallet'>('scan');
+  const [partnerInitialTab, setPartnerInitialTab] = useState<'scan' | 'register' | 'wallet'>('scan');
   /** Dossier de restitution visé par une notification (défilement + fiche). */
   const [dashFocus, setDashFocus] = useState<{ requestId: string | null; at: number } | null>(null);
   /** Onglet à ouvrir d'autorité dans la console admin (candidature partenaire). */
@@ -387,7 +387,7 @@ export function App() {
    * Ouvre la page partenaire (dépôt/retrait). `tab` permet d'atterrir
    * directement sur le wallet quand la notification parle d'argent.
    */
-  const openPartnerPage = (tab: 'scan' | 'wallet' = 'scan') => {
+  const openPartnerPage = (tab: 'scan' | 'register' | 'wallet' = 'scan') => {
     setPartnerInitialTab(tab);
     setIsPartnerScan(true);
     window.location.hash = '#partenaire';
@@ -741,6 +741,8 @@ export function App() {
               onLostClick={handleLostClick}
               onFoundClick={handleFoundClick}
               foundDocsCount={foundDocs.length}
+              onOpenPartnerScan={() => openPartnerPage('scan')}
+              onOpenPartnerRegister={() => openPartnerPage('register')}
             />
 
             {/* Quick Preview of latest published documents */}

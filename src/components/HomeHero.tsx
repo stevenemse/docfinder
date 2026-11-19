@@ -8,6 +8,9 @@ import {
   Fingerprint,
   Handshake,
   CreditCard,
+  PackageCheck,
+  Store,
+  ArrowRight,
   MapPin,
   BellRing,
   ScanFace,
@@ -31,6 +34,10 @@ interface HomeHeroProps {
   onLostClick: () => void;
   onFoundClick: () => void;
   foundDocsCount: number;
+  /** Ouvre la page partenaire sur le comptoir de remise. */
+  onOpenPartnerScan: () => void;
+  /** Ouvre la page partenaire sur le formulaire de candidature. */
+  onOpenPartnerRegister: () => void;
 }
 
 const REGIONS = [
@@ -51,7 +58,9 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
   onSearchSubmit,
   onLostClick,
   onFoundClick,
-  foundDocsCount
+  foundDocsCount,
+  onOpenPartnerScan,
+  onOpenPartnerRegister
 }) => {
   const [heroSearchText, setHeroSearchText] = useState('');
   const [heroDocType, setHeroDocType] = useState('all');
@@ -264,6 +273,62 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ============ Hub partenaires — sorti du footer et mis en avant ============ */}
+      <section className="partner-hub" aria-labelledby="partner-hub-title">
+        <div className="partner-hub-intro reveal">
+          <span className="partner-hub-kicker">
+            <Store size={13} />
+            Partenaires
+          </span>
+          <h2 className="partner-hub-title" id="partner-hub-title">
+            La remise se fait au comptoir, jamais de main propre.
+          </h2>
+          <p className="partner-hub-text">
+            Commissariats, mairies, kiosques MoMo et études agréées forment le réseau de dépôt
+            DocFinder. Chaque remise est vérifiée par un code, tracée et couverte par le séquestre.
+          </p>
+          <div className="partner-hub-points">
+            <span className="partner-hub-point">
+              <ShieldCheck size={13} /> Séquestre 2 000 F jusqu'à la remise
+            </span>
+            <span className="partner-hub-point">
+              <Lock size={13} /> Code de retrait vérifié au comptoir
+            </span>
+            <span className="partner-hub-point">
+              <BadgeCheck size={13} /> Wallet après validation admin
+            </span>
+          </div>
+        </div>
+
+        <div className="partner-actions reveal reveal-d1">
+          <button type="button" className="partner-action partner-action--primary" onClick={onOpenPartnerScan}>
+            <span className="partner-action-icon">
+              <PackageCheck size={22} />
+            </span>
+            <span className="partner-action-body">
+              <span className="partner-action-title">Confirmer une récupération</span>
+              <span className="partner-action-text">
+                Le citoyen présente son code : vérifiez-le et validez la remise.
+              </span>
+            </span>
+            <ArrowRight size={18} className="partner-action-arrow" aria-hidden="true" />
+          </button>
+
+          <button type="button" className="partner-action" onClick={onOpenPartnerRegister}>
+            <span className="partner-action-icon">
+              <Store size={22} />
+            </span>
+            <span className="partner-action-body">
+              <span className="partner-action-title">Devenir partenaire</span>
+              <span className="partner-action-text">
+                Kiosque, mairie, commissariat : ouvrez votre point de dépôt agréé.
+              </span>
+            </span>
+            <ArrowRight size={18} className="partner-action-arrow" aria-hidden="true" />
+          </button>
+        </div>
+      </section>
 
       {/* ============ Garanties (features) ============ */}
       <section className="features-section">
