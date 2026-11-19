@@ -15,6 +15,9 @@
 //  3. Après payment.success : déblocage de la restitution en répliquant la
 //     logique serveur de public.complete_recovery_after_payment (statut
 //     info_needed + paiement payé requis), puis journalisation.
+//     Une demande non payable (rejetée, annulée, disparue) est ACQUITTÉE en
+//     200 sans déblocage : renvoyer 500 ferait retenter GeniusPay en boucle
+//     pour un événement qu'aucun rejeu ne peut rendre payable.
 //
 // Secret de signature : variable d'environnement GENIUSPAY_WEBHOOK_SECRET
 // (whsec_sandbox_... / whsec_live_... — récupéré à la création du webhook).
@@ -206,13 +209,26 @@ Deno.serve(async (req) => {
         .select('id, status, requester_id')
         .eq('id', requestId)
         .single();
-      if (reqErr || !req) throw new Error(`recovery_request introuvable: ${reqErr?.message}`);
+      // Demande disparue ou non payable : on ACQUITTE (200). Un 500 ferait
+      // rejouer l'événement en boucle alors qu'aucun rejeu ne peut le rendre
+      // payable (demande rejetée, annulée, expirée…). Le paiement réellement
+      // encaissé reste tracé par l'upsert ci-dessus.
+      if (reqErr || !req) {
+        console.warn(
+          `Webhook ${reference} : recovery_request ${requestId} introuvable — acquitté sans déblocage`,
+        );
+        return json(200, { received: true, ignored: 'recovery_request introuvable' });
+      }
 
       if (req.status === 'completed') {
         return json(200, { received: true, already_unlocked: true });
       }
       if (req.status !== 'info_needed') {
-        throw new Error(`Statut ${req.status} — preuve non validée, déblocage refusé`);
+        console.warn(
+          `Webhook ${reference} : demande ${requestId} au statut ${req.status} — non payable, ` +
+            'déblocage refusé (aucune retentative)',
+        );
+        return json(200, { received: true, ignored: `statut ${req.status} — non payable` });
       }
       const { error: payErr } = await supabase
         .from('payments')
