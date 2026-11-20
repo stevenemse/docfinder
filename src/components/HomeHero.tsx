@@ -268,7 +268,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
             <div className="impact-stat-label">Alerte au propriétaire</div>
           </div>
           <div className="impact-stat">
-            <AnimatedNumber className="impact-stat-num" value={2000} suffix=" F" group style={{ color: '#fbbf24' }} durationMs={1800} />
+            <AnimatedNumber className="impact-stat-num" value={2000} suffix=" F" group style={{ color: '#E8B85C' }} durationMs={1800} />
             <div className="impact-stat-label">Frais forfaitaires MoMo</div>
           </div>
         </div>

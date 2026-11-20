@@ -33,3 +33,9 @@ Thumbs.db
 .freebuff/*.log
 .freebuff/*.log.err
 supabase/.temp/
+
+# Kit d’identité fourni localement (non versionné)
+DocFinder-Cameroun-Kit-Identite/
+
+# Captures de contrôle locales
+artifacts/

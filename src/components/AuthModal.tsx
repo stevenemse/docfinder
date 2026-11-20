@@ -306,7 +306,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
               marginBottom: '16px'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--slate-400)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(15,23,42,0.08)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--slate-400)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0, 35, 31,0.08)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             {isGoogleLoading
@@ -427,7 +427,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="form-group">
                   <label className="form-label" htmlFor="auth-phone" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Phone size={14} />
-                    Numéro de Téléphone * — <span style={{ color: 'var(--primary-700)', fontWeight: 800 }}>Identifiant de connexion</span>
+                    Numéro de Téléphone * — <span style={{ color: 'var(--primary-700)', fontWeight: 700 }}>Identifiant de connexion</span>
                   </label>
                   <div style={{ display: 'flex' }}>
                     <span className="phone-prefix">
@@ -545,7 +545,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {/* Consentement RGPD / Loi n° 2024/017 — obligatoire */}
                 <div style={{
                   background: 'var(--slate-50)',
-                  border: errors.consentAccepted ? '1px solid var(--red-300, #fca5a5)' : '1px solid var(--border-color)',
+                  border: errors.consentAccepted ? '1px solid var(--red-300, #E8A79F)' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-md)',
                   padding: '12px 14px',
                   display: 'flex',
@@ -667,7 +667,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     borderRadius: 'var(--radius-md)',
                     padding: '13px 20px',
                     fontSize: '0.95rem',
-                    fontWeight: 800,
+                    fontWeight: 700,
                     cursor: isSubmitting ? 'not-allowed' : 'pointer',
                     marginTop: '4px',
                     opacity: isSubmitting ? 0.7 : 1,

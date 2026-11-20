@@ -86,7 +86,7 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     masks.forEach(m => {
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#00231F';
       ctx.fillRect(m.x * sx, m.y * sy, m.w * sx, m.h * sy);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px sans-serif';
@@ -128,7 +128,7 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
     if (!ctx) return null;
     ctx.drawImage(img, 0, 0);
     masks.forEach(m => {
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#00231F';
       ctx.fillRect(m.x, m.y, m.w, m.h);
     });
     try {
@@ -207,7 +207,7 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
         </div>
 
         <div className="modal-body">
-          <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--slate-900)' }}>
             {doc.title}
           </div>
           <div style={{ fontSize: '0.76rem', color: 'var(--slate-600)', marginTop: '2px' }}>
@@ -217,8 +217,8 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
 
           <div style={{
             marginTop: '10px', padding: '9px 12px', borderRadius: 'var(--radius-md)',
-            background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
-            fontSize: '0.76rem', color: '#92400e', lineHeight: 1.5
+            background: 'var(--gold-50, #FDF6E7)', border: '1px solid var(--gold-200, #F3D79B)',
+            fontSize: '0.76rem', color: '#7A5510', lineHeight: 1.5
           }}>
             Voici l'image <strong>telle qu'elle serait publiée</strong>. Si le visage, le numéro ou la
             signature restent lisibles, touchez-les pour les masquer — le masque est réécrit dans le
@@ -235,9 +235,9 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
           {imgStatus === 'error' && (
             <div style={{
               display: 'flex', gap: '8px', alignItems: 'center', marginTop: '10px',
-              background: 'var(--red-50, #fef2f2)', border: '1px solid #fecaca',
+              background: 'var(--red-50, #FBF0EE)', border: '1px solid #EFBEB8',
               borderRadius: 'var(--radius-md)', padding: '9px 12px',
-              fontSize: '0.78rem', color: '#b91c1c', fontWeight: 600
+              fontSize: '0.78rem', color: '#A02F27', fontWeight: 600
             }}>
               <AlertTriangle size={14} />
               Image indisponible : impossible de vérifier le caviardage. Rejetez le signalement pour
@@ -291,7 +291,7 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
           )}
 
           {error && (
-            <div role="alert" style={{ marginTop: '10px', fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
+            <div role="alert" style={{ marginTop: '10px', fontSize: '0.78rem', color: '#C8453B', fontWeight: 600 }}>
               {error}
             </div>
           )}
@@ -302,10 +302,10 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
               onClick={handleReject}
               disabled={busy !== null}
               style={{
-                flex: 1, minWidth: '140px', border: '1px solid var(--red-100, #fee2e2)',
-                background: 'var(--red-50, #fef2f2)', color: '#b91c1c',
+                flex: 1, minWidth: '140px', border: '1px solid var(--red-100, #F6D9D6)',
+                background: 'var(--red-50, #FBF0EE)', color: '#A02F27',
                 borderRadius: 'var(--radius-md)', padding: '12px 14px',
-                fontWeight: 800, fontSize: '0.82rem', cursor: busy ? 'not-allowed' : 'pointer',
+                fontWeight: 700, fontSize: '0.82rem', cursor: busy ? 'not-allowed' : 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
               }}
             >
@@ -320,7 +320,7 @@ export const AdminRedactionModal: React.FC<AdminRedactionModalProps> = ({
                 flex: 2, minWidth: '180px', border: 'none',
                 background: 'var(--primary-700)', color: '#ffffff',
                 borderRadius: 'var(--radius-md)', padding: '12px 14px',
-                fontWeight: 800, fontSize: '0.82rem',
+                fontWeight: 700, fontSize: '0.82rem',
                 cursor: busy || imgStatus !== 'ready' ? 'not-allowed' : 'pointer',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
               }}

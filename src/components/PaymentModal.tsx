@@ -122,17 +122,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <form onSubmit={handleInitiatePayment} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Fee summary card */}
               <div className="payment-summary-card" style={{
-                background: 'linear-gradient(135deg, #064e3b, #0d5c3a)',
+                background: 'linear-gradient(135deg, #003734, #003734)',
                 color: '#ffffff',
                 borderRadius: 'var(--radius-md)',
                 padding: '16px',
                 boxShadow: 'var(--shadow-md)'
               }}>
                 <div>
-                  <div style={{ fontSize: '0.76rem', color: '#a7f3d0', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#B9E0D8', fontWeight: 600, textTransform: 'uppercase' }}>
                     Frais Forfaitaires de Restitution
                   </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
                     2 000 FCFA
                   </div>
                 </div>
@@ -151,7 +151,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <CheckoutSection step={1} title="Moyens de paiement acceptés" subtitle="Choix effectué sur la page sécurisée" />
               <div className="accepted-methods-grid">
                 <div className="accepted-method-chip">
-                  <div className="momo-brand-icon" style={{ background: '#f59e0b', color: '#ffffff' }}>MTN</div>
+                  <div className="momo-brand-icon" style={{ background: '#E0A526', color: '#00231F' }}>MTN</div>
                   MTN MoMo
                 </div>
                 <div className="accepted-method-chip">
@@ -245,7 +245,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           {paymentStep === 'redirecting' && (
             <div style={{ textAlign: 'center', padding: '32px 12px' }}>
               <Loader2 size={44} className="animate-spin" color="var(--primary-700)" style={{ margin: '0 auto 16px' }} />
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Connexion à la plateforme de paiement…
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
@@ -262,8 +262,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 width: '64px',
                 height: '64px',
                 borderRadius: '50%',
-                background: '#fef2f2',
-                color: '#dc2626',
+                background: '#FBF0EE',
+                color: '#C8453B',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -271,7 +271,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               }}>
                 <AlertTriangle size={34} />
               </div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Paiement non initialisé
               </h3>
               <p style={{ fontSize: '0.84rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
@@ -291,7 +291,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           {paymentStep === 'ussd_pending' && (
             <div style={{ textAlign: 'center', padding: '24px 12px' }}>
               <Loader2 size={44} className="animate-spin" color="var(--primary-700)" style={{ margin: '0 auto 16px' }} />
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Autorisation USSD en cours...
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--slate-600)', marginTop: '8px', lineHeight: 1.5 }}>
@@ -327,7 +327,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <CheckCircle2 size={38} />
               </div>
 
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Paiement Confirmé avec Succès !
               </h3>
 
@@ -345,7 +345,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 borderRadius: 'var(--radius-lg)',
                 padding: '16px'
               }}>
-                <div style={{ fontWeight: 800, color: 'var(--primary-900)', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--primary-900)', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <ShieldCheck size={18} color="var(--primary-700)" />
                   Instructions de Récupération Sécurisée
                 </div>

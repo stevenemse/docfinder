@@ -1,15 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0d5c3a"/>
-      <stop offset="1" stop-color="#0a3f28"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <path d="M20 12h16l10 10v28a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" fill="#ffffff" opacity="0.96"/>
-  <path d="M36 12l10 10H38a2 2 0 0 1-2-2V12z" fill="#cfe8db"/>
-  <rect x="22" y="28" width="12" height="3" rx="1.5" fill="#0d5c3a" opacity="0.55"/>
-  <rect x="22" y="35" width="9" height="3" rx="1.5" fill="#0d5c3a" opacity="0.35"/>
-  <circle cx="40" cy="40" r="7.5" fill="none" stroke="#0d5c3a" stroke-width="3.5"/>
-  <line x1="45.6" y1="45.6" x2="51" y2="51" stroke="#0d5c3a" stroke-width="4" stroke-linecap="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="64" height="64" role="img"><title>Favicon DocFinder</title><rect width="512" height="512" rx="96" fill="#003734"/><g transform="translate(73 61.5) scale(.5)"><defs><clipPath id="cF"><path d="M370,62C300,105 190,152 80,170C72,330 118,560 366,716C614,560 662,330 650,170C560,160 450,110 370,62Z"/></clipPath><mask id="mF" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800"><rect width="800" height="800" fill="#fff"/><path d="M90,452C250,440 340,370 430,315C510,268 590,238 760,236L760,262C590,262 510,300 440,345C350,405 255,485 90,484Z" fill="#000"/></mask></defs><g clip-path="url(#cF)"><g mask="url(#mF)"><rect width="366" height="800" fill="#FFFFFF"/><rect x="366" width="434" height="800" fill="#004844"/><path d="M366,0H800V248C590,250 510,282 440,330C400,356 385,364 366,370Z" fill="#69B2A6"/></g></g></g></svg>

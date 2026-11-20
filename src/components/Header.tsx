@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  ShieldCheck, 
   Search, 
   PlusCircle, 
   FolderCheck, 
@@ -67,18 +66,11 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-content">
         {/* Brand */}
         <div className="brand-wrapper" onClick={() => setCurrentTab('home')}>
-          <div className="brand-icon">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <div className="brand-title">
-              DocFinder
-              <span className="cameroon-flag-tag">CAMEROUN</span>
-            </div>
-            <div className="brand-tagline">
-              Plateforme Nationale Sécurisée
-            </div>
-          </div>
+          <img
+            src="/logo-docfinder.svg"
+            alt="DocFinder Cameroun — Documents retrouvés, données protégées"
+            className="brand-logo"
+          />
         </div>
 
         {/* Desktop Navigation — Dynamique selon le statut */}
@@ -290,14 +282,14 @@ export const Header: React.FC<HeaderProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: 800,
+                  fontWeight: 700,
                   fontSize: '0.78rem'
                 }}>
                   {profile?.display_name?.charAt(0) || 'C'}
                 </div>
 
                 <div className="profile-pill-text" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--slate-800)', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--slate-800)', lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
                     {profile?.display_name}
                   </span>
                   <span style={{ fontSize: '0.65rem', color: 'var(--slate-500)', fontWeight: 600 }}>

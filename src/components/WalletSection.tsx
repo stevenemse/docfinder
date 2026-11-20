@@ -111,7 +111,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
 
             {(citizenWallet?.movements.length ?? 0) > 0 && (
               <div>
-                <div style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--slate-500)', marginBottom: '4px' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--slate-500)', marginBottom: '4px' }}>
                   Derniers mouvements
                 </div>
                 {(citizenWallet?.movements ?? []).slice(0, 5).map(m => (
@@ -156,7 +156,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
       <div className="wallet-card wallet-card--partner">
         <div className="wallet-card-head">
           <div className="wallet-card-title">
-            <Store size={16} color="var(--gold-600, #b7791f)" />
+            <Store size={16} color="var(--gold-600, #A9760F)" />
             Wallet Partenaire
           </div>
         </div>
@@ -219,7 +219,7 @@ export const WalletSection: React.FC<WalletSectionProps> = ({
                 type="button"
                 onClick={() => onOpenPartnerPage('wallet')}
                 style={{
-                  alignSelf: 'flex-start', background: 'var(--surface-subtle, #f1f5f9)', color: 'var(--primary-800)',
+                  alignSelf: 'flex-start', background: 'var(--surface-subtle, #EAF4F2)', color: 'var(--primary-800)',
                   border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '8px 14px',
                   fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer'
                 }}

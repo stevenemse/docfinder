@@ -7,15 +7,15 @@ const POLL_MS = 30_000;
 
 const ICONS: Record<string, React.ReactNode> = {
   deposit_confirmed: <PackageCheck size={16} color="var(--primary-600)" />,
-  payment_received: <Wallet size={16} color="var(--gold-600, #b7791f)" />,
-  escrow_refunded: <BadgeCheck size={16} color="var(--green-600, #276749)" />,
-  withdrawal_requested: <Wallet size={16} color="var(--gold-600, #b7791f)" />,
+  payment_received: <Wallet size={16} color="var(--gold-600, #A9760F)" />,
+  escrow_refunded: <BadgeCheck size={16} color="var(--green-600, #003734)" />,
+  withdrawal_requested: <Wallet size={16} color="var(--gold-600, #A9760F)" />,
   withdrawal_processed: <Wallet size={16} color="var(--primary-600)" />,
-  partner_approved: <BadgeCheck size={16} color="var(--green-600, #276749)" />,
-  partner_registered: <Store size={16} color="var(--gold-600, #b7791f)" />,
-  partner_suspended: <XCircle size={16} color="var(--red-600, #c53030)" />,
-  pickup_reminder: <Clock size={16} color="var(--gold-600, #b7791f)" />,
-  handover_expired: <Clock size={16} color="var(--red-600, #c53030)" />
+  partner_approved: <BadgeCheck size={16} color="var(--green-600, #003734)" />,
+  partner_registered: <Store size={16} color="var(--gold-600, #A9760F)" />,
+  partner_suspended: <XCircle size={16} color="var(--red-600, #A02F27)" />,
+  pickup_reminder: <Clock size={16} color="var(--gold-600, #A9760F)" />,
+  handover_expired: <Clock size={16} color="var(--red-600, #A02F27)" />
 };
 
 function timeAgo(iso: string): string {

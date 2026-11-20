@@ -127,7 +127,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               {match && getQualitativeBadge(match.match_qualitative)}
             </div>
 
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--slate-900)' }}>
               {foundDoc.title_masked}
             </h3>
 
@@ -178,7 +178,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               textAlign: 'center'
             }}>
               <CheckCircle2 size={36} color="var(--primary-700)" style={{ margin: '0 auto 8px' }} />
-              <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--primary-900)' }}>
+              <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary-900)' }}>
                 Preuve de Propriété Validée !
               </h4>
               <p style={{ fontSize: '0.82rem', color: 'var(--primary-800)', marginTop: '4px' }}>
@@ -204,7 +204,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               borderRadius: 'var(--radius-md)',
               padding: '16px'
             }}>
-              <div style={{ fontWeight: 800, color: 'var(--primary-900)', fontSize: '0.95rem' }}>
+              <div style={{ fontWeight: 700, color: 'var(--primary-900)', fontSize: '0.95rem' }}>
                 🎉 Restitution Débloquée
               </div>
               <div style={{ fontSize: '0.82rem', color: 'var(--slate-700)', marginTop: '6px' }}>
@@ -222,7 +222,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               textAlign: 'center'
             }}>
               <AlertCircle size={32} color="var(--gold-600)" style={{ margin: '0 auto 8px' }} />
-              <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--gold-700)' }}>
+              <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--gold-700)' }}>
                 Demande de Restitution en Attente de Vérification
               </h4>
               <p style={{ fontSize: '0.8rem', color: 'var(--slate-600)', marginTop: '4px' }}>

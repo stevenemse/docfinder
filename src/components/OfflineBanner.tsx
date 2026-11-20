@@ -45,8 +45,8 @@ export const OfflineBanner: React.FC = () => {
         fontWeight: 700,
         color: '#ffffff',
         background: online
-          ? 'linear-gradient(90deg, #0d5c3a, #0a3f28)'
-          : 'linear-gradient(90deg, #92400e, #78350f)',
+          ? 'linear-gradient(90deg, #003734, #00231F)'
+          : 'linear-gradient(90deg, #7A5510, #7a5510)',
         animation: 'slideDown 0.25s ease'
       }}
     >

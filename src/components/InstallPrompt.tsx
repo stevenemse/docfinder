@@ -106,11 +106,11 @@ export const InstallPrompt: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          background: 'linear-gradient(135deg, #0d5c3a, #0a3f28)',
+          background: 'linear-gradient(135deg, #003734, #00231F)',
           color: '#ffffff',
           borderRadius: 16,
           padding: '12px 14px',
-          boxShadow: '0 18px 40px -12px rgba(10, 63, 40, 0.55)'
+          boxShadow: '0 18px 40px -12px rgba(0, 55, 52, 0.55)'
         }}
       >
         <div
@@ -129,7 +129,7 @@ export const InstallPrompt: React.FC = () => {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: '0.88rem' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>
             Installer DocFinder sur votre appareil
           </div>
           <div style={{ fontSize: '0.74rem', opacity: 0.85, lineHeight: 1.35, marginTop: 2 }}>
@@ -150,11 +150,11 @@ export const InstallPrompt: React.FC = () => {
               alignItems: 'center',
               gap: 6,
               background: '#ffffff',
-              color: '#0d5c3a',
+              color: '#003734',
               border: 'none',
               borderRadius: 10,
               padding: '9px 14px',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: '0.82rem',
               cursor: 'pointer',
               flexShrink: 0

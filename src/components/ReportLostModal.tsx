@@ -281,7 +281,7 @@ export const ReportLostModal: React.FC<ReportLostModalProps> = ({
                 <Sparkles size={36} />
               </div>
 
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Déclaration Enregistrée & Matching Actif
               </h3>
 

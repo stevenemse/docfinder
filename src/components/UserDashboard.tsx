@@ -134,20 +134,20 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         <div style={{
           display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
           background: partnerInfo?.status === 'active'
-            ? 'var(--primary-50, #ecfdf5)'
+            ? 'var(--primary-50, #F4FCFB)'
             : partnerInfo?.status === 'pending'
-              ? 'var(--gold-50, #fffbeb)'
+              ? 'var(--gold-50, #FDF6E7)'
               : 'var(--surface-card)',
           border: `1px solid ${partnerInfo?.status === 'pending'
-            ? 'var(--gold-200, #fde68a)'
-            : partnerInfo ? 'var(--primary-200, #bbf7d0)' : 'var(--border-color)'}`,
+            ? 'var(--gold-200, #F3D79B)'
+            : partnerInfo ? 'var(--primary-200, #C3E8DF)' : 'var(--border-color)'}`,
           borderRadius: 'var(--radius-lg)',
           padding: '12px 14px',
           marginBottom: '16px'
         }}>
           <Store size={18} color="var(--primary-700)" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: '180px' }}>
-            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+            <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--slate-900)' }}>
               {partnerInfo
                 ? partnerInfo.name
                 : 'Devenir point de dépôt partenaire'}
@@ -364,7 +364,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary-700)', textTransform: 'uppercase' }}>
                         {getTypeName(lost.document_type_id)}
                       </span>
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                         {lost.full_name_search}
                       </h3>
                       <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginTop: '2px' }}>
@@ -398,7 +398,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Sparkles size={18} color="var(--gold-600)" />
                         <div>
-                          <div style={{ fontWeight: 800, fontSize: '0.84rem', color: 'var(--gold-700)' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--gold-700)' }}>
                             {relatedMatches.length} Correspondance{relatedMatches.length > 1 ? 's' : ''} Trouvée{relatedMatches.length > 1 ? 's' : ''} !
                           </div>
                           <div style={{ fontSize: '0.74rem', color: 'var(--slate-600)' }}>
@@ -495,7 +495,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary-700)', textTransform: 'uppercase' }}>
                   {getTypeName(doc.document_type_id)}
                 </span>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                   {doc.title_masked}
                 </h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
@@ -515,15 +515,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 }
                 style={{
                   background: doc.status === 'pending_verification'
-                    ? 'var(--gold-50, #fffbeb)'
+                    ? 'var(--gold-50, #FDF6E7)'
                     : doc.status === 'rejected'
-                      ? 'var(--red-50, #fef2f2)'
-                      : 'var(--primary-50, #ecfdf5)',
+                      ? 'var(--red-50, #FBF0EE)'
+                      : 'var(--primary-50, #F4FCFB)',
                   color: doc.status === 'pending_verification'
-                    ? '#92400e'
+                    ? '#7A5510'
                     : doc.status === 'rejected'
-                      ? '#b91c1c'
-                      : 'var(--primary-800, #065f46)',
+                      ? '#A02F27'
+                      : 'var(--primary-800, #003734)',
                   padding: '4px 10px',
                   borderRadius: 'var(--radius-full)',
                   fontSize: '0.72rem',
@@ -573,7 +573,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   style={{
                     background: 'var(--surface-card)',
                     border: highlightId === req.id
-                      ? '2px solid var(--primary-500, #22c55e)'
+                      ? '2px solid var(--primary-500, #2e9e7f)'
                       : '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-lg)',
                     padding: '16px',
@@ -583,7 +583,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                     // Le header fixe ne doit pas masquer la carte visée
                     scrollMarginTop: '110px',
                     boxShadow: highlightId === req.id
-                      ? '0 0 0 4px var(--primary-100, #dcfce7)'
+                      ? '0 0 0 4px var(--primary-100, #DEFDFD)'
                       : 'none',
                     transition: 'box-shadow 0.4s ease, border-color 0.4s ease'
                   }}
@@ -601,7 +601,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       >
                         Dossier : {req.id}
                       </div>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                         Demande de Restitution
                       </h4>
                       <div style={{ fontSize: '0.8rem', color: 'var(--slate-600)', marginTop: '2px' }}>
@@ -664,7 +664,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                             fontSize: '0.82rem',
                             color: 'var(--primary-900)'
                           }}>
-                            <div style={{ fontWeight: 800 }}>Fonds séquestrés et sécurisés ✓</div>
+                            <div style={{ fontWeight: 700 }}>Fonds séquestrés et sécurisés ✓</div>
                             <div style={{ marginTop: '4px' }}>
                               Étape suivante : déposez le document chez un partenaire agréé
                               (boutique MoMo, cybercafé) — un code de retrait sera transmis
@@ -701,7 +701,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                         }}>
                           {isDeposited ? (
                             <>
-                              <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <PackageCheck size={15} color="var(--primary-700)" />
                                 Votre document est disponible ici :
                               </div>
@@ -731,7 +731,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                                   <div style={{
                                     fontFamily: 'ui-monospace, monospace',
                                     fontSize: '1.4rem',
-                                    fontWeight: 800,
+                                    fontWeight: 700,
                                     letterSpacing: '0.18em',
                                     color: 'var(--primary-800)',
                                     marginTop: '2px'
@@ -752,7 +752,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                             </div>
                           ) : (
                             <>
-                              <div style={{ fontWeight: 800 }}>Paiement confirmé — fonds séquestrés ✓</div>
+                              <div style={{ fontWeight: 700 }}>Paiement confirmé — fonds séquestrés ✓</div>
                               <div style={{ marginTop: '4px' }}>
                                 En attente : le trouveur prépare le dépôt chez un partenaire.
                                 Dès que le partenaire <strong>confirmera détenir le document</strong>,

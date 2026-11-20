@@ -853,7 +853,11 @@ export function App() {
         <div className="footer-grid">
           {/* Col 1 : marque */}
           <div>
-            <div className="footer-brand-title">🛡️ DocFinder Cameroun</div>
+            <img
+              src="/logo-docfinder-blanc.png"
+              alt="DocFinder Cameroun — Documents retrouvés, données protégées"
+              className="footer-brand-logo"
+            />
             <p className="footer-text">
               La plateforme nationale de signalement et de restitution des documents d'identité
               perdus ou trouvés. Vos données sont protégées : documents caviardés, hachage
@@ -929,7 +933,7 @@ export function App() {
         <div className="footer-bottom-bar">
           <div>
             <span className="footer-db-dot" style={{
-              background: isSupabaseConfigured() ? '#10b981' : '#f59e0b'
+              background: isSupabaseConfigured() ? '#2E9E7F' : '#E0A526'
             }} />
             DocFinder Cameroon © 2026 — Tous droits réservés
           </div>

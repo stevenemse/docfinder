@@ -293,7 +293,7 @@ export const PartnerScanPage: React.FC<{
             <ScanLine size={22} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--slate-900)' }}>
+            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--slate-900)' }}>
               Espace Partenaire
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -368,12 +368,12 @@ export const PartnerScanPage: React.FC<{
         }}>
           <div style={{
             width: '52px', height: '52px', borderRadius: '16px', margin: '0 auto 12px',
-            background: 'var(--primary-50, #eef7f2)', color: 'var(--primary-700)',
+            background: 'var(--primary-50, #EAF6F3)', color: 'var(--primary-700)',
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <ShieldCheck size={28} />
           </div>
-          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--slate-900)', margin: '0 0 6px' }}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--slate-900)', margin: '0 0 6px' }}>
             Espace partenaires vérifiés
           </h2>
           <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', lineHeight: 1.6, margin: '0 0 16px' }}>
@@ -397,7 +397,7 @@ export const PartnerScanPage: React.FC<{
             className="btn-cta-lost"
             style={{
               backgroundColor: 'transparent', color: 'var(--primary-700)',
-              border: '1.5px solid var(--primary-200, #bbf7d0)', marginTop: '10px'
+              border: '1.5px solid var(--primary-200, #C3E8DF)', marginTop: '10px'
             }}
             onClick={() => setTab('register')}
           >
@@ -409,14 +409,14 @@ export const PartnerScanPage: React.FC<{
 
       {isAuthenticated && partnerStatus === 'none' && (tab === 'scan' || tab === 'confirm-deposit') && (
         <div style={{
-          background: 'var(--gold-50, #fffbeb)',
-          border: '1px solid var(--gold-200, #fde68a)',
+          background: 'var(--gold-50, #FDF6E7)',
+          border: '1px solid var(--gold-200, #F3D79B)',
           borderRadius: 'var(--radius-lg)',
           padding: '24px 18px',
           textAlign: 'center'
         }}>
-          <Clock size={30} color="var(--gold-600, #b7791f)" style={{ margin: '0 auto 10px' }} />
-          <div style={{ fontWeight: 800, color: 'var(--slate-900)', marginBottom: '6px', fontSize: '0.95rem' }}>
+          <Clock size={30} color="var(--gold-600, #A9760F)" style={{ margin: '0 auto 10px' }} />
+          <div style={{ fontWeight: 700, color: 'var(--slate-900)', marginBottom: '6px', fontSize: '0.95rem' }}>
             Votre compte n'est pas encore rattaché à un point de dépôt
           </div>
           <p style={{ fontSize: '0.8rem', color: 'var(--slate-600)', lineHeight: 1.55, margin: '0 0 14px' }}>
@@ -444,7 +444,7 @@ export const PartnerScanPage: React.FC<{
             textAlign: 'center'
           }}>
             <CheckCircle2 size={52} color="var(--primary-700)" style={{ margin: '0 auto 12px' }} />
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-900)' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary-900)' }}>
               Dépôt confirmé !
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--slate-700)', marginTop: '6px', lineHeight: 1.55 }}>
@@ -459,7 +459,7 @@ export const PartnerScanPage: React.FC<{
               border: '1px dashed var(--border-color)',
               borderRadius: 'var(--radius-md)',
               fontFamily: 'ui-monospace, monospace',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: '1.1rem',
               letterSpacing: '0.12em',
               color: 'var(--primary-800)',
@@ -485,7 +485,7 @@ export const PartnerScanPage: React.FC<{
             borderRadius: 'var(--radius-lg)',
             padding: '16px'
           }}>
-            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <PackageCheck size={16} color="var(--primary-700)" />
               Le trouveur vous remet un document
             </div>
@@ -500,7 +500,7 @@ export const PartnerScanPage: React.FC<{
               style={{
                 fontFamily: 'ui-monospace, monospace',
                 fontSize: '1.4rem',
-                fontWeight: 800,
+                fontWeight: 700,
                 letterSpacing: '0.25em',
                 textAlign: 'center',
                 textTransform: 'uppercase'
@@ -529,9 +529,9 @@ export const PartnerScanPage: React.FC<{
             </button>
             {errorMsg && (
               <div style={{
-                background: 'var(--red-50, #fef2f2)',
-                border: '1px solid var(--red-100, #fecaca)',
-                color: 'var(--red-700, #b91c1c)',
+                background: 'var(--red-50, #FBF0EE)',
+                border: '1px solid var(--red-100, #EFBEB8)',
+                color: 'var(--red-700, #A02F27)',
                 padding: '10px 14px',
                 borderRadius: 'var(--radius-md)',
                 fontSize: '0.8rem',
@@ -558,7 +558,7 @@ export const PartnerScanPage: React.FC<{
             textAlign: 'center'
           }}>
             <BadgeCheck size={52} color="var(--primary-700)" style={{ margin: '0 auto 12px' }} />
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-900)' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary-900)' }}>
               Candidature envoyée !
             </h2>
             <p style={{ fontSize: '0.84rem', color: 'var(--slate-700)', marginTop: '6px', lineHeight: 1.5 }}>
@@ -580,8 +580,8 @@ export const PartnerScanPage: React.FC<{
             {!isAuthenticated && (
               <div style={{
                 display: 'flex', gap: '8px', alignItems: 'flex-start',
-                background: 'var(--primary-50, #eef7f2)',
-                border: '1px solid var(--primary-200, #bbf7d0)',
+                background: 'var(--primary-50, #EAF6F3)',
+                border: '1px solid var(--primary-200, #C3E8DF)',
                 borderRadius: 'var(--radius-lg)',
                 padding: '12px 14px'
               }}>
@@ -601,7 +601,7 @@ export const PartnerScanPage: React.FC<{
               borderRadius: 'var(--radius-lg)',
               padding: '16px'
             }}>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--slate-900)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Store size={16} color="var(--primary-700)" />
                 Devenir partenaire officiel
               </div>
@@ -687,9 +687,9 @@ export const PartnerScanPage: React.FC<{
 
               {errorMsg && (
                 <div style={{
-                  background: 'var(--red-50, #fef2f2)',
-                  border: '1px solid var(--red-100, #fecaca)',
-                  color: 'var(--red-700, #b91c1c)',
+                  background: 'var(--red-50, #FBF0EE)',
+                  border: '1px solid var(--red-100, #EFBEB8)',
+                  color: 'var(--red-700, #A02F27)',
                   padding: '10px 14px',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.8rem',
@@ -763,18 +763,18 @@ export const PartnerScanPage: React.FC<{
             fontSize: '0.84rem', color: 'var(--slate-600)'
           }}>
             <Wallet size={26} color="var(--slate-400)" style={{ margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 800, color: 'var(--slate-800)', marginBottom: '4px' }}>Aucun wallet</div>
+            <div style={{ fontWeight: 700, color: 'var(--slate-800)', marginBottom: '4px' }}>Aucun wallet</div>
             Votre compte n'est lié à aucun point de dépôt. Soumettez une candidature depuis
             l'onglet « Devenir partenaire » — une fois validée, votre wallet apparaîtra ici.
           </div>
         ) : wallet.partner_status !== 'active' ? (
           <div style={{
-            background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+            background: 'var(--gold-50, #FDF6E7)', border: '1px solid var(--gold-200, #F3D79B)',
             borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center',
             fontSize: '0.84rem', color: 'var(--slate-700)'
           }}>
-            <Clock size={26} color="var(--gold-600, #b7791f)" style={{ margin: '0 auto 8px' }} />
-            <div style={{ fontWeight: 800, color: 'var(--slate-900)', marginBottom: '4px' }}>
+            <Clock size={26} color="var(--gold-600, #A9760F)" style={{ margin: '0 auto 8px' }} />
+            <div style={{ fontWeight: 700, color: 'var(--slate-900)', marginBottom: '4px' }}>
               Partenaire en attente de validation
             </div>
             Vous pouvez déjà confirmer des dépôts et des retraits avec vos codes.
@@ -790,7 +790,7 @@ export const PartnerScanPage: React.FC<{
               <div style={{ fontSize: '0.72rem', fontWeight: 700, opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Solde disponible — {wallet.partner_name}
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: 800, marginTop: '4px' }}>
+              <div style={{ fontSize: '2rem', fontWeight: 700, marginTop: '4px' }}>
                 {wallet.available_balance.toLocaleString('fr-FR')} <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>FCFA</span>
               </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '10px', fontSize: '0.72rem', opacity: 0.9 }}>
@@ -805,13 +805,13 @@ export const PartnerScanPage: React.FC<{
                 background: 'var(--surface-card)', border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-lg)', padding: '14px'
               }}>
-                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--slate-800)', marginBottom: '8px' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: 'var(--slate-800)', marginBottom: '8px' }}>
                   Mes demandes de retrait
                 </div>
                 {wallet.withdrawals.map(w => (
                   <div key={w.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: '10px', padding: '8px 0', borderBottom: '1px solid var(--slate-100, #f1f5f9)',
+                    gap: '10px', padding: '8px 0', borderBottom: '1px solid var(--slate-100, #EAF4F2)',
                     fontSize: '0.8rem', flexWrap: 'wrap'
                   }}>
                     <div>
@@ -820,13 +820,13 @@ export const PartnerScanPage: React.FC<{
                         {new Date(w.requested_at).toLocaleDateString('fr-FR')} · {w.phone}
                       </span>
                       {w.reject_reason && (
-                        <div style={{ fontSize: '0.7rem', color: 'var(--red-600, #c53030)' }}>Motif : {w.reject_reason}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--red-600, #A02F27)' }}>Motif : {w.reject_reason}</div>
                       )}
                     </div>
                     <span style={{
-                      fontSize: '0.66rem', fontWeight: 800, padding: '3px 9px', borderRadius: 999,
-                      background: w.status === 'paid' ? 'var(--green-50, #ecfdf5)' : w.status === 'rejected' ? 'var(--red-50, #fef2f2)' : 'var(--gold-50, #fffbeb)',
-                      color: w.status === 'paid' ? 'var(--green-700, #047857)' : w.status === 'rejected' ? 'var(--red-700, #b91c1c)' : 'var(--gold-700, #a16207)',
+                      fontSize: '0.66rem', fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+                      background: w.status === 'paid' ? 'var(--green-50, #F4FCFB)' : w.status === 'rejected' ? 'var(--red-50, #FBF0EE)' : 'var(--gold-50, #FDF6E7)',
+                      color: w.status === 'paid' ? 'var(--green-700, #00554B)' : w.status === 'rejected' ? 'var(--red-700, #A02F27)' : 'var(--gold-700, #9c6b12)',
                       textTransform: 'uppercase', letterSpacing: '0.03em'
                     }}>
                       {w.status === 'paid' ? 'Payé' : w.status === 'rejected' ? 'Refusé' : 'En attente'}
@@ -842,7 +842,7 @@ export const PartnerScanPage: React.FC<{
               borderRadius: 'var(--radius-lg)', padding: '16px',
               display: 'flex', flexDirection: 'column', gap: '12px'
             }}>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Wallet size={16} color="var(--primary-700)" />
                 Demander un retrait
               </div>
@@ -877,8 +877,8 @@ export const PartnerScanPage: React.FC<{
 
               {wdError && (
                 <div style={{
-                  background: 'var(--red-50, #fef2f2)', border: '1px solid var(--red-100, #fecaca)',
-                  color: 'var(--red-700, #b91c1c)', padding: '10px 14px',
+                  background: 'var(--red-50, #FBF0EE)', border: '1px solid var(--red-100, #EFBEB8)',
+                  color: 'var(--red-700, #A02F27)', padding: '10px 14px',
                   borderRadius: 'var(--radius-md)', fontSize: '0.8rem',
                   display: 'flex', alignItems: 'center', gap: '8px'
                 }}>
@@ -888,8 +888,8 @@ export const PartnerScanPage: React.FC<{
               )}
               {wdMsg && (
                 <div style={{
-                  background: 'var(--green-50, #ecfdf5)', border: '1px solid var(--green-200, #a7f3d0)',
-                  color: 'var(--green-700, #047857)', padding: '10px 14px',
+                  background: 'var(--green-50, #F4FCFB)', border: '1px solid var(--green-200, #B9E0D8)',
+                  color: 'var(--green-700, #00554B)', padding: '10px 14px',
                   borderRadius: 'var(--radius-md)', fontSize: '0.8rem',
                   display: 'flex', alignItems: 'center', gap: '8px'
                 }}>
@@ -939,7 +939,7 @@ export const PartnerScanPage: React.FC<{
           textAlign: 'center'
         }}>
           <CheckCircle2 size={52} color="var(--primary-700)" style={{ margin: '0 auto 12px' }} />
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary-900)' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary-900)' }}>
             Document remis !
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--slate-700)', marginTop: '6px' }}>
@@ -963,7 +963,7 @@ export const PartnerScanPage: React.FC<{
             borderRadius: 'var(--radius-lg)',
             padding: '16px'
           }}>
-            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
               <PackageCheck size={16} color="var(--primary-700)" />
               1. Code de retrait
             </div>
@@ -973,7 +973,7 @@ export const PartnerScanPage: React.FC<{
               style={{
                 fontFamily: 'ui-monospace, monospace',
                 fontSize: '1.4rem',
-                fontWeight: 800,
+                fontWeight: 700,
                 letterSpacing: '0.25em',
                 textAlign: 'center',
                 textTransform: 'uppercase'
@@ -1008,9 +1008,9 @@ export const PartnerScanPage: React.FC<{
 
           {errorMsg && (
             <div style={{
-              background: 'var(--red-50, #fef2f2)',
-              border: '1px solid var(--red-100, #fecaca)',
-              color: 'var(--red-700, #b91c1c)',
+              background: 'var(--red-50, #FBF0EE)',
+              border: '1px solid var(--red-100, #EFBEB8)',
+              color: 'var(--red-700, #A02F27)',
               padding: '10px 14px',
               borderRadius: 'var(--radius-md)',
               fontSize: '0.8rem',
@@ -1031,7 +1031,7 @@ export const PartnerScanPage: React.FC<{
               borderRadius: 'var(--radius-lg)',
               padding: '16px'
             }}>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
                 <User size={16} color="var(--primary-700)" />
                 2. Identité du destinataire
               </div>
@@ -1067,7 +1067,7 @@ export const PartnerScanPage: React.FC<{
                   fontSize: '0.76rem',
                   fontWeight: 700,
                   marginTop: '6px',
-                  color: nameMatches ? 'var(--primary-700)' : '#b45309'
+                  color: nameMatches ? 'var(--primary-700)' : '#9C6B12'
                 }}>
                   {nameMatches
                     ? '✓ Le nom correspond au destinataire attendu'
@@ -1076,12 +1076,12 @@ export const PartnerScanPage: React.FC<{
               )}
 
               <div style={{
-                background: 'var(--gold-50, #fffbeb)',
-                border: '1px solid var(--gold-100, #fde68a)',
+                background: 'var(--gold-50, #FDF6E7)',
+                border: '1px solid var(--gold-100, #F3D79B)',
                 borderRadius: 'var(--radius-md)',
                 padding: '10px 12px',
                 fontSize: '0.75rem',
-                color: '#92400e',
+                color: '#7A5510',
                 margin: '10px 0'
               }}>
                 <strong>Règle non négociable :</strong> ne remettez JAMAIS le document
@@ -1124,7 +1124,7 @@ export const PartnerScanPage: React.FC<{
               borderRadius: 'var(--radius-lg)',
               padding: '14px 16px'
             }}>
-              <div style={{ fontWeight: 800, fontSize: '0.8rem', color: 'var(--slate-700)', marginBottom: '8px' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--slate-700)', marginBottom: '8px' }}>
                 Retraits confirmés aujourd'hui
               </div>
               {history.map((h, i) => (

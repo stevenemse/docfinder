@@ -16,7 +16,7 @@ export const CheckoutSection: React.FC<CheckoutSectionProps> = ({ step, title, s
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
       {step !== undefined && <span className="step-chip">{step}</span>}
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--slate-900)', lineHeight: 1.2 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--slate-900)', lineHeight: 1.2 }}>
           {title}
         </div>
         {subtitle && (

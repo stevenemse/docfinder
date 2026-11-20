@@ -94,7 +94,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 10px rgba(13, 92, 58, 0.4)',
+                  boxShadow: '0 4px 10px rgba(0, 55, 52, 0.4)',
                   cursor: 'pointer'
                 }}
               >
@@ -115,7 +115,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 4px 10px rgba(217, 119, 6, 0.4)',
+                  boxShadow: '0 4px 10px rgba(192, 138, 27, 0.4)',
                   cursor: 'pointer'
                 }}
               >

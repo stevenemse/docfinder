@@ -209,7 +209,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onProfileUpda
             {profile.display_name?.charAt(0)?.toUpperCase() || 'C'}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--slate-900)' }}>
               {profile.display_name}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>

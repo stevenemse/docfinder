@@ -175,7 +175,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     masks.forEach(m => {
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#00231F';
       ctx.fillRect(m.x * sx, m.y * sy, m.w * sx, m.h * sy);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px sans-serif';
@@ -242,7 +242,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
     if (!ctx) return null;
     ctx.drawImage(img, 0, 0);
     masks.forEach(m => {
-      ctx.fillStyle = '#0f172a';
+      ctx.fillStyle = '#00231F';
       ctx.fillRect(m.x, m.y, m.w, m.h);
     });
     return off.toDataURL('image/jpeg', 0.85);
@@ -599,7 +599,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                 fontSize: '0.82rem'
               }}>
                 <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={16} color="#34d399" />
+                  <ShieldCheck size={16} color="#2E9E7F" />
                   Confidentialité garantie
                 </div>
                 <p style={{ fontSize: '0.76rem', color: 'var(--slate-300)', marginTop: '4px' }}>
@@ -623,7 +623,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   Appareil photo ou galerie — la photo reste votre preuve privée.
                 </div>
                 {photoError && (
-                  <div style={{ fontSize: '0.78rem', color: '#dc2626', marginTop: '6px', fontWeight: 600 }}>
+                  <div style={{ fontSize: '0.78rem', color: '#C8453B', marginTop: '6px', fontWeight: 600 }}>
                     {photoError}
                   </div>
                 )}
@@ -636,9 +636,9 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   {autoScan === 'running' && (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '8px',
-                      background: 'var(--primary-50, #ecfdf5)', border: '1px solid var(--primary-100, #d1fae5)',
+                      background: 'var(--primary-50, #F4FCFB)', border: '1px solid var(--primary-100, #DEFDFD)',
                       borderRadius: 'var(--radius-md)', padding: '9px 12px', fontSize: '0.78rem',
-                      color: 'var(--primary-800, #065f46)', fontWeight: 600
+                      color: 'var(--primary-800, #003734)', fontWeight: 600
                     }}>
                       <Loader2 size={14} className="animate-spin" />
                       Analyse automatique : visages + lecture OCR du texte (100 % sur votre appareil)…
@@ -647,9 +647,9 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   {autoScan === 'done' && autoScanInfo && (
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
-                      background: 'var(--primary-50, #ecfdf5)', border: '1px solid var(--primary-100, #d1fae5)',
+                      background: 'var(--primary-50, #F4FCFB)', border: '1px solid var(--primary-100, #DEFDFD)',
                       borderRadius: 'var(--radius-md)', padding: '9px 12px', fontSize: '0.78rem',
-                      color: 'var(--primary-800, #065f46)'
+                      color: 'var(--primary-800, #003734)'
                     }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
                         <Sparkles size={14} color="var(--primary-700)" />
@@ -671,9 +671,9 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   {autoScan === 'failed' && (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '8px',
-                      background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+                      background: 'var(--gold-50, #FDF6E7)', border: '1px solid var(--gold-200, #F3D79B)',
                       borderRadius: 'var(--radius-md)', padding: '9px 12px', fontSize: '0.78rem',
-                      color: '#92400e', fontWeight: 600
+                      color: '#7A5510', fontWeight: 600
                     }}>
                       <AlertTriangle size={14} />
                       Analyse auto indisponible — caviardez manuellement en touchant l'image.
@@ -748,9 +748,9 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                   {masks.length > 0 && maskCoverage < 0.03 && (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '6px',
-                      background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
+                      background: 'var(--gold-50, #FDF6E7)', border: '1px solid var(--gold-200, #F3D79B)',
                       borderRadius: 'var(--radius-md)', padding: '8px 10px', marginTop: '8px',
-                      fontSize: '0.74rem', color: '#92400e', fontWeight: 600
+                      fontSize: '0.74rem', color: '#7A5510', fontWeight: 600
                     }}>
                       <AlertTriangle size={13} />
                       Peu de surface masquée ({Math.round(maskCoverage * 100)} %) : vérifiez que le visage ET le numéro sont couverts.
@@ -797,7 +797,7 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
                 <Check size={36} />
               </div>
 
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Signalement Enregistré avec Succès !
               </h3>
 
@@ -807,8 +807,8 @@ export const ReportFoundModal: React.FC<ReportFoundModalProps> = ({
 
               <div style={{
                 marginTop: '12px', padding: '10px 12px', textAlign: 'left',
-                background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-200, #fde68a)',
-                borderRadius: 'var(--radius-md)', fontSize: '0.78rem', color: '#92400e', lineHeight: 1.5
+                background: 'var(--gold-50, #FDF6E7)', border: '1px solid var(--gold-200, #F3D79B)',
+                borderRadius: 'var(--radius-md)', fontSize: '0.78rem', color: '#7A5510', lineHeight: 1.5
               }}>
                 <strong>En attente de validation.</strong> Un modérateur contrôle l'image caviardée avant
                 publication dans le catalogue public. Suivez son statut dans « Mes Signalements » (onglet

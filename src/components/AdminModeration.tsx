@@ -116,7 +116,7 @@ const ReferencePhotoCard: React.FC<{ path: string }> = ({ path }) => {
           alignItems: 'center',
           gap: '6px',
           fontSize: '0.78rem',
-          fontWeight: 800,
+          fontWeight: 700,
           color: 'var(--slate-800)'
         }}>
           <FileImage size={15} color="var(--primary-700)" />
@@ -125,7 +125,7 @@ const ReferencePhotoCard: React.FC<{ path: string }> = ({ path }) => {
             background: 'var(--primary-100)',
             color: 'var(--primary-800)',
             fontSize: '0.62rem',
-            fontWeight: 800,
+            fontWeight: 700,
             padding: '2px 7px',
             borderRadius: 'var(--radius-full)'
           }}>
@@ -263,7 +263,7 @@ const ProofReviewModal: React.FC<{
   }, [onClose]);
 
   const PanelTitle: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 800, fontSize: '0.84rem', color: 'var(--slate-900)', marginBottom: '10px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontWeight: 700, fontSize: '0.84rem', color: 'var(--slate-900)', marginBottom: '10px' }}>
       {icon}
       {children}
     </div>
@@ -282,14 +282,14 @@ const ProofReviewModal: React.FC<{
       className="proof-modal-overlay"
       style={{
         position: 'fixed', inset: 0, zIndex: 110,
-        background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(3px)',
+        background: 'rgba(0, 35, 31, 0.6)', backdropFilter: 'blur(3px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center'
       }}
     >
       <div className="proof-modal-box">
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '10px', flexWrap: 'wrap' }}>
-          <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ fontWeight: 700, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ShieldAlert size={19} color="var(--primary-700)" />
             Examen de la preuve de propriété
           </div>
@@ -313,7 +313,7 @@ const ProofReviewModal: React.FC<{
           {typeof request.match?.score_internal === 'number' && (
             <span style={{
               background: 'var(--primary-100)', color: 'var(--primary-800)',
-              borderRadius: 999, padding: '2px 9px', fontWeight: 800, fontSize: '0.7rem'
+              borderRadius: 999, padding: '2px 9px', fontWeight: 700, fontSize: '0.7rem'
             }}>
               score {Math.round(request.match.score_internal)}%
             </span>
@@ -336,8 +336,8 @@ const ProofReviewModal: React.FC<{
                 <img src={found.masked_image_url} alt="Document trouvé caviardé" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }} />
                 <span style={{
                   position: 'absolute', top: '8px', left: '8px',
-                  background: 'rgba(13, 84, 55, 0.85)', color: '#fff',
-                  fontSize: '0.6rem', fontWeight: 800, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.04em'
+                  background: 'rgba(0, 55, 52, 0.85)', color: '#fff',
+                  fontSize: '0.6rem', fontWeight: 700, padding: '2px 8px', borderRadius: 999, letterSpacing: '0.04em'
                 }}>
                   CAVIARDÉ
                 </span>
@@ -355,7 +355,7 @@ const ProofReviewModal: React.FC<{
             {found?.additional_notes_private && (
               <div style={{
                 marginTop: '8px', fontSize: '0.74rem', color: 'var(--slate-600)',
-                background: 'var(--gold-50, #fffbeb)', border: '1px solid var(--gold-100, #fde68a)',
+                background: 'var(--gold-50, #FDF6E7)', border: '1px solid var(--gold-100, #F3D79B)',
                 borderRadius: '8px', padding: '7px 10px'
               }}>
                 <strong>Note privée du trouveur :</strong> {found.additional_notes_private}
@@ -368,13 +368,13 @@ const ProofReviewModal: React.FC<{
             <PanelTitle icon={<ShieldAlert size={16} color="var(--primary-700)" />}>Preuve du chercheur</PanelTitle>
 
             <div style={{
-              background: 'var(--primary-50, #eef7f2)', border: '1px solid var(--primary-100, #d1fae5)',
+              background: 'var(--primary-50, #EAF6F3)', border: '1px solid var(--primary-100, #DEFDFD)',
               borderRadius: '10px', padding: '10px 12px', marginBottom: '10px'
             }}>
-              <div style={{ fontSize: '0.66rem', fontWeight: 800, letterSpacing: '0.06em', color: 'var(--primary-700)', marginBottom: '4px' }}>
+              <div style={{ fontSize: '0.66rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--primary-700)', marginBottom: '4px' }}>
                 RÉPONSE À LA QUESTION SECRÈTE (VÉRIFIÉE PAR HASH SERVEUR)
               </div>
-              <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--slate-900)', overflowWrap: 'anywhere' }}>
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--slate-900)', overflowWrap: 'anywhere' }}>
                 « {request.verification_proof_submitted || '—'} »
               </div>
             </div>
@@ -382,7 +382,7 @@ const ProofReviewModal: React.FC<{
             {/* Photo de référence du dossier du chercheur */}
             {lost?.reference_image_path && (
               <div style={{ marginBottom: '10px' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--slate-700)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--slate-700)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <FileImage size={13} /> Photo de référence (déclaration de perte)
                 </div>
                 {refState === 'ready' && refUrl ? (
@@ -395,7 +395,7 @@ const ProofReviewModal: React.FC<{
                   <button
                     onClick={loadRef}
                     style={{
-                      width: '100%', background: 'var(--slate-100, #f1f5f9)', border: '1px dashed var(--border-color)',
+                      width: '100%', background: 'var(--slate-100, #EAF4F2)', border: '1px dashed var(--border-color)',
                       borderRadius: '10px', padding: '12px', cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       fontSize: '0.76rem', fontWeight: 700, color: 'var(--slate-600)'
@@ -409,10 +409,10 @@ const ProofReviewModal: React.FC<{
 
             {/* Photo de preuve jointe à la revendication */}
             <div>
-              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--slate-700)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--slate-700)', marginBottom: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <FileImage size={13} /> Photo jointe à la revendication
                 {request.proof_image_path && (
-                  <span style={{ background: 'var(--primary-100)', color: 'var(--primary-800)', fontSize: '0.6rem', fontWeight: 800, padding: '1px 7px', borderRadius: 999 }}>
+                  <span style={{ background: 'var(--primary-100)', color: 'var(--primary-800)', fontSize: '0.6rem', fontWeight: 700, padding: '1px 7px', borderRadius: 999 }}>
                     FOURNIE
                   </span>
                 )}
@@ -428,7 +428,7 @@ const ProofReviewModal: React.FC<{
                   <button
                     onClick={loadProof}
                     style={{
-                      width: '100%', background: 'var(--slate-100, #f1f5f9)', border: '1px dashed var(--border-color)',
+                      width: '100%', background: 'var(--slate-100, #EAF4F2)', border: '1px dashed var(--border-color)',
                       borderRadius: '10px', padding: '12px', cursor: 'pointer',
                       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       fontSize: '0.76rem', fontWeight: 700, color: 'var(--slate-600)'
@@ -481,7 +481,7 @@ const ProofReviewModal: React.FC<{
               background: 'var(--primary-700)', color: '#fff', border: 'none',
               borderRadius: 'var(--radius-md)', padding: '9px 18px', fontSize: '0.8rem', fontWeight: 700,
               cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px',
-              boxShadow: '0 4px 12px rgba(13, 84, 55, 0.25)'
+              boxShadow: '0 4px 12px rgba(0, 55, 52, 0.25)'
             }}
           >
             <CheckCircle2 size={15} /> Valider la correspondance
@@ -880,7 +880,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
 
           <div className="admin-side-promo">
             <ShieldAlert size={18} color="#fff" />
-            <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>Accès Restreint DPO</div>
+            <div style={{ fontWeight: 700, fontSize: '0.86rem' }}>Accès Restreint DPO</div>
             <div style={{ fontSize: '0.7rem', opacity: 0.85, lineHeight: 1.45 }}>
               Toutes les actions sont journalisées et horodatées (loi n° 2024/017).
             </div>
@@ -892,7 +892,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           {/* Header rapport : titre + date + rôle opérateur */}
           <div className="admin-report-head">
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h2 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Dashboard d'Administration
               </h2>
               <div style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginTop: '2px' }}>
@@ -902,7 +902,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             <div className="admin-report-user">
               <ShieldAlert size={15} color="var(--primary-700)" />
               <div>
-                <div style={{ fontWeight: 800, fontSize: '0.8rem', color: 'var(--slate-800)' }}>Modérateur DPO</div>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--slate-800)' }}>Modérateur DPO</div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--slate-500)' }}>Administration Officer</div>
               </div>
             </div>
@@ -1118,17 +1118,17 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           {/* File de validation : rien n'est publié sans contrôle humain */}
           {!loadingData && adminDocs && pendingFoundDocs.length > 0 && (
             <div style={{
-              border: '1px solid var(--gold-200, #fde68a)',
-              background: 'var(--gold-50, #fffbeb)',
+              border: '1px solid var(--gold-200, #F3D79B)',
+              background: 'var(--gold-50, #FDF6E7)',
               borderRadius: 'var(--radius-md)',
               padding: '12px 14px',
               marginBottom: '12px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, fontSize: '0.86rem', color: '#92400e' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '0.86rem', color: '#7A5510' }}>
                 <ShieldAlert size={15} />
                 En attente de validation ({pendingFoundDocs.length})
               </div>
-              <div style={{ fontSize: '0.74rem', color: '#92400e', marginTop: '2px', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '0.74rem', color: '#7A5510', marginTop: '2px', lineHeight: 1.5 }}>
                 Ces signalements ne sont pas encore publics. Contrôlez le caviardage — vous pouvez
                 ajouter des masques sur l'image — puis publiez ou rejetez.
               </div>
@@ -1183,13 +1183,13 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           ) : (
             <>
               {adminDocs.found.length > 0 && (
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary-800)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 0 2px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary-800)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '6px 0 2px' }}>
                   Documents trouvés ({adminDocs.found.length})
                 </div>
               )}
               {adminDocs.found.map(docRow)}
               {adminDocs.lost.length > 0 && (
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary-800)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '12px 0 2px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--primary-800)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '12px 0 2px' }}>
                   Déclarations de perte ({adminDocs.lost.length})
                 </div>
               )}
@@ -1273,12 +1273,12 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           {staleRequests.length > 0 && (
             <div style={{
               background: 'var(--surface-card)',
-              border: '1px solid var(--gold-200, #fde68a)',
+              border: '1px solid var(--gold-200, #F3D79B)',
               borderRadius: 'var(--radius-lg)',
               padding: '16px'
             }}>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <AlertTriangle size={15} color="var(--gold-600, #b7791f)" />
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <AlertTriangle size={15} color="var(--gold-600, #A9760F)" />
                 Demandes sans suite ({staleRequests.length})
               </div>
               <div style={{ fontSize: '0.76rem', color: 'var(--slate-600)', marginTop: '4px', lineHeight: 1.5 }}>
@@ -1368,7 +1368,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                     <button
                       onClick={() => setProofModal(req)}
                       style={{
-                        background: 'var(--slate-100, #f1f5f9)',
+                        background: 'var(--slate-100, #EAF4F2)',
                         color: 'var(--slate-700)',
                         border: '1px solid var(--border-color)',
                         borderRadius: 'var(--radius-md)',
@@ -1411,8 +1411,8 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                 {req.match?.found_doc && (
                   <div style={{
                     display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
-                    background: 'var(--primary-50, #eef7f2)',
-                    border: '1px solid var(--primary-100, #d1fae5)',
+                    background: 'var(--primary-50, #EAF6F3)',
+                    border: '1px solid var(--primary-100, #DEFDFD)',
                     borderRadius: 'var(--radius-md)',
                     padding: '8px 10px'
                   }}>
@@ -1427,7 +1427,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                       />
                     )}
                     <div style={{ minWidth: 0, fontSize: '0.74rem', color: 'var(--slate-700)' }}>
-                      <div style={{ fontWeight: 800, color: 'var(--primary-800, #14532d)', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--primary-800, #003734)', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <FileCheck2 size={12} />
                         Document trouvé en correspondance
                       </div>
@@ -1526,10 +1526,10 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               withdrawals.map(w => (
                 <div key={w.id} style={{
                   display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
-                  padding: '12px 0', borderBottom: '1px solid var(--slate-100, #f1f5f9)'
+                  padding: '12px 0', borderBottom: '1px solid var(--slate-100, #EAF4F2)'
                 }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.86rem', color: 'var(--slate-900)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--slate-900)' }}>
                       {w.amount.toLocaleString('fr-FR')} FCFA — {w.partner_name}
                       {w.partner_status !== 'active' && (
                         <span className="admin-badge pending_verification" style={{ marginLeft: 8 }}>partenaire {w.partner_status}</span>
@@ -1544,7 +1544,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <button
                         className="admin-action-btn"
-                        style={{ background: 'var(--green-50, #ecfdf5)', color: 'var(--green-700, #047857)', borderColor: 'var(--green-200, #a7f3d0)' }}
+                        style={{ background: 'var(--green-50, #F4FCFB)', color: 'var(--green-700, #00554B)', borderColor: 'var(--green-200, #B9E0D8)' }}
                         disabled={busyWdId === w.id}
                         onClick={() => handleProcessWithdrawal(w.id, 'paid')}
                       >
@@ -1553,7 +1553,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                       </button>
                       <button
                         className="admin-action-btn"
-                        style={{ background: 'var(--red-50, #fef2f2)', color: 'var(--red-700, #b91c1c)', borderColor: 'var(--red-200, #fecaca)' }}
+                        style={{ background: 'var(--red-50, #FBF0EE)', color: 'var(--red-700, #A02F27)', borderColor: 'var(--red-200, #EFBEB8)' }}
                         disabled={busyWdId === w.id}
                         onClick={() => setRejectingWd({ id: w.id, reason: '' })}
                       >
@@ -1605,7 +1605,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--slate-900)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--slate-900)' }}>
                       {pay.amount.toLocaleString('fr-FR')} {pay.currency} — {pay.provider === 'mtn_momo' ? 'MTN MoMo' : pay.provider === 'orange_money' ? 'Orange Money' : 'GeniusPay'}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--slate-500)' }}>
@@ -1627,7 +1627,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           onClick={e => { if (e.target === e.currentTarget) setRejectingWd(null); }}
           style={{
             position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+            background: 'rgba(0, 35, 31, 0.55)', backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
           }}
         >
@@ -1635,7 +1635,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             background: 'var(--surface-card, #ffffff)', borderRadius: 'var(--radius-lg)',
             width: 'min(440px, 100%)', boxShadow: '0 24px 64px rgba(0, 0, 0, 0.3)', padding: '22px'
           }}>
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--slate-900)', marginBottom: '6px' }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--slate-900)', marginBottom: '6px' }}>
               Refuser cette demande de retrait ?
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', margin: '0 0 12px' }}>
@@ -1663,7 +1663,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               <button
                 onClick={() => handleProcessWithdrawal(rejectingWd.id, 'rejected', rejectingWd.reason.trim() || undefined)}
                 style={{
-                  background: 'var(--red-600, #dc2626)', border: 'none',
+                  background: 'var(--red-600, #C8453B)', border: 'none',
                   borderRadius: 'var(--radius-md)', padding: '8px 14px',
                   fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', color: '#fff'
                 }}
@@ -1702,25 +1702,25 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                   .sort((a, b) => Number(b.status === 'pending') - Number(a.status === 'pending'))
                   .map(pt => {
                   const statusColors: Record<string, string> = {
-                    pending: '#f59e0b', active: '#10b981', suspended: '#64748b', rejected: '#dc2626'
+                    pending: '#9C6B12', active: '#1F7A63', suspended: '#58736e', rejected: '#C8453B'
                   };
                   const statusLabels: Record<string, string> = {
                     pending: 'À valider', active: 'Actif', suspended: 'Suspendu', rejected: 'Refusé'
                   };
                   return (
                     <div key={pt.id} style={{
-                      border: `1px solid ${pt.status === 'pending' ? '#fde68a' : 'var(--border-color)'}`,
-                      background: pt.status === 'pending' ? '#fffbeb' : 'var(--surface-card)',
+                      border: `1px solid ${pt.status === 'pending' ? '#F3D79B' : 'var(--border-color)'}`,
+                      background: pt.status === 'pending' ? '#FDF6E7' : 'var(--surface-card)',
                       borderRadius: 'var(--radius-md)',
                       padding: '12px 14px'
                     }}>
                       <div className="dossier-header">
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Store size={14} color="var(--primary-700)" />
                             {pt.name}
                             <span style={{
-                              fontSize: '0.66rem', fontWeight: 800, padding: '2px 8px',
+                              fontSize: '0.66rem', fontWeight: 700, padding: '2px 8px',
                               borderRadius: '999px', color: '#fff', background: statusColors[pt.status || 'pending']
                             }}>
                               {statusLabels[pt.status || 'pending']}
@@ -1737,7 +1737,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                             {(() => {
                               if (!pt.linked_profile_id) {
                                 return (
-                                  <span style={{ color: '#b45309', fontWeight: 700 }}>
+                                  <span style={{ color: '#9C6B12', fontWeight: 700 }}>
                                     Sans compte citoyen lié — impossible de notifier le candidat
                                   </span>
                                 );
@@ -1772,7 +1772,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                               <button
                                 onClick={() => handlePartnerStatus(pt.id, 'active')}
                                 style={{
-                                  background: '#10b981', color: '#fff', border: 'none',
+                                  background: 'var(--primary-700)', color: '#fff', border: 'none',
                                   borderRadius: 'var(--radius-sm)', padding: '7px 12px',
                                   fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
                                   display: 'flex', alignItems: 'center', gap: '4px'
@@ -1809,7 +1809,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                             <button
                               onClick={() => handlePartnerStatus(pt.id, 'active')}
                               style={{
-                                background: '#10b981', color: '#fff', border: 'none',
+                                background: 'var(--primary-700)', color: '#fff', border: 'none',
                                 borderRadius: 'var(--radius-sm)', padding: '7px 12px',
                                 fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', gap: '4px'
@@ -1900,7 +1900,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           onClick={e => { if (e.target === e.currentTarget) setKpiModal(null); }}
           style={{
             position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+            background: 'rgba(0, 35, 31, 0.55)', backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
           }}
         >
@@ -1910,7 +1910,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             boxShadow: '0 24px 64px rgba(0, 0, 0, 0.3)', padding: '22px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ fontWeight: 700, fontSize: '1.02rem', color: 'var(--slate-900)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {kpiModal === 'found' ? <FileCheck2 size={18} color="var(--primary-700)" /> : <FileImage size={18} color="var(--primary-700)" />}
                 {kpiModal === 'found'
                   ? `Documents protégés (${adminDocs?.found.length ?? 0})`
@@ -1938,7 +1938,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
               (kpiModal === 'found' ? adminDocs.found : adminDocs.lost).map(d => (
                 <div key={d.id} style={{
                   display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 0',
-                  borderBottom: '1px solid var(--slate-100, #f1f5f9)'
+                  borderBottom: '1px solid var(--slate-100, #EAF4F2)'
                 }}>
                   <div className="admin-doc-thumb">
                     {d.masked_image_url && !d.masked_image_url.startsWith('data:')
@@ -1966,7 +1966,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
           onClick={e => { if (e.target === e.currentTarget && !reasonModal.busy) setReasonModal(null); }}
           style={{
             position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(3px)',
+            background: 'rgba(0, 35, 31, 0.55)', backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
           }}
         >
@@ -1978,21 +1978,21 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <div style={{
                 width: 38, height: 38, borderRadius: 'var(--radius-full)', flexShrink: 0,
-                background: reasonModal.kind === 'delete_doc' ? 'var(--red-50)' : 'var(--gold-100, #fef3c7)',
+                background: reasonModal.kind === 'delete_doc' ? 'var(--red-50)' : 'var(--gold-100, #F7E4BC)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>
                 {reasonModal.kind === 'delete_doc'
                   ? <Trash2 size={18} color="var(--red-600)" />
-                  : reasonModal.status === 'active' ? <PlayCircle size={18} color="#b45309" /> : <ShieldBan size={18} color="#b45309" />}
+                  : reasonModal.status === 'active' ? <PlayCircle size={18} color="#9C6B12" /> : <ShieldBan size={18} color="#9C6B12" />}
               </div>
-              <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--slate-900)' }}>{reasonModal.title}</div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--slate-900)' }}>{reasonModal.title}</div>
             </div>
 
             <p style={{ fontSize: '0.82rem', color: 'var(--slate-600)', margin: '0 0 14px', lineHeight: 1.5 }}>
               {reasonModal.description}
             </p>
 
-            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 800, color: 'var(--slate-700)', marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 700, color: 'var(--slate-700)', marginBottom: '6px' }}>
               Motif de la décision <span style={{ color: 'var(--red-600)' }}>*</span>
             </label>
             <textarea
@@ -2034,7 +2034,7 @@ export const AdminModeration: React.FC<AdminModerationProps> = ({
                 style={{
                   background: reasonModal.kind === 'delete_doc' ? 'var(--red-600)' : 'var(--primary-700)',
                   color: '#ffffff', border: 'none', borderRadius: 'var(--radius-md)',
-                  padding: '9px 18px', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer',
+                  padding: '9px 18px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer',
                   display: 'inline-flex', alignItems: 'center', gap: '6px'
                 }}
               >

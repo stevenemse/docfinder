@@ -302,7 +302,7 @@ export const SearchCatalogue: React.FC<SearchCatalogueProps> = ({
                 {/* Footer action */}
                 <div className="doc-card-footer">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#2E9E7F' }}></div>
                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--slate-600)' }}>
                       Vérifié
                     </span>

@@ -57,7 +57,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
     QRCode.toDataURL(url, {
       width: 320,
       margin: 1,
-      color: { dark: '#0f172a', light: '#ffffff' }
+      color: { dark: '#00231F', light: '#ffffff' }
     }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [depositResult]);
 
@@ -168,7 +168,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
                       >
                         <Store size={16} style={{ flexShrink: 0, color: 'var(--primary-700)', marginTop: '2px' }} />
                         <span style={{ minWidth: 0 }}>
-                          <span style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', color: 'var(--slate-900)' }}>
+                          <span style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', color: 'var(--slate-900)' }}>
                             {p.name}
                           </span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', color: 'var(--slate-500)', marginTop: '2px' }}>
@@ -184,9 +184,9 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
 
               {errorMsg && (
                 <div style={{
-                  background: 'var(--red-50, #fef2f2)',
-                  border: '1px solid var(--red-100, #fecaca)',
-                  color: 'var(--red-700, #b91c1c)',
+                  background: 'var(--red-50, #FBF0EE)',
+                  border: '1px solid var(--red-100, #EFBEB8)',
+                  color: 'var(--red-700, #A02F27)',
                   padding: '10px 14px',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.8rem',
@@ -237,7 +237,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
                 <CheckCircle2 size={36} />
               </div>
 
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--slate-900)' }}>
                 Dépôt initialisé !
               </h3>
 
@@ -269,7 +269,7 @@ export const HandoverModal: React.FC<HandoverModalProps> = ({
                 <span style={{
                   fontFamily: 'ui-monospace, monospace',
                   fontSize: '1.5rem',
-                  fontWeight: 800,
+                  fontWeight: 700,
                   letterSpacing: '0.15em',
                   color: 'var(--primary-800)'
                 }}>
